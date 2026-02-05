@@ -5,6 +5,8 @@ Implementation should reference these specs. When behavior changes, update the s
 
 ## Index
 
+- Core
+  - `core/DATA_MODEL.md`: State store data model (tables, keys, constraints)
 - Concepts
   - `concepts/layout.md`: GIONX_ROOT layout and Git tracking policy
   - `concepts/agents.md`: AGENTS.md generation and conventions
