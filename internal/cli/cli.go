@@ -1,0 +1,85 @@
+package cli
+
+import (
+	"fmt"
+	"io"
+	"strings"
+)
+
+const (
+	exitOK             = 0
+	exitNotImplemented = 1
+	exitUsage          = 2
+)
+
+type CLI struct {
+	Out     io.Writer
+	Err     io.Writer
+	Version string
+}
+
+func New(out io.Writer, err io.Writer) *CLI {
+	return &CLI{
+		Out:     out,
+		Err:     err,
+		Version: "dev",
+	}
+}
+
+func (c *CLI) Run(args []string) int {
+	if len(args) == 0 {
+		c.printRootUsage(c.Err)
+		return exitUsage
+	}
+
+	switch args[0] {
+	case "-h", "--help", "help":
+		c.printRootUsage(c.Out)
+		return exitOK
+	case "version":
+		fmt.Fprintln(c.Out, c.Version)
+		return exitOK
+	case "init":
+		return c.notImplemented("init")
+	case "ws":
+		return c.runWS(args[1:])
+	default:
+		fmt.Fprintf(c.Err, "unknown command: %q\n", args[0])
+		c.printRootUsage(c.Err)
+		return exitUsage
+	}
+}
+
+func (c *CLI) runWS(args []string) int {
+	if len(args) == 0 {
+		c.printWSUsage(c.Err)
+		return exitUsage
+	}
+
+	switch args[0] {
+	case "-h", "--help", "help":
+		c.printWSUsage(c.Out)
+		return exitOK
+	case "create":
+		return c.notImplemented("ws create")
+	case "list":
+		return c.notImplemented("ws list")
+	case "add-repo":
+		return c.notImplemented("ws add-repo")
+	case "close":
+		return c.notImplemented("ws close")
+	case "reopen":
+		return c.notImplemented("ws reopen")
+	case "purge":
+		return c.notImplemented("ws purge")
+	default:
+		fmt.Fprintf(c.Err, "unknown command: %q\n", strings.Join(append([]string{"ws"}, args[0]), " "))
+		c.printWSUsage(c.Err)
+		return exitUsage
+	}
+}
+
+func (c *CLI) notImplemented(name string) int {
+	fmt.Fprintf(c.Err, "not implemented: %s\n", name)
+	return exitNotImplemented
+}

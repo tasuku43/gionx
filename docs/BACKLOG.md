@@ -75,7 +75,7 @@ It does not replace per-item dependencies.
 
 ## Foundation (critical path)
 
-- [ ] MVP-001: Project skeleton (CLI entrypoint + subcommand routing)
+- [x] MVP-001: Project skeleton (CLI entrypoint + subcommand routing)
   - Specs: `docs/spec/README.md`
   - Depends: -
   - Parallel: with MVP-002/MVP-003 if different owners; otherwise do serial
