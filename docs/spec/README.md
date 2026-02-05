@@ -1,6 +1,6 @@
 ---
 title: "gionx CLI specs"
-status: planned
+status: implemented
 ---
 
 # gionx specs
