@@ -29,8 +29,8 @@ Goal:
 Suggested table: `workspace_events`
 - `workspace_id` (TEXT)
 - `event_type` (TEXT) e.g. `created`, `archived`, `reopened`, `purged`
-- `at` (timestamp)
-- `meta` (optional JSON/text)
+- `at` (INTEGER unix epoch)
+- `meta` (optional JSON string)
 
 This state store is stored outside `GIONX_ROOT`.
 
