@@ -9,8 +9,8 @@
 - workspace <-> repo bindings (repoUid, repoKey, alias, branch, etc.)
 
 The state store also keeps traceability for workspace lifecycle operations:
-- `archived_at`, `archived_commit_sha`
-- `reopened_at`, `reopened_commit_sha`
+- commit SHAs created by `ws close` / `ws reopen` (`archived_commit_sha`, `reopened_commit_sha`)
+- lifecycle timestamps via the immutable event log (`workspace_events.at`)
 
 ## Workspace status
 
@@ -71,6 +71,8 @@ Migrations are applied in order from `migrations/*.sql`.
 Recommended approach:
 - keep a `schema_migrations` table storing applied migration identifiers
 - at startup, apply any missing migrations inside a transaction
+- keep the DDL simple (no triggers in MVP); validate lifecycle transitions in the application layer
+  and keep the state updates atomic via a single transaction per command (event append + snapshot update)
 
 SQLite note:
 - foreign key constraints are only enforced when `PRAGMA foreign_keys = ON` is set.

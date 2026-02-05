@@ -47,6 +47,7 @@ Notes:
 - `generation` is required because a workspace ID can be reused after purge.
 - When a workspace is purged, its row is removed. When the same ID is created again, the new row
   must use a new generation (see `workspace_events`).
+- `archived_at` / `reopened_at` are not stored in the snapshot; use `workspace_events.at`.
 
 Recommended constraints:
 - `status IN ('active','archived')`
@@ -113,6 +114,8 @@ Columns (MVP):
 Notes:
 - Events remain even when a workspace row is purged.
 - `workspace_generation` disambiguates multiple lifecycles of the same workspace ID.
+- The DB does not encode lifecycle transition rules via triggers in MVP. Commands must validate transitions
+  in the application layer and keep state updates atomic (event append + snapshot update in one transaction).
 
 ## Generation rules
 

@@ -41,7 +41,6 @@ For each recorded workspace repo entry:
 - Mark the workspace as `active`.
 - Update `updated_at`.
 - Record:
-  - `reopened_at`
   - `reopened_commit_sha` (the commit created by this operation)
 
 5) Commit the reopen change (always)
@@ -56,4 +55,5 @@ If the Git working tree has unrelated changes, this command must not include the
 
 6) Append an event
 
-- Append `workspace_events(event_type='reopened', workspace_id='<id>', at=...)`.
+- Append `workspace_events(event_type='reopened', workspace_id='<id>', at=...)` (this is the source of truth
+  for the reopen timestamp).
