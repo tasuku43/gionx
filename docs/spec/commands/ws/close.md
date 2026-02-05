@@ -38,7 +38,6 @@ This is the primary "task completed" flow in `gionx`.
 - Mark the workspace as `archived`.
 - Update `updated_at`.
 - Record:
-  - `archived_at`
   - `archived_commit_sha` (the commit created by this operation)
 
 5) Commit the archive change (always)
@@ -52,7 +51,8 @@ This is the primary "task completed" flow in `gionx`.
 
 6) Append an event
 
-- Append `workspace_events(event_type='archived', workspace_id='<id>', at=...)`.
+- Append `workspace_events(event_type='archived', workspace_id='<id>', at=...)` (this is the source of truth
+  for the archive timestamp).
 
 If the Git working tree has unrelated changes, this command must not include them in the commit.
 
