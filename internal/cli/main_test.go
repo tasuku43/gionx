@@ -12,4 +12,3 @@ func TestMain(m *testing.M) {
 	_ = os.Setenv("GIT_COMMITTER_EMAIL", "gionx-test@example.com")
 	os.Exit(m.Run())
 }
-
