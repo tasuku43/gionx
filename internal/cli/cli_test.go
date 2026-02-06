@@ -537,7 +537,10 @@ func TestCLI_WS_AddRepo_CreatesWorktreeAndRecordsState(t *testing.T) {
 	}
 
 	ctx := context.Background()
-	dbPath := filepath.Join(dataHome, "gionx", "state.db")
+	dbPath, pathErr := paths.StateDBPathForRoot(root)
+	if pathErr != nil {
+		t.Fatalf("StateDBPathForRoot() error: %v", pathErr)
+	}
 	db, openErr := statestore.Open(ctx, dbPath)
 	if openErr != nil {
 		t.Fatalf("Open(state db) error: %v", openErr)
