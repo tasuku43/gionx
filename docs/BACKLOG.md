@@ -131,7 +131,7 @@ It does not replace per-item dependencies.
 
 ## Repo pool + worktrees
 
-- [ ] MVP-030: Repo pool (bare clone store) access
+- [x] MVP-030: Repo pool (bare clone store) access
   - What: ensure bare repo for `repo_uid`, fetch, default branch detection
   - Specs:
     - `docs/spec/concepts/state-store.md`
@@ -139,7 +139,7 @@ It does not replace per-item dependencies.
   - Depends: MVP-002, MVP-003
   - Parallel: yes (can start before MVP-010; used by add-repo/reopen)
 
-- [ ] MVP-031: `gionx ws add-repo`
+- [x] MVP-031: `gionx ws add-repo`
   - What: normalize repo spec, derive alias, prefetch, branch/base_ref prompt, create worktree,
     record `workspace_repos`
   - Specs:
@@ -151,7 +151,7 @@ It does not replace per-item dependencies.
 
 ## Archive lifecycle (Git-managed root)
 
-- [ ] MVP-040: `gionx ws close`
+- [x] MVP-040: `gionx ws close`
   - What: risk inspection (live), delete worktrees, atomic rename to `archive/`, commit touched paths,
     update snapshot + append event
   - Specs:
@@ -161,7 +161,7 @@ It does not replace per-item dependencies.
   - Depends: MVP-031
   - Serial: yes
 
-- [ ] MVP-041: `gionx ws reopen`
+- [x] MVP-041: `gionx ws reopen`
   - What: atomic rename back, recreate worktrees, commit touched paths, update snapshot + append event
   - Specs:
     - `docs/spec/commands/ws/reopen.md`
@@ -170,7 +170,7 @@ It does not replace per-item dependencies.
   - Depends: MVP-040
   - Serial: yes
 
-- [ ] MVP-042: `gionx ws purge`
+- [x] MVP-042: `gionx ws purge`
   - What: confirmations, delete dirs, remove snapshot row, append event, commit touched paths
   - Specs:
     - `docs/spec/commands/ws/purge.md`
@@ -203,7 +203,7 @@ It does not replace per-item dependencies.
   - Depends: MVP-003
   - Parallel: continuous (start early; extend per command)
 
-- [ ] MVP-901: Integration tests expansion (through MVP-042)
+- [x] MVP-901: Integration tests expansion (through MVP-042)
   - What: expand CLI-level tests to cover drift/partial-failure scenarios through the full archive lifecycle
   - Specs:
     - `docs/spec/testing/integration.md`
