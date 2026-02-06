@@ -139,7 +139,7 @@ It does not replace per-item dependencies.
   - Depends: MVP-002, MVP-003
   - Parallel: yes (can start before MVP-010; used by add-repo/reopen)
 
-- [ ] MVP-031: `gionx ws add-repo`
+- [x] MVP-031: `gionx ws add-repo`
   - What: normalize repo spec, derive alias, prefetch, branch/base_ref prompt, create worktree,
     record `workspace_repos`
   - Specs:
