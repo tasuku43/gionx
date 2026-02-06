@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"bufio"
 	"fmt"
 	"io"
 	"os"
@@ -19,6 +20,8 @@ type CLI struct {
 	Out     io.Writer
 	Err     io.Writer
 	Version string
+
+	inReader *bufio.Reader
 }
 
 func New(out io.Writer, err io.Writer) *CLI {
@@ -31,6 +34,8 @@ func New(out io.Writer, err io.Writer) *CLI {
 }
 
 func (c *CLI) Run(args []string) int {
+	c.inReader = bufio.NewReader(c.In)
+
 	if len(args) == 0 {
 		c.printRootUsage(c.Err)
 		return exitUsage
@@ -69,13 +74,13 @@ func (c *CLI) runWS(args []string) int {
 	case "list":
 		return c.runWSList(args[1:])
 	case "add-repo":
-		return c.notImplemented("ws add-repo")
+		return c.runWSAddRepo(args[1:])
 	case "close":
-		return c.notImplemented("ws close")
+		return c.runWSClose(args[1:])
 	case "reopen":
-		return c.notImplemented("ws reopen")
+		return c.runWSReopen(args[1:])
 	case "purge":
-		return c.notImplemented("ws purge")
+		return c.runWSPurge(args[1:])
 	default:
 		fmt.Fprintf(c.Err, "unknown command: %q\n", strings.Join(append([]string{"ws"}, args[0]), " "))
 		c.printWSUsage(c.Err)
