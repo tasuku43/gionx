@@ -134,7 +134,7 @@ func (c *CLI) runWSPurge(args []string) int {
 				return selected, nil
 			}
 
-			candidates, err := listArchivedWorkspaceCandidates(ctx, db)
+			candidates, err := listWorkspaceCandidatesByStatus(ctx, db, "archived")
 			if err != nil {
 				return nil, fmt.Errorf("list archived workspaces: %w", err)
 			}

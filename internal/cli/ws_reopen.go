@@ -110,7 +110,7 @@ func (c *CLI) runWSReopen(args []string) int {
 				return selected, nil
 			}
 
-			candidates, err := listArchivedWorkspaceCandidates(ctx, db)
+			candidates, err := listWorkspaceCandidatesByStatus(ctx, db, "archived")
 			if err != nil {
 				return nil, fmt.Errorf("list archived workspaces: %w", err)
 			}
@@ -162,25 +162,6 @@ func (c *CLI) runWSReopen(args []string) int {
 
 	c.debugf("ws reopen completed reopened=%v", reopened)
 	return exitOK
-}
-
-func listArchivedWorkspaceCandidates(ctx context.Context, db *sql.DB) ([]workspaceSelectorCandidate, error) {
-	items, err := statestore.ListWorkspaces(ctx, db)
-	if err != nil {
-		return nil, err
-	}
-
-	out := make([]workspaceSelectorCandidate, 0, len(items))
-	for _, it := range items {
-		if it.Status != "archived" {
-			continue
-		}
-		out = append(out, workspaceSelectorCandidate{
-			ID:          it.ID,
-			Description: strings.TrimSpace(it.Description),
-		})
-	}
-	return out, nil
 }
 
 func (c *CLI) reopenWorkspace(ctx context.Context, db *sql.DB, root string, repoPoolPath string, workspaceID string) error {

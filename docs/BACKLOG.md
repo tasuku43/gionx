@@ -231,7 +231,7 @@ It does not replace per-item dependencies.
   - Depends: UX-WS-001, MVP-040
   - Serial: yes
 
-- [ ] UX-WS-003: `gionx ws go` command (start-work flow)
+- [x] UX-WS-003: `gionx ws go` command (start-work flow)
   - What: add `ws go` with selector/direct mode, default `active` scope, optional `--archived`, and `--emit-cd`
     output for shell function integration.
   - Specs:

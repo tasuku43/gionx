@@ -1,9 +1,9 @@
 ---
 title: "`gionx ws go`"
-status: planned
+status: implemented
 ---
 
-# `gionx ws go [--archived] [<id>]`
+# `gionx ws go [--archived] [--emit-cd] [<id>]`
 
 ## Purpose
 
@@ -33,7 +33,9 @@ Jump to a workspace directory as a "start work" action.
 
 ### UX detail
 
-- After selection confirm, show selected row briefly (about 0.5s), then emit/print destination.
+- In standard mode, print `Result:` and destination path.
+- In `--emit-cd` mode, print only a shell snippet (`cd '<path>'`) to stdout.
+- In selector mode, non-TTY invocation must fail (no fallback).
 
 ### Shell integration
 
@@ -46,4 +48,4 @@ Jump to a workspace directory as a "start work" action.
 - no matching workspace in selected scope
 - invalid mixed selection (more than one selected in selector mode)
 - target directory does not exist
-
+- non-TTY invocation in selector mode
