@@ -49,9 +49,14 @@ Conflict policy:
 ## Output flow
 
 - `Repo pool:` section
+- `Progress:` section
+  - TTY: redraw a single progress block (no duplicated lines per repo)
+  - non-TTY: append progress lines as a fallback
+  - show running/completed state per repo
 - `Result:` section
   - summary: `Added <n> / <m>`
-  - per repo lines with reason on failure
+  - success details are not repeated here
+  - failure lines include reason (`! <repo> (reason: ...)`)
 
 ## Exit code
 

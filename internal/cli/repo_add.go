@@ -76,9 +76,10 @@ func (c *CLI) runRepoAdd(args []string) int {
 		requests = append(requests, repoPoolAddRequest{RepoSpecInput: strings.TrimSpace(arg)})
 	}
 
+	useColorOut := writerSupportsColor(c.Out)
 	printRepoPoolSection(c.Out, requests)
-	outcomes := applyRepoPoolAdds(ctx, db, repoPoolPath, requests, c.debugf)
-	printRepoPoolAddResult(c.Out, outcomes, writerSupportsColor(c.Out))
+	outcomes := applyRepoPoolAddsWithProgress(ctx, db, repoPoolPath, requests, repoPoolAddDefaultWorkers, c.debugf, c.Out, useColorOut)
+	printRepoPoolAddResult(c.Out, outcomes, useColorOut)
 	if repoPoolAddHadFailure(outcomes) {
 		return exitError
 	}

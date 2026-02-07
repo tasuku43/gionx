@@ -48,5 +48,9 @@ Discover repositories from provider API and bulk-add selected repos into the sha
 ## Apply behavior
 
 - selected repos are passed to the same pool-add path as `repo add`
-- `Repo pool:` -> `Result:` flow (no `Plan:`)
+- `Progress:` -> `Result:` flow (no `Plan:`)
+- execution uses bounded parallel workers
+- TTY: progress section is redrawn as one block while each repo state changes
+- non-TTY: append progress lines as a fallback
+- `Result:` prints summary (`Added <n> / <m>`) and failure details only
 - one or more failures result in `exitError`

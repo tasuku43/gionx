@@ -196,9 +196,9 @@ func (c *CLI) runRepoDiscover(args []string) int {
 		fmt.Fprintln(c.Err, "aborted")
 		return exitError
 	}
-	printRepoPoolSection(c.Out, requests)
-	outcomes := applyRepoPoolAdds(ctx, db, repoPoolPath, requests, c.debugf)
-	printRepoPoolAddResult(c.Out, outcomes, writerSupportsColor(c.Out))
+	useColorOut := writerSupportsColor(c.Out)
+	outcomes := applyRepoPoolAddsWithProgress(ctx, db, repoPoolPath, requests, repoPoolAddDefaultWorkers, c.debugf, c.Out, useColorOut)
+	printRepoPoolAddResult(c.Out, outcomes, useColorOut)
 	if repoPoolAddHadFailure(outcomes) {
 		return exitError
 	}

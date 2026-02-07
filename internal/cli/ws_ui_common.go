@@ -22,6 +22,10 @@ const (
 )
 
 func writerSupportsColor(w io.Writer) bool {
+	return writerIsTTY(w)
+}
+
+func writerIsTTY(w io.Writer) bool {
 	f, ok := w.(*os.File)
 	if !ok {
 		return false
@@ -78,6 +82,10 @@ func renderWorkspacesTitle(status string, useColor bool) string {
 
 func renderRiskTitle(useColor bool) string {
 	return styleBold("Risk:", useColor)
+}
+
+func renderProgressTitle(useColor bool) string {
+	return styleBold("Progress:", useColor)
 }
 
 func renderResultTitle(useColor bool) string {
