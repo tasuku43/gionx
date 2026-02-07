@@ -102,6 +102,8 @@ Rules:
 - Command handlers (`ws close/go/reopen/purge`) must not define ad-hoc colors or row formats inline.
 - Display differences by command should be expressed via data (mode/scope/actions), not bespoke render code.
 - `ws list --tree` should reuse `WorkspaceRowRenderer` and `RepoTreeRenderer` for visual parity with selector flows.
+- Selector-capable command handlers must delegate stage orchestration (`Workspaces -> Risk -> Result`) to the
+  shared flow component (`runWorkspaceSelectRiskResultFlow`) instead of implementing bespoke stage transitions.
 
 ## Risk label semantics (aligned with `gion`)
 

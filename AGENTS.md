@@ -55,6 +55,17 @@ Before committing (and before opening/updating a PR), run the minimum checks:
 
 If any check fails, fix it before pushing.
 
+## WS Flow Guardrail (required)
+
+For workspace selector commands, architecture must stay consistent across sessions.
+
+- Selector-capable `runWS*` handlers MUST use the shared flow orchestrator:
+  - `runWorkspaceSelectRiskResultFlow` in `internal/cli/ws_flow.go`
+- Do not implement bespoke stage transitions (`Workspaces -> Risk -> Result`) directly inside command handlers.
+- Do not bypass shared selector entrypoint:
+  - use `promptWorkspaceSelector` (do not call lower-level selector runtime directly from handlers)
+- Guard tests enforce this architecture. If they fail, align implementation instead of relaxing tests.
+
 ## Asking Questions
 
 When asking the user to make a decision:
