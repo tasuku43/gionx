@@ -357,6 +357,115 @@ func TestCLI_RepoRemove_FailsWhenRepoBoundToWorkspace(t *testing.T) {
 	}
 }
 
+func TestCLI_RepoGC_RemovesOrphanBareRepo(t *testing.T) {
+	testutil.RequireCommand(t, "git")
+
+	runGit := func(dir string, args ...string) {
+		t.Helper()
+		cmd := exec.Command("git", args...)
+		if dir != "" {
+			cmd.Dir = dir
+		}
+		out, err := cmd.CombinedOutput()
+		if err != nil {
+			t.Fatalf("git %s failed: %v (output=%s)", strings.Join(args, " "), err, strings.TrimSpace(string(out)))
+		}
+	}
+
+	env := testutil.NewEnv(t)
+	env.EnsureRootLayout(t)
+	repoSpec := prepareRemoteRepoSpecWithName(t, runGit, "github.com", "example-org", "gc-target")
+
+	{
+		var out bytes.Buffer
+		var err bytes.Buffer
+		c := New(&out, &err)
+		if code := c.Run([]string{"repo", "add", repoSpec}); code != exitOK {
+			t.Fatalf("repo add exit code = %d, want %d (stderr=%q)", code, exitOK, err.String())
+		}
+	}
+	{
+		var out bytes.Buffer
+		var err bytes.Buffer
+		c := New(&out, &err)
+		if code := c.Run([]string{"repo", "remove", "example-org/gc-target"}); code != exitOK {
+			t.Fatalf("repo remove exit code = %d, want %d (stderr=%q)", code, exitOK, err.String())
+		}
+	}
+
+	spec, normErr := repospec.Normalize(repoSpec)
+	if normErr != nil {
+		t.Fatalf("Normalize(repoSpec): %v", normErr)
+	}
+	barePath := repostore.StorePath(env.RepoPoolPath(), spec)
+	if fi, statErr := os.Stat(barePath); statErr != nil || !fi.IsDir() {
+		t.Fatalf("bare repo missing before gc: %s", barePath)
+	}
+
+	stdinR, stdinW, pipeErr := os.Pipe()
+	if pipeErr != nil {
+		t.Fatalf("stdin pipe: %v", pipeErr)
+	}
+	defer func() { _ = stdinR.Close() }()
+	_, _ = stdinW.WriteString("y\n")
+	_ = stdinW.Close()
+
+	var out bytes.Buffer
+	var err bytes.Buffer
+	c := New(&out, &err)
+	c.In = stdinR
+	code := c.Run([]string{"repo", "gc", "example-org/gc-target"})
+	if code != exitOK {
+		t.Fatalf("repo gc exit code = %d, want %d (stderr=%q stdout=%q)", code, exitOK, err.String(), out.String())
+	}
+	if !strings.Contains(out.String(), "Removed 1 / 1") {
+		t.Fatalf("stdout missing gc summary: %q", out.String())
+	}
+	if _, statErr := os.Stat(barePath); !os.IsNotExist(statErr) {
+		t.Fatalf("bare repo still exists after gc: %s", barePath)
+	}
+}
+
+func TestCLI_RepoGC_FailsWhenNoEligibleCandidates(t *testing.T) {
+	testutil.RequireCommand(t, "git")
+
+	runGit := func(dir string, args ...string) {
+		t.Helper()
+		cmd := exec.Command("git", args...)
+		if dir != "" {
+			cmd.Dir = dir
+		}
+		out, err := cmd.CombinedOutput()
+		if err != nil {
+			t.Fatalf("git %s failed: %v (output=%s)", strings.Join(args, " "), err, strings.TrimSpace(string(out)))
+		}
+	}
+
+	env := testutil.NewEnv(t)
+	env.EnsureRootLayout(t)
+	repoSpec := prepareRemoteRepoSpecWithName(t, runGit, "github.com", "example-org", "gc-blocked")
+
+	{
+		var out bytes.Buffer
+		var err bytes.Buffer
+		c := New(&out, &err)
+		if code := c.Run([]string{"repo", "add", repoSpec}); code != exitOK {
+			t.Fatalf("repo add exit code = %d, want %d (stderr=%q)", code, exitOK, err.String())
+		}
+	}
+
+	var out bytes.Buffer
+	var err bytes.Buffer
+	c := New(&out, &err)
+	code := c.Run([]string{"repo", "gc", "example-org/gc-blocked"})
+	if code != exitError {
+		t.Fatalf("repo gc exit code = %d, want %d", code, exitError)
+	}
+	if !strings.Contains(err.String(), "selected repos are not eligible for gc") {
+		t.Fatalf("stderr missing expected reason: %q", err.String())
+	}
+}
+
 func prepareRemoteRepoSpecWithName(t *testing.T, runGit func(dir string, args ...string), host string, owner string, repo string) string {
 	t.Helper()
 

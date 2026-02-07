@@ -42,6 +42,7 @@ Subcommands:
   add               Add repositories into shared repo pool
   discover          Discover repositories from provider and add selected
   remove            Remove repositories from current root registration
+  gc                Garbage-collect removable bare repos from shared pool
   help              Show this help
 `)
 }
@@ -122,6 +123,24 @@ Modes:
 Notes:
   - Physical bare repos in the shared pool are NOT deleted by this command.
   - Repos still bound to any workspace in this root cannot be removed.
+`)
+}
+
+func (c *CLI) printRepoGCUsage(w io.Writer) {
+	fmt.Fprint(w, `Usage:
+  gionx repo gc [<repo-key|repo-uid>...]
+
+Garbage-collect bare repositories from shared repo pool when safety gates pass.
+
+Modes:
+  - selector mode: omit args (interactive TTY required)
+  - direct mode:   pass repo keys or repo_uids from gc candidates
+
+Safety gates:
+  - not registered in current root repos
+  - not bound in current root workspace_repos
+  - not referenced by other known roots (state registry scan)
+  - no linked worktrees in bare repository
 `)
 }
 
