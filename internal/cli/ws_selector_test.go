@@ -269,6 +269,7 @@ func TestRenderWorkspaceSelectorLines_MessageIsIndented(t *testing.T) {
 		true,
 		true,
 		false,
+		false,
 		120,
 	)
 	msg := lines[len(lines)-1]
@@ -290,6 +291,7 @@ func TestRenderWorkspaceSelectorLines_ErrorMessageUsesErrorToken(t *testing.T) {
 		"",
 		true,
 		true,
+		false,
 		true,
 		120,
 	)
@@ -300,14 +302,14 @@ func TestRenderWorkspaceSelectorLines_ErrorMessageUsesErrorToken(t *testing.T) {
 }
 
 func TestRenderSelectorFooterLine_AlwaysKeepsSelectedSummary(t *testing.T) {
-	line := renderSelectorFooterLine(2, 10, "close", 18)
+	line := renderSelectorFooterLine(2, 10, "close", false, 18)
 	if !strings.Contains(line, "selected:") {
 		t.Fatalf("footer should keep selected summary, got %q", line)
 	}
 }
 
 func TestRenderSelectorFooterLine_DropsHintsDeterministically(t *testing.T) {
-	line := renderSelectorFooterLine(2, 10, "close", 46)
+	line := renderSelectorFooterLine(2, 10, "close", false, 46)
 	if !strings.Contains(line, "selected: 2/10") {
 		t.Fatalf("footer missing selected summary: %q", line)
 	}
@@ -316,5 +318,66 @@ func TestRenderSelectorFooterLine_DropsHintsDeterministically(t *testing.T) {
 	}
 	if strings.Contains(line, "type filter") {
 		t.Fatalf("footer should truncate later hints first, got %q", line)
+	}
+}
+
+func TestRenderWorkspaceSelectorLinesWithOptions_SingleModeHidesCheckboxAndSelectedSummary(t *testing.T) {
+	lines := renderWorkspaceSelectorLinesWithOptions(
+		"active",
+		"",
+		"go",
+		[]workspaceSelectorCandidate{
+			{ID: "WS1", Description: "desc", Risk: workspacerisk.WorkspaceRiskClean},
+		},
+		map[int]bool{},
+		0,
+		"",
+		selectorMessageLevelMuted,
+		"",
+		true,
+		true,
+		true,
+		false,
+		120,
+	)
+	joined := strings.Join(lines, "\n")
+	if strings.Contains(joined, "[ ]") || strings.Contains(joined, "[x]") {
+		t.Fatalf("single mode should hide checkbox markers: %q", joined)
+	}
+	if strings.Contains(joined, "selected:") {
+		t.Fatalf("single mode footer should not show selected summary: %q", joined)
+	}
+	if !strings.Contains(joined, "enter go") {
+		t.Fatalf("single mode footer should keep enter action hint: %q", joined)
+	}
+}
+
+func TestWorkspaceSelectorModel_SingleModeEnterSelectsCurrent(t *testing.T) {
+	m := newWorkspaceSelectorModelWithOptionsAndMode(
+		[]workspaceSelectorCandidate{
+			{ID: "WS1", Risk: workspacerisk.WorkspaceRiskClean},
+			{ID: "WS2", Risk: workspacerisk.WorkspaceRiskClean},
+		},
+		"active",
+		"go",
+		"",
+		"workspace",
+		true,
+		false,
+		nil,
+	)
+	m.cursor = 1
+
+	updated, _ := m.Update(tea.KeyMsg{Type: tea.KeyEnter})
+	next, ok := updated.(workspaceSelectorModel)
+	if !ok {
+		t.Fatalf("unexpected model type: %T", updated)
+	}
+	if !next.done {
+		t.Fatalf("single mode enter should complete selection")
+	}
+	ids := next.selectedIDs()
+	if len(ids) != 1 || ids[0] != "WS2" {
+		t.Fatalf("single mode should select focused row, got=%v", ids)
 	}
 }

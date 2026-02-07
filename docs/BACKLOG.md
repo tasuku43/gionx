@@ -430,3 +430,11 @@ It does not replace per-item dependencies.
     - `docs/spec/commands/ws/selector.md`
   - Depends: MVP-031, UX-WS-013
   - Parallel: yes
+
+- [x] UX-WS-019: `ws go` single-select UI mode
+  - What: switch `ws go` selector to cursor-confirm single-select mode (no checkbox markers, no selected summary).
+  - Specs:
+    - `docs/spec/commands/ws/selector.md`
+    - `docs/spec/commands/ws/go.md`
+  - Depends: UX-WS-001, UX-WS-003
+  - Parallel: yes

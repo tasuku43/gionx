@@ -117,12 +117,9 @@ func (c *CLI) runWSGo(args []string) int {
 				return nil, errNoActiveWorkspaces
 			}
 
-			ids, err := c.promptWorkspaceSelector(scope, "go", candidates)
+			ids, err := c.promptWorkspaceSelectorSingle(scope, "go", candidates)
 			if err != nil {
 				return nil, err
-			}
-			if len(ids) != 1 {
-				return nil, fmt.Errorf("%w: selected=%d", errWSGoSingleSelectionRequired, len(ids))
 			}
 			c.debugf("ws go selector mode selected=%v", ids)
 			return []workspaceFlowSelection{{ID: ids[0]}}, nil
