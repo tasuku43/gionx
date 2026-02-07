@@ -19,6 +19,7 @@ func TestBuildAddRepoInputsLines_BaseOnlySingleRepo(t *testing.T) {
 		"  • repos:",
 		"    └─ tasuku43/puml-parser-php",
 		"       ├─ base_ref: origin/main",
+		"       └─ branch: TEST-010",
 	}, "\n")
 
 	if !strings.Contains(got, want) {
@@ -92,6 +93,7 @@ func TestBuildAddRepoInputsLines_FirstRepoFinalizedThenSecondBaseOnly(t *testing
 		"    │  └─ branch: dddd",
 		"    └─ tasuku43/dependency-analyzer",
 		"       ├─ base_ref: origin/main",
+		"       └─ branch: TEST-010",
 	}, "\n")
 
 	if !strings.Contains(got, want) {

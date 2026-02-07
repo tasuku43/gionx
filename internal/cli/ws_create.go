@@ -185,7 +185,14 @@ func (c *CLI) runWSCreate(args []string) int {
 		return exitError
 	}
 
-	fmt.Fprintf(c.Out, "created: %s\n", wsPath)
+	useColorOut := writerSupportsColor(c.Out)
+	printResultSection(
+		c.Out,
+		useColorOut,
+		styleSuccess("Created 1 / 1", useColorOut),
+		fmt.Sprintf("✔ %s", id),
+		styleMuted(fmt.Sprintf("path: %s", wsPath), useColorOut),
+	)
 	c.debugf("ws create completed id=%s path=%s", id, wsPath)
 	return exitOK
 }

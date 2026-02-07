@@ -172,6 +172,7 @@ func (c *CLI) runWSAddRepo(args []string) int {
 	for i, cand := range selected {
 		progress[i] = addRepoInputProgress{RepoKey: cand.RepoKey}
 	}
+	fmt.Fprintln(c.Err)
 	renderedInputLines := renderAddRepoInputsProgress(c.Err, workspaceID, progress, 0, useColorErr, 0, false)
 
 	plan := make([]addRepoPlanItem, 0, len(selected))
@@ -230,7 +231,7 @@ func (c *CLI) runWSAddRepo(args []string) int {
 
 	printAddRepoPlan(c.Out, workspaceID, plan, useColorOut)
 	fmt.Fprintln(c.Out)
-	line, err := c.promptLine(fmt.Sprintf("%s%s %s", uiIndent, styleMuted("•", useColorErr), styleAccent("apply this plan? [Enter=yes / n=no]: ", useColorErr)))
+	line, err := c.promptLine(fmt.Sprintf("%s%s", uiIndent, styleAccent("apply this plan? [Enter=yes / n=no]: ", useColorErr)))
 	if err != nil {
 		fmt.Fprintf(c.Err, "read confirmation: %v\n", err)
 		return exitError
@@ -753,7 +754,6 @@ func buildAddRepoInputsLines(workspaceID string, rows []addRepoInputProgress, ac
 	labelBranch := styleAccent("branch", useColor)
 
 	lines := []string{
-		"",
 		styleBold("Inputs:", useColor),
 		fmt.Sprintf("%s%s %s: %s", uiIndent, bullet, labelWorkspace, workspaceID),
 		fmt.Sprintf("%s%s %s:", uiIndent, bullet, labelRepos),
@@ -796,6 +796,8 @@ func buildAddRepoInputsLines(workspaceID string, rows []addRepoInputProgress, ac
 		}
 		if hasBranch {
 			lines = append(lines, fmt.Sprintf("%s%s%s%s: %s", uiIndent+uiIndent, styleMuted(stem, useColor), styleMuted("└─ ", useColor), labelBranch, row.Branch))
+		} else if branchPending {
+			lines = append(lines, fmt.Sprintf("%s%s%s%s: %s", uiIndent+uiIndent, styleMuted(stem, useColor), styleMuted("└─ ", useColor), labelBranch, workspaceID))
 		}
 	}
 	return lines

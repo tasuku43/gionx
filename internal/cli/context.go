@@ -130,7 +130,8 @@ func (c *CLI) runContextUse(args []string) int {
 		fmt.Fprintf(c.Err, "write current context: %v\n", err)
 		return exitError
 	}
-	fmt.Fprintf(c.Out, "context: %s\n", root)
+	useColorOut := writerSupportsColor(c.Out)
+	printResultSection(c.Out, useColorOut, styleSuccess(fmt.Sprintf("Context set: %s", root), useColorOut))
 	return exitOK
 }
 

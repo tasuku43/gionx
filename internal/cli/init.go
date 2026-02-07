@@ -73,7 +73,8 @@ func (c *CLI) runInit(args []string) int {
 		return exitError
 	}
 
-	fmt.Fprintf(c.Out, "initialized: %s\n", root)
+	useColorOut := writerSupportsColor(c.Out)
+	printResultSection(c.Out, useColorOut, styleSuccess(fmt.Sprintf("Initialized: %s", root), useColorOut))
 	c.debugf("init completed root=%s", root)
 	return exitOK
 }
