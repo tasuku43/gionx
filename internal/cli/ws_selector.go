@@ -111,7 +111,7 @@ func (m closeSelectorModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.message = ""
 				m.debugf("selector move up cursor=%d", m.cursor)
 				return m, nil
-			case ' ':
+			case ' ', '　':
 				m.selected[m.cursor] = !m.selected[m.cursor]
 				m.message = ""
 				m.debugf("selector toggle cursor=%d selected=%t", m.cursor, m.selected[m.cursor])

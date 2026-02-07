@@ -44,3 +44,16 @@ func TestCloseSelectorModel_EnterRequiresSelection(t *testing.T) {
 		t.Fatalf("enter without selection should set guidance message")
 	}
 }
+
+func TestCloseSelectorModel_FullWidthSpaceTogglesSelection(t *testing.T) {
+	m := newCloseSelectorModel([]closeSelectorCandidate{{ID: "WS1", Risk: workspacerisk.WorkspaceRiskClean}}, false, nil)
+
+	updated, _ := m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("　")})
+	next, ok := updated.(closeSelectorModel)
+	if !ok {
+		t.Fatalf("unexpected model type: %T", updated)
+	}
+	if !next.selected[0] {
+		t.Fatalf("full-width space key should toggle selection on")
+	}
+}
