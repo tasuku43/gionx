@@ -9,6 +9,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/tasuku43/gion-core/workspacerisk"
 	"github.com/tasuku43/gionx/internal/statestore"
 	"github.com/tasuku43/gionx/internal/testutil"
 )
@@ -283,6 +284,29 @@ func TestCLI_WS_Purge_NoPromptForce_WithoutID_Refuses(t *testing.T) {
 	}
 	if !strings.Contains(err.String(), "--no-prompt selector mode is not supported") {
 		t.Fatalf("stderr missing refusal reason: %q", err.String())
+	}
+}
+
+func TestPrintPurgeRiskSection_UsesSharedIndent(t *testing.T) {
+	var out bytes.Buffer
+	selectedIDs := []string{"WS1"}
+	riskMeta := map[string]purgeWorkspaceMeta{
+		"WS1": {
+			status: "active",
+			risk:   workspacerisk.WorkspaceRiskDirty,
+			perRepo: []repoRiskItem{
+				{alias: "repo1", state: workspacerisk.RepoStateDirty},
+			},
+		},
+	}
+
+	printPurgeRiskSection(&out, selectedIDs, riskMeta, false)
+	got := out.String()
+	if !strings.Contains(got, "\nRisk:\n  purge is permanent and cannot be undone.\n  selected: 1\n") {
+		t.Fatalf("risk section header/body indentation mismatch: %q", got)
+	}
+	if !strings.Contains(got, "\n  active workspace risk detected:\n  - WS1 [dirty]\n    - repo1\tdirty\n") {
+		t.Fatalf("risk detail indentation mismatch: %q", got)
 	}
 }
 

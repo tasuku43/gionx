@@ -317,7 +317,7 @@ It does not replace per-item dependencies.
   - Depends: UX-WS-001
   - Parallel: yes
 
-- [ ] UX-WS-013: Section indentation consistency (Workspaces/Risk/Result)
+- [x] UX-WS-013: Section indentation consistency (Workspaces/Risk/Result)
   - What: enforce shared indentation rules for selector footer/help and risk/confirm prompts so section body lines
     consistently align under each heading.
   - Specs:
