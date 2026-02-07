@@ -292,7 +292,7 @@ It does not replace per-item dependencies.
   - Depends: UX-WS-006
   - Serial: yes
 
-- [ ] UX-WS-010: Risk presentation policy (color-only)
+- [x] UX-WS-010: Risk presentation policy (color-only)
   - What: enforce color-only risk hints across ws selector/list surfaces (no textual risk tags in summary rows).
   - Specs:
     - `docs/spec/commands/ws/selector.md`
