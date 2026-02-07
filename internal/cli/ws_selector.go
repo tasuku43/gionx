@@ -21,6 +21,12 @@ var errSelectorCanceled = errors.New("selector canceled")
 const selectorCaretBlinkInterval = 500 * time.Millisecond
 
 type selectorCaretBlinkMsg struct{}
+type selectorMessageLevel string
+
+const (
+	selectorMessageLevelMuted selectorMessageLevel = "muted"
+	selectorMessageLevelError selectorMessageLevel = "error"
+)
 
 type workspaceSelectorCandidate struct {
 	ID          string
@@ -40,6 +46,7 @@ type workspaceSelectorModel struct {
 	useColor   bool
 	debugf     func(string, ...any)
 	message    string
+	msgLevel   selectorMessageLevel
 	filter     string
 	showCaret  bool
 	canceled   bool
@@ -71,6 +78,7 @@ func newWorkspaceSelectorModelWithOptions(candidates []workspaceSelectorCandidat
 		action:     action,
 		useColor:   useColor,
 		debugf:     debugf,
+		msgLevel:   selectorMessageLevelMuted,
 		showCaret:  true,
 	}
 }
@@ -103,13 +111,13 @@ func (m workspaceSelectorModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			if m.filter != "" {
 				m.filter = trimLastRune(m.filter)
 				m.ensureCursorInFilteredRange()
-				m.message = ""
+				m.clearMessage()
 				return m, nil
 			}
 			return m, nil
 		case tea.KeyEnter:
 			if m.selectedCount() == 0 {
-				m.message = fmt.Sprintf("at least one %s must be selected", m.itemLabel)
+				m.setErrorMessage(fmt.Sprintf("at least one %s must be selected", m.itemLabel))
 				m.debugf("selector enter rejected: no selection")
 				return m, nil
 			}
@@ -120,7 +128,7 @@ func (m workspaceSelectorModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			if m.cursor > 0 {
 				m.cursor--
 			}
-			m.message = ""
+			m.clearMessage()
 			m.debugf("selector move up cursor=%d", m.cursor)
 			return m, nil
 		case tea.KeyDown:
@@ -128,7 +136,7 @@ func (m workspaceSelectorModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			if m.cursor < len(visible)-1 {
 				m.cursor++
 			}
-			m.message = ""
+			m.clearMessage()
 			m.debugf("selector move down cursor=%d", m.cursor)
 			return m, nil
 		case tea.KeySpace:
@@ -145,7 +153,7 @@ func (m workspaceSelectorModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				if isFilterAppendableRune(r) {
 					m.filter += string(r)
 					m.ensureCursorInFilteredRange()
-					m.message = ""
+					m.clearMessage()
 					return m, nil
 				}
 			}
@@ -156,7 +164,7 @@ func (m workspaceSelectorModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (m workspaceSelectorModel) View() string {
-	lines := renderWorkspaceSelectorLinesWithOptions(m.status, m.title, m.action, m.candidates, m.selected, m.cursor, m.message, m.filter, m.showCaret, m.useColor, m.width)
+	lines := renderWorkspaceSelectorLinesWithOptions(m.status, m.title, m.action, m.candidates, m.selected, m.cursor, m.message, m.msgLevel, m.filter, m.showCaret, m.useColor, m.width)
 	return strings.Join(lines, "\n")
 }
 
@@ -170,12 +178,23 @@ func (m *workspaceSelectorModel) toggleCurrentSelection() {
 	visible := m.filteredIndices()
 	if len(visible) == 0 {
 		m.message = "no workspaces match current filter"
+		m.msgLevel = selectorMessageLevelError
 		return
 	}
 	idx := visible[m.cursor]
 	m.selected[idx] = !m.selected[idx]
-	m.message = ""
+	m.clearMessage()
 	m.debugf("selector toggle idx=%d selected=%t", idx, m.selected[idx])
+}
+
+func (m *workspaceSelectorModel) clearMessage() {
+	m.message = ""
+	m.msgLevel = selectorMessageLevelMuted
+}
+
+func (m *workspaceSelectorModel) setErrorMessage(message string) {
+	m.message = message
+	m.msgLevel = selectorMessageLevelError
 }
 
 func (m *workspaceSelectorModel) ensureCursorInFilteredRange() {
@@ -275,10 +294,10 @@ func runWorkspaceSelectorWithOptions(in *os.File, out io.Writer, status string, 
 }
 
 func renderWorkspaceSelectorLines(status string, action string, candidates []workspaceSelectorCandidate, selected map[int]bool, cursor int, message string, filter string, showCaret bool, useColor bool, termWidth int) []string {
-	return renderWorkspaceSelectorLinesWithOptions(status, "", action, candidates, selected, cursor, message, filter, showCaret, useColor, termWidth)
+	return renderWorkspaceSelectorLinesWithOptions(status, "", action, candidates, selected, cursor, message, selectorMessageLevelMuted, filter, showCaret, useColor, termWidth)
 }
 
-func renderWorkspaceSelectorLinesWithOptions(status string, title string, action string, candidates []workspaceSelectorCandidate, selected map[int]bool, cursor int, message string, filter string, showCaret bool, useColor bool, termWidth int) []string {
+func renderWorkspaceSelectorLinesWithOptions(status string, title string, action string, candidates []workspaceSelectorCandidate, selected map[int]bool, cursor int, message string, msgLevel selectorMessageLevel, filter string, showCaret bool, useColor bool, termWidth int) []string {
 	idWidth := len("workspace")
 	for _, it := range candidates {
 		if n := len(it.ID); n > idWidth {
@@ -401,10 +420,19 @@ func renderWorkspaceSelectorLinesWithOptions(status string, title string, action
 
 	if strings.TrimSpace(message) == "" {
 		lines = append(lines, "")
-	} else if useColor {
-		lines = append(lines, styleMuted(truncateDisplay(message, maxCols), true))
 	} else {
-		lines = append(lines, truncateDisplay(message, maxCols))
+		msgCols := maxCols - displayWidth(uiIndent)
+		if msgCols < 1 {
+			msgCols = 1
+		}
+		msgLine := uiIndent + truncateDisplay(message, msgCols)
+		if useColor && msgLevel == selectorMessageLevelError {
+			lines = append(lines, styleError(msgLine, true))
+		} else if useColor {
+			lines = append(lines, styleMuted(msgLine, true))
+		} else {
+			lines = append(lines, msgLine)
+		}
 	}
 
 	return lines

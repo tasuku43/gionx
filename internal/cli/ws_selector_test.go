@@ -255,6 +255,48 @@ func TestRenderWorkspaceSelectorLines_UsesActionLabelInFooter(t *testing.T) {
 	}
 }
 
+func TestRenderWorkspaceSelectorLines_MessageIsIndented(t *testing.T) {
+	lines := renderWorkspaceSelectorLinesWithOptions(
+		"active",
+		"",
+		"close",
+		[]workspaceSelectorCandidate{{ID: "WS1", Description: "d", Risk: workspacerisk.WorkspaceRiskClean}},
+		map[int]bool{},
+		0,
+		"at least one workspace must be selected",
+		selectorMessageLevelError,
+		"",
+		true,
+		false,
+		120,
+	)
+	msg := lines[len(lines)-1]
+	if !strings.HasPrefix(msg, uiIndent) {
+		t.Fatalf("message should start with shared indent %q, got %q", uiIndent, msg)
+	}
+}
+
+func TestRenderWorkspaceSelectorLines_ErrorMessageUsesErrorToken(t *testing.T) {
+	lines := renderWorkspaceSelectorLinesWithOptions(
+		"active",
+		"",
+		"close",
+		[]workspaceSelectorCandidate{{ID: "WS1", Description: "d", Risk: workspacerisk.WorkspaceRiskClean}},
+		map[int]bool{},
+		0,
+		"at least one workspace must be selected",
+		selectorMessageLevelError,
+		"",
+		true,
+		true,
+		120,
+	)
+	msg := lines[len(lines)-1]
+	if !strings.Contains(msg, ansiError) {
+		t.Fatalf("error message should include error color token, got %q", msg)
+	}
+}
+
 func TestRenderSelectorFooterLine_AlwaysKeepsSelectedSummary(t *testing.T) {
 	line := renderSelectorFooterLine(2, 10, "close", 18)
 	if !strings.Contains(line, "selected:") {

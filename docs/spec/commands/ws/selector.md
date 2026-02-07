@@ -53,6 +53,7 @@ Section body indentation must be controlled by shared global constants (no per-c
 - Global section body indentation is fixed to two spaces.
 - Selector footer/status lines (for example `selected: n/m` and key hints) are part of section body and must use
   the same two-space indentation.
+- Selector inline message lines (validation/error/help) must also use the same two-space indentation.
 - Confirmation prompts shown under `Risk:` must follow the same body indentation.
 
 `<status>` color semantics (TTY):
@@ -65,6 +66,7 @@ Section body indentation must be controlled by shared global constants (no per-c
 - Primary information (selection marker, workspace id, risk badge, final warnings) uses normal/high contrast.
 - Supplemental information (repo tree lines, helper hints, command metadata) uses muted/low-contrast styling.
   - Preferred terminal style is gray-like ANSI colors (for example `bright black` family).
+- Validation/error messages shown below selector footer must use the shared error token (danger/error color).
 - Do not vary supplemental color semantics by command; the same visual hierarchy must be applied across
   `ws close/go/reopen/purge`.
 - Color is optional fallback:
@@ -102,7 +104,7 @@ Section body indentation must be controlled by shared global constants (no per-c
 To prevent per-command drift, selector-related rendering must be built from shared components.
 
 Required shared modules (logical units):
-- `StyleToken`: semantic style set (`primary`, `muted`, `warning`, `danger`, `selected`, `status_active`, `status_archived`)
+- `StyleToken`: semantic style set (`primary`, `muted`, `warning`, `danger`, `selected`, `status_active`, `status_archived`, `message_error`)
 - `WorkspaceRowRenderer`: one-line summary renderer for a workspace
 - `RepoTreeRenderer`: indented supplemental renderer for repo tree details
 - `RiskBadgeRenderer`: canonical risk badge formatter for `Risk:` section
