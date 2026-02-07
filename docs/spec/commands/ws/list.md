@@ -22,7 +22,7 @@ action commands (`ws close`, `ws go`, `ws reopen`, `ws purge`).
 - One row per workspace (summary view) using selector-parity visual hierarchy.
 - Row content is single-line and summary-first:
   - `id`
-  - `risk`
+  - `risk` (color-only indicator; no textual tag)
   - `repo_count`
   - `description`
 - Summary row order is fixed as `ID | risk | repos | description`.
@@ -43,6 +43,7 @@ action commands (`ws close`, `ws go`, `ws reopen`, `ws purge`).
   - `archived`: archived accent color
   - no-color terminals: plain text fallback
 - Selector markers (`[ ]`, `[x]`) are not used in `ws list`.
+- Textual risk tags (`[clean]`, `[dirty]`, etc.) are not used in summary rows.
 
 ## Expanded display
 

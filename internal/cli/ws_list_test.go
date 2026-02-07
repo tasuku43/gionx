@@ -268,6 +268,34 @@ func TestCLI_WS_List_ArchivedScopeShowsArchivedOnly(t *testing.T) {
 	}
 }
 
+func TestCLI_WS_List_SummaryDoesNotShowTextualRiskTags(t *testing.T) {
+	env := testutil.NewEnv(t)
+	initAndConfigureRootRepo(t, env.Root)
+
+	{
+		var out bytes.Buffer
+		var err bytes.Buffer
+		c := New(&out, &err)
+		code := c.Run([]string{"ws", "create", "--no-prompt", "WS1"})
+		if code != exitOK {
+			t.Fatalf("ws create WS1 exit code = %d, want %d (stderr=%q)", code, exitOK, err.String())
+		}
+	}
+
+	var out bytes.Buffer
+	var err bytes.Buffer
+	c := New(&out, &err)
+	code := c.Run([]string{"ws", "list"})
+	if code != exitOK {
+		t.Fatalf("ws list exit code = %d, want %d (stderr=%q)", code, exitOK, err.String())
+	}
+
+	got := out.String()
+	if strings.Contains(got, "[clean]") || strings.Contains(got, "[dirty]") || strings.Contains(got, "[unknown]") {
+		t.Fatalf("summary should not include textual risk tags: %q", got)
+	}
+}
+
 func TestRenderWSListSummaryRow_AlignsDescriptionColumn(t *testing.T) {
 	rowA := wsListRow{
 		ID:          "WS_A",

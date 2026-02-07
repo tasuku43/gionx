@@ -223,15 +223,7 @@ func printWSListHuman(out io.Writer, rows []wsListRow, scope string, tree bool, 
 		}
 	}
 
-	riskWidth := 0
-	for _, row := range rows {
-		if n := displayWidth(renderWorkspaceRiskToken(row.Risk, false)); n > riskWidth {
-			riskWidth = n
-		}
-	}
-	if riskWidth < len("[clean]") {
-		riskWidth = len("[clean]")
-	}
+	riskWidth := 1
 
 	maxCols := listTerminalWidth()
 	for _, row := range rows {
@@ -246,7 +238,7 @@ func printWSListHuman(out io.Writer, rows []wsListRow, scope string, tree bool, 
 
 func renderWSListSummaryRow(row wsListRow, idWidth int, riskWidth int, repoWidth int, maxCols int, useColor bool) string {
 	idPlain := fmt.Sprintf("%-*s", idWidth, truncateDisplay(row.ID, idWidth))
-	riskPlain := fmt.Sprintf("%-*s", riskWidth, renderWorkspaceRiskToken(row.Risk, false))
+	riskPlain := fmt.Sprintf("%-*s", riskWidth, renderWorkspaceRiskIndicator(row.Risk, false))
 	repoPlain := fmt.Sprintf("%-*s", repoWidth, fmt.Sprintf("repos:%d", row.RepoCount))
 	desc := row.Description
 	if desc == "" {
@@ -261,7 +253,7 @@ func renderWSListSummaryRow(row wsListRow, idWidth int, riskWidth int, repoWidth
 	desc = truncateDisplay(desc, availableDescCols)
 
 	idText := colorizeRiskID(idPlain, row.Risk, useColor)
-	riskText := fmt.Sprintf("%-*s", riskWidth, renderWorkspaceRiskToken(row.Risk, useColor))
+	riskText := fmt.Sprintf("%-*s", riskWidth, renderWorkspaceRiskIndicator(row.Risk, useColor))
 
 	line := fmt.Sprintf("%s%s  %s  %s  %s", uiIndent, idText, riskText, repoPlain, desc)
 	return truncateDisplay(line, maxCols)
@@ -365,8 +357,8 @@ func computeWorkspaceRisk(ctx context.Context, root string, workspaceID string, 
 	return risk
 }
 
-func renderWorkspaceRiskToken(risk workspacerisk.WorkspaceRisk, useColor bool) string {
-	text := fmt.Sprintf("[%s]", formatWorkspaceRisk(risk))
+func renderWorkspaceRiskIndicator(risk workspacerisk.WorkspaceRisk, useColor bool) string {
+	text := "*"
 	if !useColor {
 		return text
 	}
