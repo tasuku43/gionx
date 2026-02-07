@@ -44,6 +44,12 @@ type addRepoPlanItem struct {
 	RemoteBranchExists bool
 }
 
+type addRepoInputProgress struct {
+	RepoKey string
+	BaseRef string
+	Branch  string
+}
+
 type addRepoAppliedItem struct {
 	Plan addRepoPlanItem
 
@@ -159,41 +165,59 @@ func (c *CLI) runWSAddRepo(args []string) int {
 		return exitError
 	}
 
+	useColorOut := writerSupportsColor(c.Out)
+	useColorErr := writerSupportsColor(c.Err)
+	progress := make([]addRepoInputProgress, len(selected))
+	for i, cand := range selected {
+		progress[i] = addRepoInputProgress{RepoKey: cand.RepoKey}
+	}
+	renderedInputLines := renderAddRepoInputsProgress(c.Err, workspaceID, progress, 0, useColorErr, 0)
+
 	plan := make([]addRepoPlanItem, 0, len(selected))
-	for _, cand := range selected {
+	for i, cand := range selected {
+		if i > 0 {
+			renderedInputLines = renderAddRepoInputsProgress(c.Err, workspaceID, progress, i, useColorErr, renderedInputLines)
+		}
 		defaultBaseRef, err := detectDefaultBaseRefFromBare(ctx, cand.BarePath)
 		if err != nil {
 			fmt.Fprintf(c.Err, "detect default base_ref for %s: %v\n", cand.RepoKey, err)
 			return exitError
 		}
-		baseRefInput, err := c.promptLine(fmt.Sprintf("base_ref for %s (default: %s, empty=use default): ", cand.RepoKey, defaultBaseRef))
+		baseRefInput, err := c.promptLine(renderAddRepoInputPrompt(addRepoInputDetailPromptPrefix(useColorErr), "base_ref", defaultBaseRef, useColorErr))
 		if err != nil {
 			fmt.Fprintf(c.Err, "read base_ref: %v\n", err)
 			return exitError
 		}
 		baseRefInput = strings.TrimSpace(baseRefInput)
-		if baseRefInput != "" && !strings.HasPrefix(baseRefInput, "origin/") {
+		baseRefUsed, err := resolveBaseRefInput(baseRefInput, defaultBaseRef)
+		if err != nil {
 			fmt.Fprintf(c.Err, "invalid base_ref (must be origin/<branch>): %q\n", baseRefInput)
 			return exitError
 		}
+		baseRefRecord := baseRefInput
+		if baseRefRecord != "" {
+			baseRefRecord = baseRefUsed
+		}
+		progress[i].BaseRef = baseRefUsed
+		renderedInputLines = renderAddRepoInputsProgress(c.Err, workspaceID, progress, i, useColorErr, renderedInputLines)
 
-		branchInput, err := c.promptLine(fmt.Sprintf("branch for %s (prefill: %s): ", cand.RepoKey, workspaceID+"/"))
+		branchDisplayDefault := workspaceID + "/"
+		branchInput, err := c.promptLine(renderAddRepoInputPrompt(addRepoInputDetailPromptPrefix(useColorErr), "branch", branchDisplayDefault, useColorErr))
 		if err != nil {
 			fmt.Fprintf(c.Err, "read branch: %v\n", err)
 			return exitError
 		}
-		branch := strings.TrimSpace(branchInput)
-		if branch == "" {
-			branch = workspaceID + "/"
-		}
+		branch := resolveBranchInput(branchInput, workspaceID)
 		if err := gitutil.CheckRefFormat(ctx, "refs/heads/"+branch); err != nil {
 			fmt.Fprintf(c.Err, "invalid branch name for %s: %v\n", cand.RepoKey, err)
 			return exitError
 		}
+		progress[i].Branch = branch
+		renderedInputLines = renderAddRepoInputsProgress(c.Err, workspaceID, progress, i, useColorErr, renderedInputLines)
 
 		plan = append(plan, addRepoPlanItem{
 			Candidate:      cand,
-			BaseRefInput:   baseRefInput,
+			BaseRefInput:   baseRefRecord,
 			DefaultBaseRef: defaultBaseRef,
 			Branch:         branch,
 		})
@@ -204,8 +228,10 @@ func (c *CLI) runWSAddRepo(args []string) int {
 		return exitError
 	}
 
-	printAddRepoPlan(c.Out, workspaceID, plan)
-	line, err := c.promptLine(fmt.Sprintf("%sadd selected repos to workspace? [Enter=yes / n=no]: ", uiIndent))
+	fmt.Fprintln(c.Err)
+	printAddRepoPlan(c.Out, workspaceID, plan, useColorOut)
+	fmt.Fprintln(c.Out)
+	line, err := c.promptLine(fmt.Sprintf("%s%s %s", uiIndent, styleMuted("•", useColorErr), styleAccent("apply this plan? [Enter=yes / n=no]: ", useColorErr)))
 	if err != nil {
 		fmt.Fprintf(c.Err, "read confirmation: %v\n", err)
 		return exitError
@@ -237,7 +263,7 @@ func (c *CLI) runWSAddRepo(args []string) int {
 		}
 	}
 
-	printAddRepoResult(c.Out, applied)
+	printAddRepoResult(c.Out, applied, useColorOut)
 	c.debugf("ws add-repo completed workspace=%s added=%d", workspaceID, len(applied))
 	return exitOK
 }
@@ -678,18 +704,144 @@ func isBranchCheckedOutInBare(ctx context.Context, barePath string, branch strin
 	return false, nil
 }
 
-func printAddRepoPlan(out io.Writer, workspaceID string, plan []addRepoPlanItem) {
-	fmt.Fprintln(out)
-	fmt.Fprintln(out, "Plan:")
-	fmt.Fprintln(out)
-	for _, p := range plan {
-		fmt.Fprintf(out, "%s- %s\n", uiIndent, p.Candidate.RepoKey)
-		fmt.Fprintf(out, "%s  alias: %s\n", uiIndent, p.Candidate.Alias)
-		fmt.Fprintf(out, "%s  base_ref: %s\n", uiIndent, p.BaseRefUsed)
-		fmt.Fprintf(out, "%s  branch: %s\n", uiIndent, p.Branch)
-		fmt.Fprintf(out, "%s  target: %s\n", uiIndent, p.WorktreePath)
+func printAddRepoPlan(out io.Writer, workspaceID string, plan []addRepoPlanItem, useColor bool) {
+	bullet := styleMuted("•", useColor)
+	reposLabel := styleAccent("repos", useColor)
+	connectorMuted := func(connector string) string {
+		return styleMuted(connector, useColor)
 	}
-	fmt.Fprintf(out, "%sworkspace: %s\n", uiIndent, workspaceID)
+
+	fmt.Fprintln(out)
+	fmt.Fprintln(out, styleBold("Plan:", useColor))
+	fmt.Fprintln(out)
+	fmt.Fprintf(out, "%s%s add %d repos to workspace %s\n", uiIndent, bullet, len(plan), workspaceID)
+	if len(plan) == 0 {
+		return
+	}
+	fmt.Fprintf(out, "%s%s %s:\n", uiIndent, bullet, reposLabel)
+	for i, p := range plan {
+		connector := "├─"
+		if i == len(plan)-1 {
+			connector = "└─"
+		}
+		fmt.Fprintf(out, "%s%s%s\n", uiIndent+uiIndent, connectorMuted(connector), p.Candidate.RepoKey)
+	}
+}
+
+func renderAddRepoInputsProgress(out io.Writer, workspaceID string, rows []addRepoInputProgress, activeIndex int, useColor bool, prevLines int) int {
+	lines := buildAddRepoInputsLines(workspaceID, rows, activeIndex, useColor)
+	if writerIsTTY(out) && prevLines > 0 {
+		fmt.Fprintf(out, "\x1b[%dA", prevLines)
+	}
+	for _, line := range lines {
+		if writerIsTTY(out) {
+			fmt.Fprintf(out, "\x1b[2K%s\n", line)
+		} else {
+			fmt.Fprintln(out, line)
+		}
+	}
+	return len(lines)
+}
+
+func buildAddRepoInputsLines(workspaceID string, rows []addRepoInputProgress, activeIndex int, useColor bool) []string {
+	bullet := styleMuted("•", useColor)
+	labelWorkspace := styleAccent("workspace", useColor)
+	labelRepos := styleAccent("repos", useColor)
+	labelBaseRef := styleAccent("base_ref", useColor)
+	labelBranch := styleAccent("branch", useColor)
+
+	lines := []string{
+		"",
+		styleBold("Inputs:", useColor),
+		"",
+		fmt.Sprintf("%s%s %s: %s", uiIndent, bullet, labelWorkspace, workspaceID),
+		fmt.Sprintf("%s%s %s:", uiIndent, bullet, labelRepos),
+	}
+	if len(rows) == 0 {
+		return lines
+	}
+	displayCount := activeIndex + 1
+	if displayCount < 1 {
+		displayCount = 1
+	}
+	if displayCount > len(rows) {
+		displayCount = len(rows)
+	}
+
+	for i := 0; i < displayCount; i++ {
+		row := rows[i]
+		repoConnector := "├─ "
+		if i == displayCount-1 {
+			repoConnector = "└─ "
+		}
+		lines = append(lines, fmt.Sprintf("%s%s%s", uiIndent+uiIndent, styleMuted(repoConnector, useColor), row.RepoKey))
+
+		hasBase := strings.TrimSpace(row.BaseRef) != ""
+		hasBranch := strings.TrimSpace(row.Branch) != ""
+		if !hasBase && !hasBranch {
+			continue
+		}
+		branchPending := i == activeIndex && hasBase && !hasBranch
+		stem := "│  "
+		if i == displayCount-1 {
+			stem = "   "
+		}
+		if hasBase {
+			connector := "└─ "
+			if hasBranch || branchPending {
+				connector = "├─ "
+			}
+			lines = append(lines, fmt.Sprintf("%s%s%s%s: %s", uiIndent+uiIndent, styleMuted(stem, useColor), styleMuted(connector, useColor), labelBaseRef, row.BaseRef))
+		}
+		if hasBranch {
+			lines = append(lines, fmt.Sprintf("%s%s%s%s: %s", uiIndent+uiIndent, styleMuted(stem, useColor), styleMuted("└─ ", useColor), labelBranch, row.Branch))
+		}
+	}
+	return lines
+}
+
+func renderAddRepoInputPrompt(prefix string, label string, defaultValue string, useColor bool) string {
+	return fmt.Sprintf("%s%s: %s", prefix, styleAccent(label, useColor), defaultValue)
+}
+
+func addRepoInputDetailPromptPrefix(useColor bool) string {
+	// Match finalized detail line indentation: uiIndent*2 + stem("   ") + "└─ ".
+	return uiIndent + uiIndent + "   " + styleMuted("└─ ", useColor)
+}
+
+func resolveBaseRefInput(rawInput string, defaultBaseRef string) (string, error) {
+	v := strings.TrimSpace(rawInput)
+	if v == "" {
+		return strings.TrimSpace(defaultBaseRef), nil
+	}
+	if strings.HasPrefix(v, "/") {
+		v = "origin" + v
+	}
+	if !strings.HasPrefix(v, "origin/") {
+		v = "origin/" + strings.TrimPrefix(v, "origin")
+	}
+	if !strings.HasPrefix(v, "origin/") || len(v) <= len("origin/") {
+		return "", fmt.Errorf("invalid base_ref")
+	}
+	return v, nil
+}
+
+func resolveBranchInput(rawInput string, defaultPrefix string) string {
+	v := strings.TrimSpace(rawInput)
+	prefix := strings.TrimSpace(defaultPrefix)
+	if v == "" {
+		return prefix
+	}
+	if prefix == "" {
+		return v
+	}
+	if strings.HasPrefix(v, "/") {
+		return prefix + v
+	}
+	if strings.Contains(v, "/") {
+		return v
+	}
+	return prefix + "/" + v
 }
 
 func applyAddRepoPlanAllOrNothing(ctx context.Context, db *sql.DB, workspaceID string, plan []addRepoPlanItem, debugf func(string, ...any)) ([]addRepoAppliedItem, error) {
@@ -758,12 +910,13 @@ func rollbackAddRepoApplied(ctx context.Context, db *sql.DB, workspaceID string,
 	}
 }
 
-func printAddRepoResult(out io.Writer, applied []addRepoAppliedItem) {
+func printAddRepoResult(out io.Writer, applied []addRepoAppliedItem, useColor bool) {
+	bullet := styleMuted("•", useColor)
 	fmt.Fprintln(out)
-	fmt.Fprintln(out, renderResultTitle(writerSupportsColor(out)))
-	fmt.Fprintf(out, "%sAdded %d / %d\n", uiIndent, len(applied), len(applied))
+	fmt.Fprintln(out, renderResultTitle(useColor))
+	fmt.Fprintf(out, "%s%s Added %d / %d\n", uiIndent, bullet, len(applied), len(applied))
 	for _, it := range applied {
-		fmt.Fprintf(out, "%s✔ %s\n", uiIndent, it.Plan.Candidate.RepoKey)
+		fmt.Fprintf(out, "%s%s ✔ %s\n", uiIndent, bullet, it.Plan.Candidate.RepoKey)
 	}
 }
 
