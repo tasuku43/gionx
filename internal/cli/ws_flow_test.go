@@ -106,6 +106,32 @@ func TestWorkspaceFlow_UsesCustomResultPrinterWhenProvided(t *testing.T) {
 	}
 }
 
+func TestWorkspaceFlow_DefaultResultUsesSharedIndent(t *testing.T) {
+	var out bytes.Buffer
+	var errOut bytes.Buffer
+	c := New(&out, &errOut)
+
+	_, err := c.runWorkspaceSelectRiskResultFlow(workspaceSelectRiskResultFlowConfig{
+		FlowName: "test flow",
+		SelectItems: func() ([]workspaceFlowSelection, error) {
+			return []workspaceFlowSelection{{ID: "WS-1"}}, nil
+		},
+		ApplyOne: func(item workspaceFlowSelection) error {
+			return nil
+		},
+		ResultVerb: "Applied",
+		ResultMark: "+",
+	}, false)
+	if err != nil {
+		t.Fatalf("runWorkspaceSelectRiskResultFlow() err = %v", err)
+	}
+
+	got := out.String()
+	if !containsAll(got, "\n  Applied 1 / 1", "\n  + WS-1") {
+		t.Fatalf("result body should use shared 2-space indentation: %q", got)
+	}
+}
+
 func containsAll(s string, wants ...string) bool {
 	for _, w := range wants {
 		if !bytes.Contains([]byte(s), []byte(w)) {
