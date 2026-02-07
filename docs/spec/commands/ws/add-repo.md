@@ -36,10 +36,14 @@ Add repositories from the existing repo pool to a workspace as Git worktrees.
 
 2. Input per-repo branch settings
   - print `Inputs:` section first (`workspace`, `repos`)
+  - section spacing:
+    - keep one blank line before `Inputs:`
+    - no blank line between `Inputs:` heading and first body line
   - for each selected repo, show a tree row and prompt inline under that repo
   - Inputs section is redrawn incrementally while values are fixed:
     - after base_ref only: repo node has only `base_ref` detail
-    - after branch fixed: same repo node shows both `base_ref` and `branch`
+    - while branch input is active: same repo node shows both `base_ref` and `branch` (branch line prefilled with current editable value)
+    - after branch fixed: same repo node keeps both `base_ref` and `branch`
     - when next repo starts, previous repo keeps finalized two-line detail tree
   - prompt `base_ref` for each selected repo
     - prompt style: `base_ref: <default>`
@@ -49,12 +53,9 @@ Add repositories from the existing repo pool to a workspace as Git worktrees.
       - `<branch>` (normalized to `origin/<branch>`)
       - `/branch` (normalized to `origin/branch`)
   - prompt branch for each selected repo
-    - prompt style: `branch: <workspace-id>/`
+    - prompt style: `branch: <workspace-id>`
+    - default text is editable (not prefix-locked)
     - empty means `<workspace-id>`
-    - suffix input is supported:
-      - `<name>` -> `<workspace-id>/<name>`
-      - `/name` -> `<workspace-id>/name`
-      - value containing `/` is treated as full branch name
     - validate via `git check-ref-format`
 
 3. Preflight (all selected repos)
@@ -67,6 +68,7 @@ Add repositories from the existing repo pool to a workspace as Git worktrees.
 4. Plan and confirmation
   - print `Plan:` as concise summary (selected repo list)
   - `target path` is not shown in default output
+  - keep one blank line before `Plan:` and one blank line before the final confirmation prompt
   - final prompt:
     - `apply this plan? [Enter=yes / n=no]: `
 

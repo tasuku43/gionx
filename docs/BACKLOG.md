@@ -412,3 +412,21 @@ It does not replace per-item dependencies.
     - `docs/spec/commands/repo/gc.md`
   - Depends: MVP-063
   - Parallel: yes
+
+- [x] UX-CORE-001: Core command `Result:` output parity (`init`/`ws create`/`context use`)
+  - What: align human-readable success outputs of core commands to shared section flow and semantic color tokens.
+  - Specs:
+    - `docs/spec/commands/init.md`
+    - `docs/spec/commands/ws/create.md`
+    - `docs/spec/commands/context.md`
+    - `docs/spec/concepts/ui-color.md`
+  - Depends: UX-WS-014
+  - Parallel: yes
+
+- [x] UX-WS-018: `ws add-repo` inputs tree stability polish
+  - What: finalize input-tree connector transitions and section spacing consistency while keeping editable defaults.
+  - Specs:
+    - `docs/spec/commands/ws/add-repo.md`
+    - `docs/spec/commands/ws/selector.md`
+  - Depends: MVP-031, UX-WS-013
+  - Parallel: yes
