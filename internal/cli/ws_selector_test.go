@@ -267,6 +267,7 @@ func TestRenderWorkspaceSelectorLines_MessageIsIndented(t *testing.T) {
 		selectorMessageLevelError,
 		"",
 		true,
+		true,
 		false,
 		120,
 	)
@@ -287,6 +288,7 @@ func TestRenderWorkspaceSelectorLines_ErrorMessageUsesErrorToken(t *testing.T) {
 		"at least one workspace must be selected",
 		selectorMessageLevelError,
 		"",
+		true,
 		true,
 		true,
 		120,

@@ -9,11 +9,12 @@ import (
 )
 
 const (
-	ansiReset = "\x1b[0m"
-	ansiBold  = "\x1b[1m"
-	ansiMuted = "\x1b[90m"
-	ansiWarn  = "\x1b[33m"
-	ansiError = "\x1b[31m"
+	ansiReset  = "\x1b[0m"
+	ansiBold   = "\x1b[1m"
+	ansiMuted  = "\x1b[90m"
+	ansiAccent = "\x1b[36m"
+	ansiWarn   = "\x1b[33m"
+	ansiError  = "\x1b[31m"
 
 	ansiStatusActive   = "\x1b[36m"
 	ansiStatusArchived = "\x1b[35m"
@@ -45,6 +46,13 @@ func styleMuted(text string, useColor bool) string {
 		return text
 	}
 	return ansiMuted + text + ansiReset
+}
+
+func styleAccent(text string, useColor bool) string {
+	if !useColor {
+		return text
+	}
+	return ansiAccent + text + ansiReset
 }
 
 func styleWarn(text string, useColor bool) string {

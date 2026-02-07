@@ -79,6 +79,7 @@ Section body indentation must be controlled by shared global constants (no per-c
 - Canonical row shape:
   - `> [ ] WS-101      login flow`
   - `  [x] WS-202      payment hotfix`
+- For repo-pool selectors (`itemLabel=repo`), description column is omitted by default (no `(no description)` filler).
 - `status` is not rendered per row. State context is provided by header `scope`.
 - The description column must be vertically aligned across rows (fixed description start column).
 - Risk tags are not rendered in `Workspaces(...)` rows.

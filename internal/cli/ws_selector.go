@@ -42,6 +42,7 @@ type workspaceSelectorModel struct {
 	status     string
 	title      string
 	itemLabel  string
+	showDesc   bool
 	action     string
 	useColor   bool
 	debugf     func(string, ...any)
@@ -75,6 +76,7 @@ func newWorkspaceSelectorModelWithOptions(candidates []workspaceSelectorCandidat
 		status:     status,
 		title:      title,
 		itemLabel:  itemLabel,
+		showDesc:   strings.ToLower(strings.TrimSpace(itemLabel)) != "repo",
 		action:     action,
 		useColor:   useColor,
 		debugf:     debugf,
@@ -164,7 +166,7 @@ func (m workspaceSelectorModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (m workspaceSelectorModel) View() string {
-	lines := renderWorkspaceSelectorLinesWithOptions(m.status, m.title, m.action, m.candidates, m.selected, m.cursor, m.message, m.msgLevel, m.filter, m.showCaret, m.useColor, m.width)
+	lines := renderWorkspaceSelectorLinesWithOptions(m.status, m.title, m.action, m.candidates, m.selected, m.cursor, m.message, m.msgLevel, m.filter, m.showDesc, m.showCaret, m.useColor, m.width)
 	return strings.Join(lines, "\n")
 }
 
@@ -294,10 +296,10 @@ func runWorkspaceSelectorWithOptions(in *os.File, out io.Writer, status string, 
 }
 
 func renderWorkspaceSelectorLines(status string, action string, candidates []workspaceSelectorCandidate, selected map[int]bool, cursor int, message string, filter string, showCaret bool, useColor bool, termWidth int) []string {
-	return renderWorkspaceSelectorLinesWithOptions(status, "", action, candidates, selected, cursor, message, selectorMessageLevelMuted, filter, showCaret, useColor, termWidth)
+	return renderWorkspaceSelectorLinesWithOptions(status, "", action, candidates, selected, cursor, message, selectorMessageLevelMuted, filter, true, showCaret, useColor, termWidth)
 }
 
-func renderWorkspaceSelectorLinesWithOptions(status string, title string, action string, candidates []workspaceSelectorCandidate, selected map[int]bool, cursor int, message string, msgLevel selectorMessageLevel, filter string, showCaret bool, useColor bool, termWidth int) []string {
+func renderWorkspaceSelectorLinesWithOptions(status string, title string, action string, candidates []workspaceSelectorCandidate, selected map[int]bool, cursor int, message string, msgLevel selectorMessageLevel, filter string, showDesc bool, showCaret bool, useColor bool, termWidth int) []string {
 	idWidth := len("workspace")
 	for _, it := range candidates {
 		if n := len(it.ID); n > idWidth {
@@ -355,22 +357,23 @@ func renderWorkspaceSelectorLinesWithOptions(status string, title string, action
 			mark = "x"
 		}
 
-		desc := strings.TrimSpace(it.Description)
-		if desc == "" {
-			desc = "(no description)"
-		}
-
 		idPlain := fmt.Sprintf("%-*s", idWidth, truncateDisplay(it.ID, idWidth))
 		prefixPlain := fmt.Sprintf("[%s] %s  ", mark, idPlain)
-		availableDescCols := maxCols - displayWidth(prefixPlain) - 2 // include focus + space
-		if availableDescCols < 8 {
-			availableDescCols = 8
-		}
-		desc = truncateDisplay(desc, availableDescCols)
 
 		idText := colorizeRiskID(idPlain, it.Risk, useColor)
 		prefix := fmt.Sprintf("[%s] %s  ", mark, idText)
-		bodyRaw := prefix + desc
+		bodyRaw := prefix
+		if showDesc {
+			desc := strings.TrimSpace(it.Description)
+			if desc == "" {
+				desc = "(no description)"
+			}
+			availableDescCols := maxCols - displayWidth(prefixPlain) - 2 // include focus + space
+			if availableDescCols < 8 {
+				availableDescCols = 8
+			}
+			bodyRaw = prefix + truncateDisplay(desc, availableDescCols)
+		}
 
 		lineRaw := focus + " " + bodyRaw
 		lineRaw = truncateDisplay(lineRaw, maxCols)

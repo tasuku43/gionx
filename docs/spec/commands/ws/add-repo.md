@@ -35,11 +35,26 @@ Add repositories from the existing repo pool to a workspace as Git worktrees.
   - non-TTY: fallback to numbered prompt input (`comma numbers, /filter, empty=cancel`)
 
 2. Input per-repo branch settings
+  - print `Inputs:` section first (`workspace`, `repos`)
+  - for each selected repo, show a tree row and prompt inline under that repo
+  - Inputs section is redrawn incrementally while values are fixed:
+    - after base_ref only: repo node has only `base_ref` detail
+    - after branch fixed: same repo node shows both `base_ref` and `branch`
+    - when next repo starts, previous repo keeps finalized two-line detail tree
   - prompt `base_ref` for each selected repo
+    - prompt style: `base_ref: <default>`
     - empty means default base ref detected from bare repo (typically `origin/<default>`)
-    - non-empty must be `origin/<branch>`
+    - non-empty accepts:
+      - `origin/<branch>` (as-is)
+      - `<branch>` (normalized to `origin/<branch>`)
+      - `/branch` (normalized to `origin/branch`)
   - prompt branch for each selected repo
-    - prefill: `<workspace-id>/`
+    - prompt style: `branch: <workspace-id>/`
+    - empty means `<workspace-id>`
+    - suffix input is supported:
+      - `<name>` -> `<workspace-id>/<name>`
+      - `/name` -> `<workspace-id>/name`
+      - value containing `/` is treated as full branch name
     - validate via `git check-ref-format`
 
 3. Preflight (all selected repos)
@@ -50,13 +65,10 @@ Add repositories from the existing repo pool to a workspace as Git worktrees.
   - if any check fails: abort the whole operation (no partial apply)
 
 4. Plan and confirmation
-  - print `Plan:` with per-repo:
-    - alias
-    - base_ref
-    - branch
-    - target path
+  - print `Plan:` as concise summary (selected repo list)
+  - `target path` is not shown in default output
   - final prompt:
-    - `add selected repos to workspace? [Enter=yes / n=no]: `
+    - `apply this plan? [Enter=yes / n=no]: `
 
 5. Apply (all-or-nothing)
   - create local branches as needed
@@ -72,6 +84,14 @@ Add repositories from the existing repo pool to a workspace as Git worktrees.
   - print `Result:`
   - summary: `Added <n> / <m>`
   - per repo success lines
+
+## UI style (TTY)
+
+- Follow shared section flow: `Repos(pool):` -> `Inputs:` -> `Plan:` -> `Result:`.
+- Use shared style tokens:
+  - `muted`: bullets/tree connectors
+  - `accent`: field labels (`workspace`, `repos`, `alias`, `base_ref`, `branch`)
+- Keep repo key/value text primary (normal contrast); avoid dense one-line key/value packing.
 
 ## Concurrency
 
