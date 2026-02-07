@@ -224,7 +224,7 @@ It does not replace per-item dependencies.
   - Depends: MVP-060, MVP-061
   - Parallel: yes
 
-- [ ] MVP-063: `gionx repo gc` (safe physical pool cleanup)
+- [x] MVP-063: `gionx repo gc` (safe physical pool cleanup)
   - What: garbage-collect bare repos from shared pool only when safety gates pass.
   - Specs:
     - `docs/spec/commands/repo/gc.md`

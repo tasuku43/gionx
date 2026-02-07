@@ -335,6 +335,31 @@ ORDER BY repo_uid
 	return out, nil
 }
 
+func ListWorkspaceRepoUIDs(ctx context.Context, db *sql.DB) ([]string, error) {
+	rows, err := db.QueryContext(ctx, `
+SELECT DISTINCT repo_uid
+FROM workspace_repos
+ORDER BY repo_uid
+`)
+	if err != nil {
+		return nil, fmt.Errorf("query workspace repo_uids: %w", err)
+	}
+	defer rows.Close()
+
+	out := make([]string, 0, 32)
+	for rows.Next() {
+		var repoUID string
+		if err := rows.Scan(&repoUID); err != nil {
+			return nil, fmt.Errorf("scan workspace repo_uid: %w", err)
+		}
+		out = append(out, repoUID)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate workspace repo_uids: %w", err)
+	}
+	return out, nil
+}
+
 func ListRootRepoCandidates(ctx context.Context, db *sql.DB, startDay int) ([]RootRepoCandidate, error) {
 	rows, err := db.QueryContext(ctx, `
 SELECT
