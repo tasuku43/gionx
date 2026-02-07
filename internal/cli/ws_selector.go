@@ -16,17 +16,18 @@ import (
 
 var errSelectorCanceled = errors.New("selector canceled")
 
-type closeSelectorCandidate struct {
+type workspaceSelectorCandidate struct {
 	ID          string
 	Description string
 	Risk        workspacerisk.WorkspaceRisk
 }
 
-type closeSelectorModel struct {
-	candidates []closeSelectorCandidate
+type workspaceSelectorModel struct {
+	candidates []workspaceSelectorCandidate
 	selected   map[int]bool
 	cursor     int
 	width      int
+	status     string
 	useColor   bool
 	debugf     func(string, ...any)
 	message    string
@@ -34,25 +35,26 @@ type closeSelectorModel struct {
 	done       bool
 }
 
-func newCloseSelectorModel(candidates []closeSelectorCandidate, useColor bool, debugf func(string, ...any)) closeSelectorModel {
+func newWorkspaceSelectorModel(candidates []workspaceSelectorCandidate, status string, useColor bool, debugf func(string, ...any)) workspaceSelectorModel {
 	if debugf == nil {
 		debugf = func(string, ...any) {}
 	}
-	return closeSelectorModel{
+	return workspaceSelectorModel{
 		candidates: candidates,
 		selected:   make(map[int]bool, len(candidates)),
 		cursor:     0,
 		width:      80,
+		status:     status,
 		useColor:   useColor,
 		debugf:     debugf,
 	}
 }
 
-func (m closeSelectorModel) Init() tea.Cmd {
+func (m workspaceSelectorModel) Init() tea.Cmd {
 	return nil
 }
 
-func (m closeSelectorModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+func (m workspaceSelectorModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
 		if msg.Width > 0 {
@@ -123,12 +125,12 @@ func (m closeSelectorModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
-func (m closeSelectorModel) View() string {
-	lines := renderCloseSelectorLines(m.candidates, m.selected, m.cursor, m.message, m.useColor, m.width)
+func (m workspaceSelectorModel) View() string {
+	lines := renderWorkspaceSelectorLines(m.status, m.candidates, m.selected, m.cursor, m.message, m.useColor, m.width)
 	return strings.Join(lines, "\n")
 }
 
-func (m closeSelectorModel) selectedCount() int {
+func (m workspaceSelectorModel) selectedCount() int {
 	count := 0
 	for _, picked := range m.selected {
 		if picked {
@@ -138,7 +140,7 @@ func (m closeSelectorModel) selectedCount() int {
 	return count
 }
 
-func (m closeSelectorModel) selectedIDs() []string {
+func (m workspaceSelectorModel) selectedIDs() []string {
 	ids := make([]string, 0, len(m.candidates))
 	for i, it := range m.candidates {
 		if m.selected[i] {
@@ -148,7 +150,7 @@ func (m closeSelectorModel) selectedIDs() []string {
 	return ids
 }
 
-func (c *CLI) promptWorkspaceCloseSelector(candidates []closeSelectorCandidate) ([]string, error) {
+func (c *CLI) promptWorkspaceSelector(status string, candidates []workspaceSelectorCandidate) ([]string, error) {
 	if len(candidates) == 0 {
 		return nil, fmt.Errorf("no workspace candidates")
 	}
@@ -159,15 +161,18 @@ func (c *CLI) promptWorkspaceCloseSelector(candidates []closeSelectorCandidate) 
 	}
 
 	useColor := writerSupportsColor(c.Err)
-	return runCloseSelector(inFile, c.Err, candidates, useColor, c.debugf)
+	return runWorkspaceSelector(inFile, c.Err, status, candidates, useColor, c.debugf)
 }
 
-func runCloseSelector(in *os.File, out io.Writer, candidates []closeSelectorCandidate, useColor bool, debugf func(string, ...any)) ([]string, error) {
+func runWorkspaceSelector(in *os.File, out io.Writer, status string, candidates []workspaceSelectorCandidate, useColor bool, debugf func(string, ...any)) ([]string, error) {
 	if len(candidates) == 0 {
 		return nil, fmt.Errorf("no workspace candidates")
 	}
+	if strings.TrimSpace(status) == "" {
+		status = "active"
+	}
 
-	model := newCloseSelectorModel(candidates, useColor, debugf)
+	model := newWorkspaceSelectorModel(candidates, status, useColor, debugf)
 	program := tea.NewProgram(
 		model,
 		tea.WithInput(in),
@@ -179,7 +184,7 @@ func runCloseSelector(in *os.File, out io.Writer, candidates []closeSelectorCand
 	if err != nil {
 		return nil, err
 	}
-	m, ok := finalModel.(closeSelectorModel)
+	m, ok := finalModel.(workspaceSelectorModel)
 	if !ok {
 		return nil, fmt.Errorf("unexpected selector model type")
 	}
@@ -194,7 +199,7 @@ func runCloseSelector(in *os.File, out io.Writer, candidates []closeSelectorCand
 	return ids, nil
 }
 
-func renderCloseSelectorLines(candidates []closeSelectorCandidate, selected map[int]bool, cursor int, message string, useColor bool, termWidth int) []string {
+func renderWorkspaceSelectorLines(status string, candidates []workspaceSelectorCandidate, selected map[int]bool, cursor int, message string, useColor bool, termWidth int) []string {
 	idWidth := len("workspace")
 	for _, it := range candidates {
 		if n := len(it.ID); n > idWidth {
@@ -215,7 +220,7 @@ func renderCloseSelectorLines(candidates []closeSelectorCandidate, selected map[
 		}
 	}
 
-	titleLine := renderWorkspacesTitle("active", useColor)
+	titleLine := renderWorkspacesTitle(status, useColor)
 	footerRaw := fmt.Sprintf("selected: %d/%d  ↑↓ move  space toggle  enter proceed  esc/c-c cancel", selectedCount, len(candidates))
 	footer := styleMuted(footerRaw, useColor)
 

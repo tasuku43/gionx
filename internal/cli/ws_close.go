@@ -20,6 +20,8 @@ import (
 	"github.com/tasuku43/gionx/internal/statestore"
 )
 
+var errNoActiveWorkspaces = errors.New("no active workspaces available")
+
 func (c *CLI) runWSClose(args []string) int {
 	for len(args) > 0 && strings.HasPrefix(args[0], "-") {
 		switch args[0] {
@@ -93,91 +95,95 @@ func (c *CLI) runWSClose(args []string) int {
 	}
 	useColorOut := writerSupportsColor(c.Out)
 
-	selectedIDs := make([]string, 0, 1)
-
+	directWorkspaceID := ""
 	if len(args) == 1 {
-		workspaceID := args[0]
-		if err := validateWorkspaceID(workspaceID); err != nil {
+		directWorkspaceID = args[0]
+		if err := validateWorkspaceID(directWorkspaceID); err != nil {
 			fmt.Fprintf(c.Err, "invalid workspace id: %v\n", err)
 			return exitUsage
 		}
-		selectedIDs = append(selectedIDs, workspaceID)
-		c.debugf("ws close direct mode selected=%v", selectedIDs)
-	} else {
-		candidates, err := listActiveCloseCandidates(ctx, db, root)
-		if err != nil {
-			fmt.Fprintf(c.Err, "list close candidates: %v\n", err)
-			return exitError
-		}
-		if len(candidates) == 0 {
+	}
+
+	flow := workspaceSelectRiskResultFlowConfig{
+		FlowName: "ws close",
+		SelectIDs: func() ([]string, error) {
+			if directWorkspaceID != "" {
+				selected := []string{directWorkspaceID}
+				c.debugf("ws close direct mode selected=%v", selected)
+				return selected, nil
+			}
+
+			candidates, err := listActiveCloseCandidates(ctx, db, root)
+			if err != nil {
+				return nil, fmt.Errorf("list close candidates: %w", err)
+			}
+			if len(candidates) == 0 {
+				return nil, errNoActiveWorkspaces
+			}
+
+			ids, err := c.promptWorkspaceSelector("active", candidates)
+			if err != nil {
+				return nil, err
+			}
+			c.debugf("ws close selector mode selected=%v", ids)
+			return ids, nil
+		},
+		CollectRiskDetails: func(ids []string) ([]workspaceRiskDetail, error) {
+			items, err := collectWorkspaceRiskDetails(ctx, db, root, ids)
+			if err != nil {
+				return nil, fmt.Errorf("inspect workspace risk: %w", err)
+			}
+			if hasNonCleanRisk(items) {
+				c.debugf("ws close risk detected count=%d", len(items))
+			}
+			return items, nil
+		},
+		PrintRisk: func(items []workspaceRiskDetail, useColor bool) {
+			printRiskSection(c.Out, items, useColor)
+		},
+		ConfirmRisk: c.confirmRiskProceed,
+		ApplyOne: func(workspaceID string) error {
+			c.debugf("ws close archive start workspace=%s", workspaceID)
+			if err := c.closeWorkspace(ctx, db, root, repoPoolPath, workspaceID); err != nil {
+				return err
+			}
+			c.debugf("ws close archive completed workspace=%s", workspaceID)
+			return nil
+		},
+		ResultVerb: "Archived",
+		ResultMark: "✔",
+	}
+
+	archived, err := c.runWorkspaceSelectRiskResultFlow(flow, useColorOut)
+	if err != nil {
+		switch {
+		case errors.Is(err, errNoActiveWorkspaces):
 			fmt.Fprintln(c.Err, "no active workspaces available")
 			return exitError
-		}
-
-		ids, err := c.promptWorkspaceCloseSelector(candidates)
-		if err != nil {
-			if errors.Is(err, errSelectorCanceled) {
-				c.debugf("ws close selector canceled")
-				fmt.Fprintln(c.Err, "aborted")
-				return exitError
-			}
-			fmt.Fprintf(c.Err, "select workspaces: %v\n", err)
+		case errors.Is(err, errSelectorCanceled):
+			c.debugf("ws close selector canceled")
+			fmt.Fprintln(c.Err, "aborted")
 			return exitError
-		}
-		selectedIDs = ids
-		c.debugf("ws close selector mode selected=%v", selectedIDs)
-	}
-
-	riskItems, err := collectWorkspaceRiskDetails(ctx, db, root, selectedIDs)
-	if err != nil {
-		fmt.Fprintf(c.Err, "inspect workspace risk: %v\n", err)
-		return exitError
-	}
-	if hasNonCleanRisk(riskItems) {
-		c.debugf("ws close risk detected count=%d", len(riskItems))
-		printRiskSection(c.Out, riskItems, useColorOut)
-		ok, err := c.confirmRiskProceed()
-		if err != nil {
-			fmt.Fprintf(c.Err, "read risk confirmation: %v\n", err)
-			return exitError
-		}
-		if !ok {
+		case errors.Is(err, errWorkspaceFlowCanceled):
 			c.debugf("ws close canceled at risk confirmation")
-			fmt.Fprintln(c.Out)
-			fmt.Fprintln(c.Out, renderResultTitle(useColorOut))
-			fmt.Fprintf(c.Out, "%saborted: canceled at Risk\n", uiIndent)
+			return exitError
+		default:
+			fmt.Fprintf(c.Err, "run ws close flow: %v\n", err)
 			return exitError
 		}
 	}
 
-	var archived []string
-	for _, workspaceID := range selectedIDs {
-		c.debugf("ws close archive start workspace=%s", workspaceID)
-		if err := c.closeWorkspace(ctx, db, root, repoPoolPath, workspaceID); err != nil {
-			fmt.Fprintf(c.Err, "close workspace %s: %v\n", workspaceID, err)
-			return exitError
-		}
-		archived = append(archived, workspaceID)
-		c.debugf("ws close archive completed workspace=%s", workspaceID)
-	}
-
-	fmt.Fprintln(c.Out)
-	fmt.Fprintln(c.Out, renderResultTitle(useColorOut))
-	fmt.Fprintf(c.Out, "%sArchived %d / %d\n", uiIndent, len(archived), len(selectedIDs))
-	for _, id := range archived {
-		fmt.Fprintf(c.Out, "%s✔ %s\n", uiIndent, id)
-	}
 	c.debugf("ws close completed archived=%v", archived)
 	return exitOK
 }
 
-func listActiveCloseCandidates(ctx context.Context, db *sql.DB, root string) ([]closeSelectorCandidate, error) {
+func listActiveCloseCandidates(ctx context.Context, db *sql.DB, root string) ([]workspaceSelectorCandidate, error) {
 	items, err := statestore.ListWorkspaces(ctx, db)
 	if err != nil {
 		return nil, err
 	}
 
-	out := make([]closeSelectorCandidate, 0, len(items))
+	out := make([]workspaceSelectorCandidate, 0, len(items))
 	for _, it := range items {
 		if it.Status != "active" {
 			continue
@@ -187,7 +193,7 @@ func listActiveCloseCandidates(ctx context.Context, db *sql.DB, root string) ([]
 			return nil, err
 		}
 		risk, _ := inspectWorkspaceRepoRisk(ctx, root, it.ID, repos)
-		out = append(out, closeSelectorCandidate{
+		out = append(out, workspaceSelectorCandidate{
 			ID:          it.ID,
 			Description: strings.TrimSpace(it.Description),
 			Risk:        risk,
