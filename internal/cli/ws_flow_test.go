@@ -66,6 +66,46 @@ func TestWorkspaceFlow_RiskCancelReturnsSentinelAndPrintsAbortedResult(t *testin
 	}
 }
 
+func TestWorkspaceFlow_UsesCustomResultPrinterWhenProvided(t *testing.T) {
+	var out bytes.Buffer
+	var errOut bytes.Buffer
+	c := New(&out, &errOut)
+
+	called := false
+	_, err := c.runWorkspaceSelectRiskResultFlow(workspaceSelectRiskResultFlowConfig{
+		FlowName: "test flow",
+		SelectItems: func() ([]workspaceFlowSelection, error) {
+			return []workspaceFlowSelection{{ID: "WS-1"}}, nil
+		},
+		ApplyOne: func(item workspaceFlowSelection) error {
+			return nil
+		},
+		PrintResult: func(done []string, total int, useColor bool) {
+			called = true
+			if len(done) != 1 || done[0] != "WS-1" {
+				t.Fatalf("done = %v, want [WS-1]", done)
+			}
+			if total != 1 {
+				t.Fatalf("total = %d, want 1", total)
+			}
+			out.WriteString("custom result\n")
+		},
+	}, false)
+	if err != nil {
+		t.Fatalf("runWorkspaceSelectRiskResultFlow() err = %v", err)
+	}
+	if !called {
+		t.Fatalf("custom result printer was not called")
+	}
+	got := out.String()
+	if !containsAll(got, "custom result") {
+		t.Fatalf("stdout missing custom result: %q", got)
+	}
+	if containsAll(got, "Result:") {
+		t.Fatalf("default result should not be printed when custom result is set: %q", got)
+	}
+}
+
 func containsAll(s string, wants ...string) bool {
 	for _, w := range wants {
 		if !bytes.Contains([]byte(s), []byte(w)) {

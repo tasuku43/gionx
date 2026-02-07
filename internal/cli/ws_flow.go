@@ -27,8 +27,9 @@ type workspaceSelectRiskResultFlowConfig struct {
 
 	ApplyOne func(workspaceFlowSelection) error
 
-	ResultVerb string
-	ResultMark string
+	ResultVerb  string
+	ResultMark  string
+	PrintResult func(done []string, total int, useColor bool)
 }
 
 func (c *CLI) runWorkspaceSelectRiskResultFlow(cfg workspaceSelectRiskResultFlowConfig, useColor bool) ([]string, error) {
@@ -82,7 +83,11 @@ func (c *CLI) runWorkspaceSelectRiskResultFlow(cfg workspaceSelectRiskResultFlow
 		done = append(done, item.ID)
 	}
 
-	c.printWorkspaceFlowResult(cfg.ResultVerb, cfg.ResultMark, done, len(selectedItems), useColor)
+	if cfg.PrintResult != nil {
+		cfg.PrintResult(done, len(selectedItems), useColor)
+	} else {
+		c.printWorkspaceFlowResult(cfg.ResultVerb, cfg.ResultMark, done, len(selectedItems), useColor)
+	}
 	c.debugf("%s result done=%v", flowName, done)
 	return done, nil
 }

@@ -36,6 +36,7 @@ Subcommands:
   create            Create a workspace
   list              List workspaces
   add-repo          Add repo to workspace
+  go                Navigate to workspace path
   close             Close workspace
   reopen            Reopen workspace
   purge             Purge workspace
@@ -74,6 +75,24 @@ Add a repository to a workspace as a Git worktree.
 Inputs:
   workspace-id       Existing workspace ID (must be active)
   repo               Repo spec (git@... / https://... / file://...)
+`)
+}
+
+func (c *CLI) printWSGoUsage(w io.Writer) {
+	fmt.Fprint(w, `Usage:
+  gionx ws go [--archived] [--emit-cd] [<id>]
+
+Resolve a workspace directory target:
+- active target: workspaces/<id>/
+- archived target (--archived): archive/<id>/
+
+Modes:
+- direct mode: provide <id>
+- selector mode: omit <id> (interactive TTY required, single selection)
+
+Options:
+  --archived        Use archived workspace scope
+  --emit-cd         Print shell snippet (for example: eval "$(gionx ws go --emit-cd)")
 `)
 }
 
