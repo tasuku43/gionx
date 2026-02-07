@@ -371,3 +371,12 @@ It does not replace per-item dependencies.
     - `docs/spec/commands/ws/selector.md`
   - Depends: UX-WS-001
   - Parallel: yes
+
+- [x] UX-WS-015: Semantic color guardrail enforcement
+  - What: add a CI/lint gate that blocks raw ANSI or ad-hoc color usage outside shared token paths,
+    and document the rule in AGENTS/testing docs.
+  - Specs:
+    - `docs/spec/concepts/ui-color.md`
+    - `docs/dev/TESTING.md`
+  - Depends: UX-WS-014
+  - Parallel: yes

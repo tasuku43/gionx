@@ -49,3 +49,10 @@ Commands must use semantic tokens and shared helpers.
 - no-color environments must preserve meaning via plain text symbols and labels.
 - avoid command-specific ad-hoc color semantics.
 
+## Enforcement
+
+- CI must run `./scripts/lint-ui-color.sh`.
+- `scripts/lint-ui-color.sh` is a hard gate for:
+  - raw ANSI color literals outside `internal/cli/ws_ui_common.go`
+  - direct `lipgloss.Color(...)` usage in CLI code
+  - direct foreground/background concrete color assignment outside approved shared renderer paths
