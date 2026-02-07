@@ -130,3 +130,10 @@ func TestResolveBaseRefInput_UsesDefaultWhenEmpty(t *testing.T) {
 		t.Fatalf("expected default base_ref, got=%q", got)
 	}
 }
+
+func TestRenderAddRepoInputPrompt(t *testing.T) {
+	got := renderAddRepoInputPrompt("prefix ", "base_ref", "origin/main", false)
+	if got != "prefix base_ref: origin/main" {
+		t.Fatalf("unexpected prompt: %q", got)
+	}
+}
