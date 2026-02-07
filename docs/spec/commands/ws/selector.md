@@ -19,6 +19,10 @@ Provide a non-fullscreen interactive selector for frequent workspace operations.
 - Text input is always treated as filter query input (no dedicated filter mode).
 - `Backspace` / `Delete`: remove one rune from filter query.
 - Filter text must persist after selection toggle; it is cleared only when the user explicitly deletes it.
+- Single-select mode (`ws go`) uses cursor + Enter confirmation:
+  - checkbox markers are hidden.
+  - `Space` has no effect.
+  - footer does not show `selected: n/m`.
 
 ## TTY requirement
 
@@ -89,6 +93,9 @@ Semantic color token policy:
 - Canonical row shape:
   - `> [ ] WS-101      login flow`
   - `  [x] WS-202      payment hotfix`
+- Single-select canonical row shape:
+  - `> WS-101          login flow`
+  - `  WS-202          payment hotfix`
 - For repo-pool selectors (`itemLabel=repo`), description column is omitted by default (no `(no description)` filler).
 - `status` is not rendered per row. State context is provided by header `scope`.
 - The description column must be vertically aligned across rows (fixed description start column).

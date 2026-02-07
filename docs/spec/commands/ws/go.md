@@ -25,6 +25,7 @@ Jump to a workspace directory as a "start work" action.
   - launch shared selector UI (`commands/ws/selector.md`)
   - default scope is `active`; use `--archived` to switch scope
   - selection cardinality is single-only
+  - UI is single-select mode (no checkbox markers / no `selected: n/m` footer)
 
 ### Target path
 

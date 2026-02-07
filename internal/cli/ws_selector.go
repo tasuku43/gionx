@@ -52,13 +52,18 @@ type workspaceSelectorModel struct {
 	showCaret  bool
 	canceled   bool
 	done       bool
+	single     bool
 }
 
 func newWorkspaceSelectorModel(candidates []workspaceSelectorCandidate, status string, action string, useColor bool, debugf func(string, ...any)) workspaceSelectorModel {
-	return newWorkspaceSelectorModelWithOptions(candidates, status, action, "", "workspace", useColor, debugf)
+	return newWorkspaceSelectorModelWithOptionsAndMode(candidates, status, action, "", "workspace", false, useColor, debugf)
 }
 
 func newWorkspaceSelectorModelWithOptions(candidates []workspaceSelectorCandidate, status string, action string, title string, itemLabel string, useColor bool, debugf func(string, ...any)) workspaceSelectorModel {
+	return newWorkspaceSelectorModelWithOptionsAndMode(candidates, status, action, title, itemLabel, false, useColor, debugf)
+}
+
+func newWorkspaceSelectorModelWithOptionsAndMode(candidates []workspaceSelectorCandidate, status string, action string, title string, itemLabel string, single bool, useColor bool, debugf func(string, ...any)) workspaceSelectorModel {
 	if debugf == nil {
 		debugf = func(string, ...any) {}
 	}
@@ -82,6 +87,7 @@ func newWorkspaceSelectorModelWithOptions(candidates []workspaceSelectorCandidat
 		debugf:     debugf,
 		msgLevel:   selectorMessageLevelMuted,
 		showCaret:  true,
+		single:     single,
 	}
 }
 
@@ -118,10 +124,21 @@ func (m workspaceSelectorModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 			return m, nil
 		case tea.KeyEnter:
-			if m.selectedCount() == 0 {
-				m.setErrorMessage(fmt.Sprintf("at least one %s must be selected", m.itemLabel))
-				m.debugf("selector enter rejected: no selection")
-				return m, nil
+			if m.single {
+				visible := m.filteredIndices()
+				if len(visible) == 0 {
+					m.setErrorMessage(fmt.Sprintf("at least one %s must be visible", m.itemLabel))
+					m.debugf("selector enter rejected: no visible candidate")
+					return m, nil
+				}
+				idx := visible[m.cursor]
+				m.selected = map[int]bool{idx: true}
+			} else {
+				if m.selectedCount() == 0 {
+					m.setErrorMessage(fmt.Sprintf("at least one %s must be selected", m.itemLabel))
+					m.debugf("selector enter rejected: no selection")
+					return m, nil
+				}
 			}
 			m.done = true
 			m.debugf("selector done selected=%v", m.selectedIDs())
@@ -142,6 +159,9 @@ func (m workspaceSelectorModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.debugf("selector move down cursor=%d", m.cursor)
 			return m, nil
 		case tea.KeySpace:
+			if m.single {
+				return m, nil
+			}
 			m.toggleCurrentSelection()
 			return m, nil
 		}
@@ -149,6 +169,9 @@ func (m workspaceSelectorModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			r := msg.Runes[0]
 			switch r {
 			case ' ', '　':
+				if m.single {
+					return m, nil
+				}
 				m.toggleCurrentSelection()
 				return m, nil
 			default:
@@ -166,7 +189,7 @@ func (m workspaceSelectorModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (m workspaceSelectorModel) View() string {
-	lines := renderWorkspaceSelectorLinesWithOptions(m.status, m.title, m.action, m.candidates, m.selected, m.cursor, m.message, m.msgLevel, m.filter, m.showDesc, m.showCaret, m.useColor, m.width)
+	lines := renderWorkspaceSelectorLinesWithOptions(m.status, m.title, m.action, m.candidates, m.selected, m.cursor, m.message, m.msgLevel, m.filter, m.showDesc, m.showCaret, m.single, m.useColor, m.width)
 	return strings.Join(lines, "\n")
 }
 
@@ -242,7 +265,15 @@ func (c *CLI) promptWorkspaceSelector(status string, action string, candidates [
 	return c.promptWorkspaceSelectorWithOptions(status, action, "", "workspace", candidates)
 }
 
+func (c *CLI) promptWorkspaceSelectorSingle(status string, action string, candidates []workspaceSelectorCandidate) ([]string, error) {
+	return c.promptWorkspaceSelectorWithOptionsAndMode(status, action, "", "workspace", candidates, true)
+}
+
 func (c *CLI) promptWorkspaceSelectorWithOptions(status string, action string, title string, itemLabel string, candidates []workspaceSelectorCandidate) ([]string, error) {
+	return c.promptWorkspaceSelectorWithOptionsAndMode(status, action, title, itemLabel, candidates, false)
+}
+
+func (c *CLI) promptWorkspaceSelectorWithOptionsAndMode(status string, action string, title string, itemLabel string, candidates []workspaceSelectorCandidate, single bool) ([]string, error) {
 	if len(candidates) == 0 {
 		return nil, fmt.Errorf("no workspace candidates")
 	}
@@ -253,7 +284,7 @@ func (c *CLI) promptWorkspaceSelectorWithOptions(status string, action string, t
 	}
 
 	useColor := writerSupportsColor(c.Err)
-	return runWorkspaceSelectorWithOptions(inFile, c.Err, status, action, title, itemLabel, candidates, useColor, c.debugf)
+	return runWorkspaceSelectorWithOptionsAndMode(inFile, c.Err, status, action, title, itemLabel, candidates, single, useColor, c.debugf)
 }
 
 func runWorkspaceSelector(in *os.File, out io.Writer, status string, action string, candidates []workspaceSelectorCandidate, useColor bool, debugf func(string, ...any)) ([]string, error) {
@@ -261,6 +292,10 @@ func runWorkspaceSelector(in *os.File, out io.Writer, status string, action stri
 }
 
 func runWorkspaceSelectorWithOptions(in *os.File, out io.Writer, status string, action string, title string, itemLabel string, candidates []workspaceSelectorCandidate, useColor bool, debugf func(string, ...any)) ([]string, error) {
+	return runWorkspaceSelectorWithOptionsAndMode(in, out, status, action, title, itemLabel, candidates, false, useColor, debugf)
+}
+
+func runWorkspaceSelectorWithOptionsAndMode(in *os.File, out io.Writer, status string, action string, title string, itemLabel string, candidates []workspaceSelectorCandidate, single bool, useColor bool, debugf func(string, ...any)) ([]string, error) {
 	if len(candidates) == 0 {
 		return nil, fmt.Errorf("no workspace candidates")
 	}
@@ -268,7 +303,7 @@ func runWorkspaceSelectorWithOptions(in *os.File, out io.Writer, status string, 
 		status = "active"
 	}
 
-	model := newWorkspaceSelectorModelWithOptions(candidates, status, action, title, itemLabel, useColor, debugf)
+	model := newWorkspaceSelectorModelWithOptionsAndMode(candidates, status, action, title, itemLabel, single, useColor, debugf)
 	program := tea.NewProgram(
 		model,
 		tea.WithInput(in),
@@ -296,10 +331,10 @@ func runWorkspaceSelectorWithOptions(in *os.File, out io.Writer, status string, 
 }
 
 func renderWorkspaceSelectorLines(status string, action string, candidates []workspaceSelectorCandidate, selected map[int]bool, cursor int, message string, filter string, showCaret bool, useColor bool, termWidth int) []string {
-	return renderWorkspaceSelectorLinesWithOptions(status, "", action, candidates, selected, cursor, message, selectorMessageLevelMuted, filter, true, showCaret, useColor, termWidth)
+	return renderWorkspaceSelectorLinesWithOptions(status, "", action, candidates, selected, cursor, message, selectorMessageLevelMuted, filter, true, showCaret, false, useColor, termWidth)
 }
 
-func renderWorkspaceSelectorLinesWithOptions(status string, title string, action string, candidates []workspaceSelectorCandidate, selected map[int]bool, cursor int, message string, msgLevel selectorMessageLevel, filter string, showDesc bool, showCaret bool, useColor bool, termWidth int) []string {
+func renderWorkspaceSelectorLinesWithOptions(status string, title string, action string, candidates []workspaceSelectorCandidate, selected map[int]bool, cursor int, message string, msgLevel selectorMessageLevel, filter string, showDesc bool, showCaret bool, single bool, useColor bool, termWidth int) []string {
 	idWidth := len("workspace")
 	for _, it := range candidates {
 		if n := len(it.ID); n > idWidth {
@@ -334,7 +369,7 @@ func renderWorkspaceSelectorLinesWithOptions(status string, title string, action
 		termWidth = 24
 	}
 	maxCols := termWidth - 1
-	footerRaw := renderSelectorFooterLine(selectedCount, len(candidates), action, maxCols)
+	footerRaw := renderSelectorFooterLine(selectedCount, len(candidates), action, single, maxCols)
 	footer := styleMuted(footerRaw, useColor)
 
 	bodyLines := make([]string, 0, len(candidates))
@@ -352,16 +387,19 @@ func renderWorkspaceSelectorLinesWithOptions(status string, title string, action
 			focus = ">"
 		}
 
-		mark := " "
-		if selected[sourceIdx] {
-			mark = "x"
-		}
-
 		idPlain := fmt.Sprintf("%-*s", idWidth, truncateDisplay(it.ID, idWidth))
-		prefixPlain := fmt.Sprintf("[%s] %s  ", mark, idPlain)
+		prefixPlain := idPlain + "  "
 
 		idText := colorizeRiskID(idPlain, it.Risk, useColor)
-		prefix := fmt.Sprintf("[%s] %s  ", mark, idText)
+		prefix := idText + "  "
+		if !single {
+			mark := " "
+			if selected[sourceIdx] {
+				mark = "x"
+			}
+			prefixPlain = fmt.Sprintf("[%s] %s  ", mark, idPlain)
+			prefix = fmt.Sprintf("[%s] %s  ", mark, idText)
+		}
 		bodyRaw := prefix
 		if showDesc {
 			desc := strings.TrimSpace(it.Description)
@@ -381,7 +419,7 @@ func renderWorkspaceSelectorLinesWithOptions(status string, title string, action
 		line := lineRaw
 		if useColor {
 			bodyStyled := bodyRaw
-			if selected[sourceIdx] {
+			if !single && selected[sourceIdx] {
 				bodyStyled = lipgloss.NewStyle().Bold(true).Render(bodyRaw)
 			}
 			if visiblePos == cursor {
@@ -441,7 +479,31 @@ func renderWorkspaceSelectorLinesWithOptions(status string, title string, action
 	return lines
 }
 
-func renderSelectorFooterLine(selectedCount int, total int, action string, maxCols int) string {
+func renderSelectorFooterLine(selectedCount int, total int, action string, single bool, maxCols int) string {
+	if single {
+		base := uiIndent + "↑↓ move"
+		parts := []string{
+			fmt.Sprintf("enter %s", action),
+			"type filter",
+			"esc cancel",
+		}
+		line := base
+		for i, part := range parts {
+			candidate := line + "  " + part
+			if displayWidth(candidate) > maxCols {
+				if i < len(parts)-1 {
+					withEllipsis := line + "  …"
+					if displayWidth(withEllipsis) <= maxCols {
+						return withEllipsis
+					}
+				}
+				return line
+			}
+			line = candidate
+		}
+		return line
+	}
+
 	base := fmt.Sprintf("%sselected: %d/%d", uiIndent, selectedCount, total)
 	if maxCols <= 0 {
 		return ""
