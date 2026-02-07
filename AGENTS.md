@@ -50,10 +50,22 @@ This project has two different "commit scopes":
 Before committing (and before opening/updating a PR), run the minimum checks:
 
 - Formatting: `test -z "$(gofmt -l .)"`
+- UI color rules: `./scripts/lint-ui-color.sh`
 - Static checks: `go vet ./...`
 - Tests: `go test ./...`
 
 If any check fails, fix it before pushing.
+
+## UI Color Guardrail (required)
+
+To keep CLI/TUI output consistent across sessions:
+
+- Follow `docs/spec/concepts/ui-color.md` for all user-facing output.
+- Do not introduce raw ANSI color codes outside `internal/cli/ws_ui_common.go`.
+- Do not introduce direct `lipgloss.Color(...)` usage in command handlers/renderers.
+- Use shared semantic style helpers (`styleTokenize`, `styleMuted`, `styleAccent`, etc.) from
+  `internal/cli/ws_ui_common.go`.
+- If you need a new visual meaning, add/update semantic token definitions first, then apply them.
 
 ## WS Flow Guardrail (required)
 
