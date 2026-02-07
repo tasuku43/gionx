@@ -40,7 +40,10 @@ Discover repositories from provider API and bulk-add selected repos into the sha
 - show only repos not yet registered in current root state DB
   - uniqueness key: `repo_uid`
 - row display: `owner/repo`
-- multi-select via inline selector
+- multi-select via shared inline selector component (same interaction as `ws` selectors)
+  - `space`: toggle
+  - `enter`: confirm
+  - `esc` / `ctrl+c`: cancel
 
 ## Apply behavior
 

@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"slices"
 	"strings"
 
 	"github.com/tasuku43/gionx/internal/gitutil"
@@ -15,6 +14,9 @@ import (
 )
 
 var newRepoDiscoveryProvider = repodiscovery.NewProvider
+var promptRepoDiscoverSelection = func(c *CLI, candidates []workspaceSelectorCandidate) ([]string, error) {
+	return c.promptWorkspaceSelectorWithOptions("active", "add", "Repo pool:", "repo", candidates)
+}
 
 type repoDiscoverOptions struct {
 	Org      string
@@ -158,7 +160,17 @@ func (c *CLI) runRepoDiscover(args []string) int {
 		return exitError
 	}
 
-	selected, err := c.promptRepoDiscoverSelection(candidates)
+	selectorCandidates := make([]workspaceSelectorCandidate, 0, len(candidates))
+	repoByKey := make(map[string]repodiscovery.Repo, len(candidates))
+	for _, cand := range candidates {
+		selectorCandidates = append(selectorCandidates, workspaceSelectorCandidate{
+			ID:          cand.RepoKey,
+			Description: "",
+		})
+		repoByKey[cand.RepoKey] = cand
+	}
+
+	selectedIDs, err := promptRepoDiscoverSelection(c, selectorCandidates)
 	if err != nil {
 		if errors.Is(err, errSelectorCanceled) {
 			fmt.Fprintln(c.Err, "aborted")
@@ -167,14 +179,22 @@ func (c *CLI) runRepoDiscover(args []string) int {
 		fmt.Fprintf(c.Err, "select repos: %v\n", err)
 		return exitError
 	}
-	if len(selected) == 0 {
+	if len(selectedIDs) == 0 {
 		fmt.Fprintln(c.Err, "aborted")
 		return exitError
 	}
 
-	requests := make([]repoPoolAddRequest, 0, len(selected))
-	for _, s := range selected {
-		requests = append(requests, repoPoolAddRequest{RepoSpecInput: s.RemoteURL, DisplayName: s.RepoKey})
+	requests := make([]repoPoolAddRequest, 0, len(selectedIDs))
+	for _, key := range selectedIDs {
+		repo, ok := repoByKey[key]
+		if !ok {
+			continue
+		}
+		requests = append(requests, repoPoolAddRequest{RepoSpecInput: repo.RemoteURL, DisplayName: repo.RepoKey})
+	}
+	if len(requests) == 0 {
+		fmt.Fprintln(c.Err, "aborted")
+		return exitError
 	}
 	printRepoPoolSection(c.Out, requests)
 	outcomes := applyRepoPoolAdds(ctx, db, repoPoolPath, requests, c.debugf)
@@ -183,63 +203,4 @@ func (c *CLI) runRepoDiscover(args []string) int {
 		return exitError
 	}
 	return exitOK
-}
-
-func (c *CLI) promptRepoDiscoverSelection(candidates []repodiscovery.Repo) ([]repodiscovery.Repo, error) {
-	if len(candidates) == 0 {
-		return nil, errSelectorCanceled
-	}
-	filter := ""
-	for {
-		visible := filterRepoDiscoverCandidates(candidates, filter)
-		fmt.Fprintln(c.Err, "Repo pool:")
-		fmt.Fprintln(c.Err)
-		if len(visible) == 0 {
-			fmt.Fprintf(c.Err, "%s(none)\n", uiIndent)
-		} else {
-			for i, it := range visible {
-				fmt.Fprintf(c.Err, "%s[%d] %s\n", uiIndent, i+1, it.RepoKey)
-			}
-		}
-		fmt.Fprintln(c.Err)
-		fmt.Fprintf(c.Err, "%sfilter: %s\n", uiIndent, filter)
-
-		line, err := c.promptLine(fmt.Sprintf("%sselect repos (comma numbers, /filter, empty=cancel): ", uiIndent))
-		if err != nil {
-			return nil, err
-		}
-		line = strings.TrimSpace(line)
-		if line == "" {
-			return nil, errSelectorCanceled
-		}
-		if strings.HasPrefix(line, "/") {
-			filter = strings.TrimSpace(strings.TrimPrefix(line, "/"))
-			continue
-		}
-
-		indices, err := parseMultiSelectIndices(line, len(visible))
-		if err != nil {
-			fmt.Fprintf(c.Err, "%sinvalid selection: %v\n", uiIndent, err)
-			continue
-		}
-		selected := make([]repodiscovery.Repo, 0, len(indices))
-		for _, idx := range indices {
-			selected = append(selected, visible[idx])
-		}
-		return selected, nil
-	}
-}
-
-func filterRepoDiscoverCandidates(candidates []repodiscovery.Repo, filter string) []repodiscovery.Repo {
-	filter = strings.ToLower(strings.TrimSpace(filter))
-	if filter == "" {
-		return slices.Clone(candidates)
-	}
-	out := make([]repodiscovery.Repo, 0, len(candidates))
-	for _, it := range candidates {
-		if strings.Contains(strings.ToLower(it.RepoKey), filter) {
-			out = append(out, it)
-		}
-	}
-	return out
 }

@@ -183,11 +183,17 @@ func TestCLI_RepoDiscover_ExcludesExistingAndAddsSelected(t *testing.T) {
 	defer func() {
 		newRepoDiscoveryProvider = origFactory
 	}()
+	origPrompt := promptRepoDiscoverSelection
+	promptRepoDiscoverSelection = func(c *CLI, candidates []workspaceSelectorCandidate) ([]string, error) {
+		return []string{"example-org/newone"}, nil
+	}
+	defer func() {
+		promptRepoDiscoverSelection = origPrompt
+	}()
 
 	var out bytes.Buffer
 	var err bytes.Buffer
 	c := New(&out, &err)
-	c.In = strings.NewReader("1\n")
 	code := c.Run([]string{"repo", "discover", "--org", "example-org"})
 	if code != exitOK {
 		t.Fatalf("repo discover exit code = %d, want %d (stderr=%q)", code, exitOK, err.String())
