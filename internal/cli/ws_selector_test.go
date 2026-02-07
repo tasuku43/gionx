@@ -8,10 +8,10 @@ import (
 )
 
 func TestCloseSelectorModel_SpaceTogglesSelection(t *testing.T) {
-	m := newCloseSelectorModel([]closeSelectorCandidate{{ID: "WS1", Risk: workspacerisk.WorkspaceRiskClean}}, false, nil)
+	m := newWorkspaceSelectorModel([]workspaceSelectorCandidate{{ID: "WS1", Risk: workspacerisk.WorkspaceRiskClean}}, "active", false, nil)
 
 	updated, _ := m.Update(tea.KeyMsg{Type: tea.KeySpace})
-	next, ok := updated.(closeSelectorModel)
+	next, ok := updated.(workspaceSelectorModel)
 	if !ok {
 		t.Fatalf("unexpected model type: %T", updated)
 	}
@@ -20,7 +20,7 @@ func TestCloseSelectorModel_SpaceTogglesSelection(t *testing.T) {
 	}
 
 	updated, _ = next.Update(tea.KeyMsg{Type: tea.KeySpace})
-	next, ok = updated.(closeSelectorModel)
+	next, ok = updated.(workspaceSelectorModel)
 	if !ok {
 		t.Fatalf("unexpected model type: %T", updated)
 	}
@@ -30,10 +30,10 @@ func TestCloseSelectorModel_SpaceTogglesSelection(t *testing.T) {
 }
 
 func TestCloseSelectorModel_EnterRequiresSelection(t *testing.T) {
-	m := newCloseSelectorModel([]closeSelectorCandidate{{ID: "WS1", Risk: workspacerisk.WorkspaceRiskClean}}, false, nil)
+	m := newWorkspaceSelectorModel([]workspaceSelectorCandidate{{ID: "WS1", Risk: workspacerisk.WorkspaceRiskClean}}, "active", false, nil)
 
 	updated, _ := m.Update(tea.KeyMsg{Type: tea.KeyEnter})
-	next, ok := updated.(closeSelectorModel)
+	next, ok := updated.(workspaceSelectorModel)
 	if !ok {
 		t.Fatalf("unexpected model type: %T", updated)
 	}
@@ -46,10 +46,10 @@ func TestCloseSelectorModel_EnterRequiresSelection(t *testing.T) {
 }
 
 func TestCloseSelectorModel_FullWidthSpaceTogglesSelection(t *testing.T) {
-	m := newCloseSelectorModel([]closeSelectorCandidate{{ID: "WS1", Risk: workspacerisk.WorkspaceRiskClean}}, false, nil)
+	m := newWorkspaceSelectorModel([]workspaceSelectorCandidate{{ID: "WS1", Risk: workspacerisk.WorkspaceRiskClean}}, "active", false, nil)
 
 	updated, _ := m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("　")})
-	next, ok := updated.(closeSelectorModel)
+	next, ok := updated.(workspaceSelectorModel)
 	if !ok {
 		t.Fatalf("unexpected model type: %T", updated)
 	}
