@@ -142,52 +142,19 @@ func TestWorkspaceSelectorModel_FilterClearsByDeleteOneRuneAtATime(t *testing.T)
 	}
 }
 
-func TestWorkspaceSelectorModel_LowerASelectsAllVisible(t *testing.T) {
+func TestWorkspaceSelectorModel_LetterAIsFilterInput(t *testing.T) {
 	m := newWorkspaceSelectorModel([]workspaceSelectorCandidate{
-		{ID: "WS1", Description: "abc", Risk: workspacerisk.WorkspaceRiskClean},
-		{ID: "WS2", Description: "abx", Risk: workspacerisk.WorkspaceRiskClean},
-		{ID: "WS3", Description: "zzz", Risk: workspacerisk.WorkspaceRiskClean},
+		{ID: "WS1", Description: "alpha", Risk: workspacerisk.WorkspaceRiskClean},
+		{ID: "WS2", Description: "beta", Risk: workspacerisk.WorkspaceRiskClean},
 	}, "active", "proceed", false, nil)
 
-	updated, _ := m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("b")})
+	updated, _ := m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("a")})
 	next, ok := updated.(workspaceSelectorModel)
 	if !ok {
 		t.Fatalf("unexpected model type: %T", updated)
 	}
-	updated, _ = next.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("a")})
-	next, ok = updated.(workspaceSelectorModel)
-	if !ok {
-		t.Fatalf("unexpected model type: %T", updated)
-	}
-	if !next.selected[0] || !next.selected[1] {
-		t.Fatalf("lowercase a should select all visible rows: %#v", next.selected)
-	}
-	if next.selected[2] {
-		t.Fatalf("non-visible row should remain unchanged: %#v", next.selected)
-	}
-}
-
-func TestWorkspaceSelectorModel_UpperAClearsAllVisible(t *testing.T) {
-	m := newWorkspaceSelectorModel([]workspaceSelectorCandidate{
-		{ID: "WS1", Description: "abc", Risk: workspacerisk.WorkspaceRiskClean},
-		{ID: "WS2", Description: "abx", Risk: workspacerisk.WorkspaceRiskClean},
-		{ID: "WS3", Description: "zzz", Risk: workspacerisk.WorkspaceRiskClean},
-	}, "active", "proceed", false, nil)
-	m.selected[0] = true
-	m.selected[1] = true
-	m.selected[2] = true
-	m.filter = "b"
-
-	updated, _ := m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("A")})
-	next, ok := updated.(workspaceSelectorModel)
-	if !ok {
-		t.Fatalf("unexpected model type: %T", updated)
-	}
-	if next.selected[0] || next.selected[1] {
-		t.Fatalf("uppercase A should clear visible selections: %#v", next.selected)
-	}
-	if !next.selected[2] {
-		t.Fatalf("non-visible selection should stay set: %#v", next.selected)
+	if next.filter != "a" {
+		t.Fatalf("a should be appended to filter, got %q", next.filter)
 	}
 }
 
