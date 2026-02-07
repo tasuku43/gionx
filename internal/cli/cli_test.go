@@ -138,6 +138,9 @@ func TestCLI_Init_CreatesLayoutGitignoreGitRepoAndSettings(t *testing.T) {
 	if err.Len() != 0 {
 		t.Fatalf("stderr not empty: %q", err.String())
 	}
+	if got := out.String(); !strings.Contains(got, "Result:") || !strings.Contains(got, "Initialized: "+root) {
+		t.Fatalf("stdout missing result section: %q", got)
+	}
 
 	if _, statErr := os.Stat(filepath.Join(root, "workspaces")); statErr != nil {
 		t.Fatalf("workspaces/ not created: %v", statErr)
@@ -219,6 +222,9 @@ func TestCLI_Init_CreatesMissingGIONXRootDirectory(t *testing.T) {
 	if err.Len() != 0 {
 		t.Fatalf("stderr not empty: %q", err.String())
 	}
+	if got := out.String(); !strings.Contains(got, "Result:") || !strings.Contains(got, "Initialized: "+root) {
+		t.Fatalf("stdout missing result section: %q", got)
+	}
 
 	if _, statErr := os.Stat(root); statErr != nil {
 		t.Fatalf("root dir not created: %v", statErr)
@@ -274,6 +280,9 @@ func TestCLI_WS_Create_CreatesScaffoldAndStateStoreRows(t *testing.T) {
 	code := c.Run([]string{"ws", "create", "MVP-020"})
 	if code != exitOK {
 		t.Fatalf("exit code = %d, want %d (stderr=%q)", code, exitOK, err.String())
+	}
+	if got := out.String(); !strings.Contains(got, "Result:") || !strings.Contains(got, "Created 1 / 1") || !strings.Contains(got, "✔ MVP-020") {
+		t.Fatalf("stdout missing ws create result section: %q", got)
 	}
 
 	wsDir := filepath.Join(root, "workspaces", "MVP-020")

@@ -53,6 +53,9 @@ func TestCLI_Context_UseAndCurrent(t *testing.T) {
 		if code != exitOK {
 			t.Fatalf("context use exit code = %d, want %d (stderr=%q)", code, exitOK, err.String())
 		}
+		if got := out.String(); !strings.Contains(got, "Result:") || !strings.Contains(got, "Context set: "+root) {
+			t.Fatalf("context use stdout missing result section: %q", got)
+		}
 	}
 
 	var out bytes.Buffer

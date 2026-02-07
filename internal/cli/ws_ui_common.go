@@ -159,3 +159,11 @@ func renderProgressTitle(useColor bool) string {
 func renderResultTitle(useColor bool) string {
 	return styleBold("Result:", useColor)
 }
+
+func printResultSection(out io.Writer, useColor bool, lines ...string) {
+	fmt.Fprintln(out)
+	fmt.Fprintln(out, renderResultTitle(useColor))
+	for _, line := range lines {
+		fmt.Fprintf(out, "%s%s\n", uiIndent, line)
+	}
+}
