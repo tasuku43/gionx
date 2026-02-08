@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/tasuku43/gionx/internal/app/initcmd"
 	"github.com/tasuku43/gionx/internal/paths"
 	"github.com/tasuku43/gionx/internal/statestore"
 )
@@ -40,43 +41,71 @@ func (c *CLI) runInit(args []string) int {
 	}
 	c.debugf("run init args=%q", args)
 
-	if err := ensureInitLayout(root); err != nil {
-		fmt.Fprintf(c.Err, "init layout: %v\n", err)
-		return exitError
-	}
-
-	dbPath, err := paths.StateDBPathForRoot(root)
-	if err != nil {
-		fmt.Fprintf(c.Err, "resolve state db path: %v\n", err)
-		return exitError
-	}
-	repoPoolPath, err := paths.DefaultRepoPoolPath()
-	if err != nil {
-		fmt.Fprintf(c.Err, "resolve repo pool path: %v\n", err)
-		return exitError
-	}
-
 	ctx := context.Background()
-	db, err := statestore.Open(ctx, dbPath)
+	svc := initcmd.NewService(&initAdapter{cli: c})
+	result, err := svc.Run(ctx, initcmd.Request{Root: root})
 	if err != nil {
-		fmt.Fprintf(c.Err, "open state store: %v\n", err)
-		return exitError
-	}
-	defer func() { _ = db.Close() }()
-
-	if err := statestore.EnsureSettings(ctx, db, root, repoPoolPath); err != nil {
-		fmt.Fprintf(c.Err, "initialize settings: %v\n", err)
-		return exitError
-	}
-	if err := c.touchStateRegistry(root); err != nil {
-		fmt.Fprintf(c.Err, "update root registry: %v\n", err)
+		switch {
+		case strings.HasPrefix(err.Error(), "init layout:"):
+			fmt.Fprintf(c.Err, "%v\n", err)
+		case strings.HasPrefix(err.Error(), "resolve state db path:"):
+			fmt.Fprintf(c.Err, "%v\n", err)
+		case strings.HasPrefix(err.Error(), "resolve repo pool path:"):
+			fmt.Fprintf(c.Err, "%v\n", err)
+		case strings.HasPrefix(err.Error(), "open state store:"):
+			fmt.Fprintf(c.Err, "%v\n", err)
+		case strings.HasPrefix(err.Error(), "initialize settings:"):
+			fmt.Fprintf(c.Err, "%v\n", err)
+		case strings.HasPrefix(err.Error(), "update root registry:"):
+			fmt.Fprintf(c.Err, "%v\n", err)
+		default:
+			fmt.Fprintf(c.Err, "run init usecase: %v\n", err)
+		}
 		return exitError
 	}
 
 	useColorOut := writerSupportsColor(c.Out)
-	printResultSection(c.Out, useColorOut, styleSuccess(fmt.Sprintf("Initialized: %s", root), useColorOut))
-	c.debugf("init completed root=%s", root)
+	printResultSection(c.Out, useColorOut, styleSuccess(fmt.Sprintf("Initialized: %s", result.Root), useColorOut))
+	c.debugf("init completed root=%s", result.Root)
 	return exitOK
+}
+
+type initAdapter struct {
+	cli *CLI
+}
+
+func (a *initAdapter) EnsureLayout(root string) error {
+	if err := ensureInitLayout(root); err != nil {
+		return fmt.Errorf("init layout: %w", err)
+	}
+	return nil
+}
+
+func (a *initAdapter) EnsureState(ctx context.Context, root string) error {
+	dbPath, err := paths.StateDBPathForRoot(root)
+	if err != nil {
+		return fmt.Errorf("resolve state db path: %w", err)
+	}
+	repoPoolPath, err := paths.DefaultRepoPoolPath()
+	if err != nil {
+		return fmt.Errorf("resolve repo pool path: %w", err)
+	}
+	db, err := statestore.Open(ctx, dbPath)
+	if err != nil {
+		return fmt.Errorf("open state store: %w", err)
+	}
+	defer func() { _ = db.Close() }()
+	if err := statestore.EnsureSettings(ctx, db, root, repoPoolPath); err != nil {
+		return fmt.Errorf("initialize settings: %w", err)
+	}
+	return nil
+}
+
+func (a *initAdapter) TouchRegistry(root string) error {
+	if err := a.cli.touchStateRegistry(root); err != nil {
+		return fmt.Errorf("update root registry: %w", err)
+	}
+	return nil
 }
 
 func resolveInitRoot() (string, error) {

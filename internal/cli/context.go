@@ -4,10 +4,10 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"slices"
 	"strings"
 	"time"
 
+	"github.com/tasuku43/gionx/internal/app/contextcmd"
 	"github.com/tasuku43/gionx/internal/paths"
 	"github.com/tasuku43/gionx/internal/stateregistry"
 )
@@ -52,7 +52,8 @@ func (c *CLI) runContextCurrent(args []string) int {
 		fmt.Fprintf(c.Err, "get working dir: %v\n", err)
 		return exitError
 	}
-	root, err := paths.ResolveExistingRoot(wd)
+	svc := contextcmd.NewService(&contextAdapter{})
+	root, err := svc.Current(wd)
 	if err != nil {
 		fmt.Fprintf(c.Err, "resolve GIONX_ROOT: %v\n", err)
 		return exitError
@@ -73,12 +74,8 @@ func (c *CLI) runContextList(args []string) int {
 		return exitUsage
 	}
 
-	registryPath, err := stateregistry.Path()
-	if err != nil {
-		fmt.Fprintf(c.Err, "resolve root registry path: %v\n", err)
-		return exitError
-	}
-	entries, err := stateregistry.Load(registryPath)
+	svc := contextcmd.NewService(&contextAdapter{})
+	entries, err := svc.List()
 	if err != nil {
 		fmt.Fprintf(c.Err, "%v\n", err)
 		return exitError
@@ -87,16 +84,6 @@ func (c *CLI) runContextList(args []string) int {
 		fmt.Fprintln(c.Out, "(none)")
 		return exitOK
 	}
-
-	slices.SortFunc(entries, func(a, b stateregistry.Entry) int {
-		if a.LastUsedAt != b.LastUsedAt {
-			if a.LastUsedAt > b.LastUsedAt {
-				return -1
-			}
-			return 1
-		}
-		return strings.Compare(a.RootPath, b.RootPath)
-	})
 
 	fmt.Fprintln(c.Out, "Contexts:")
 	for _, e := range entries {
@@ -121,18 +108,62 @@ func (c *CLI) runContextUse(args []string) int {
 		return exitOK
 	}
 
-	root, err := resolveContextUseRoot(args[0])
+	svc := contextcmd.NewService(&contextAdapter{})
+	root, err := svc.Use(args[0])
 	if err != nil {
-		fmt.Fprintf(c.Err, "validate root: %v\n", err)
-		return exitError
-	}
-	if err := paths.WriteCurrentContext(root); err != nil {
-		fmt.Fprintf(c.Err, "write current context: %v\n", err)
+		switch {
+		case strings.HasPrefix(err.Error(), "validate root:"):
+			fmt.Fprintf(c.Err, "%v\n", err)
+		case strings.HasPrefix(err.Error(), "write current context:"):
+			fmt.Fprintf(c.Err, "%v\n", err)
+		default:
+			fmt.Fprintf(c.Err, "run context use usecase: %v\n", err)
+		}
 		return exitError
 	}
 	useColorOut := writerSupportsColor(c.Out)
 	printResultSection(c.Out, useColorOut, styleSuccess(fmt.Sprintf("Context set: %s", root), useColorOut))
 	return exitOK
+}
+
+type contextAdapter struct{}
+
+func (a *contextAdapter) ResolveCurrentRoot(cwd string) (string, error) {
+	return paths.ResolveExistingRoot(cwd)
+}
+
+func (a *contextAdapter) ListEntries() ([]contextcmd.Entry, error) {
+	registryPath, err := stateregistry.Path()
+	if err != nil {
+		return nil, fmt.Errorf("resolve root registry path: %w", err)
+	}
+	entries, err := stateregistry.Load(registryPath)
+	if err != nil {
+		return nil, err
+	}
+	out := make([]contextcmd.Entry, 0, len(entries))
+	for _, e := range entries {
+		out = append(out, contextcmd.Entry{
+			RootPath:   e.RootPath,
+			LastUsedAt: e.LastUsedAt,
+		})
+	}
+	return out, nil
+}
+
+func (a *contextAdapter) ResolveUseRoot(raw string) (string, error) {
+	root, err := resolveContextUseRoot(raw)
+	if err != nil {
+		return "", fmt.Errorf("validate root: %w", err)
+	}
+	return root, nil
+}
+
+func (a *contextAdapter) WriteCurrent(root string) error {
+	if err := paths.WriteCurrentContext(root); err != nil {
+		return fmt.Errorf("write current context: %w", err)
+	}
+	return nil
 }
 
 func resolveContextUseRoot(raw string) (string, error) {
