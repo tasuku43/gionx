@@ -515,3 +515,78 @@ It does not replace per-item dependencies.
     - `docs/spec/commands/ws/go.md`
   - Depends: UX-WS-003
   - Parallel: yes
+
+## WS Unified Entry (idea competition agreed set: 2026-02-08)
+
+- [ ] UX-WS-020: Dual-entry architecture spec (`human` interactive vs `agent` non-interactive)
+  - What: define facade split while keeping a single execution core for workspace actions.
+    Clarify role boundaries: humans use unified launcher flow, agents use operation-fixed commands.
+  - Specs:
+    - `docs/spec/commands/ws/selector.md`
+    - `docs/spec/commands/ws/close.md`
+    - `docs/spec/commands/ws/go.md`
+    - `docs/spec/commands/ws/add-repo.md`
+    - `docs/spec/README.md`
+  - Depends: UX-WS-019, UX-CORE-002
+  - Serial: yes (foundation)
+
+- [ ] UX-WS-021: `ws select` unified launcher flow (single-select)
+  - What: add `gionx ws select` as canonical human entrypoint:
+    choose one workspace, then choose one action (`go` / `close` / `add-repo`) and delegate to existing flows.
+  - Specs:
+    - `docs/spec/commands/ws/selector.md`
+    - `docs/spec/commands/ws/go.md`
+    - `docs/spec/commands/ws/close.md`
+    - `docs/spec/commands/ws/add-repo.md`
+  - Depends: UX-WS-020
+  - Serial: yes
+
+- [ ] UX-WS-022: Context-aware `ws` launcher behavior
+  - What: make `gionx ws` context-aware:
+    outside workspace -> behave as `ws select`;
+    inside workspace -> skip workspace selection and open action menu for current workspace.
+  - Specs:
+    - `docs/spec/commands/ws/selector.md`
+    - `docs/spec/commands/ws/go.md`
+    - `docs/spec/commands/ws/close.md`
+    - `docs/spec/commands/ws/add-repo.md`
+  - Depends: UX-WS-021
+  - Serial: yes
+
+- [ ] UX-WS-023: In-workspace action menu policy (`add-repo` first, then `close`, no `go`)
+  - What: when current workspace is auto-selected, present action choices in fixed order:
+    `add-repo` -> `close`; exclude `go`.
+  - Specs:
+    - `docs/spec/commands/ws/selector.md`
+    - `docs/spec/commands/ws/add-repo.md`
+    - `docs/spec/commands/ws/close.md`
+    - `docs/spec/commands/ws/go.md`
+  - Depends: UX-WS-022
+  - Serial: yes
+
+- [ ] UX-WS-024: `ws list` alias (`ws ls`)
+  - What: add `ws ls` as alias of `ws list` while keeping `ws list` read-only semantics unchanged.
+  - Specs:
+    - `docs/spec/commands/ws/list.md`
+  - Depends: UX-WS-020
+  - Parallel: yes
+
+- [ ] UX-WS-025: Shell action protocol (`action file`) for post-exec parent-shell effects
+  - What: evolve shell integration from pre-arg routing to post-exec action protocol so
+    command-internal branching can still trigger safe `cd` in parent shell.
+  - Specs:
+    - `docs/spec/commands/shell/init.md`
+    - `docs/spec/commands/ws/go.md`
+  - Depends: UX-WS-022
+  - Parallel: yes
+
+- [ ] UX-WS-026: AI entrypoint contract for operation-fixed commands
+  - What: define strict non-interactive contract for agent-facing commands:
+    required explicit target input, no prompt fallback, stable JSON output, explicit exit-code mapping.
+  - Specs:
+    - `docs/spec/commands/ws/close.md`
+    - `docs/spec/commands/ws/go.md`
+    - `docs/spec/commands/ws/add-repo.md`
+    - `docs/spec/testing/integration.md`
+  - Depends: UX-WS-020
+  - Parallel: yes

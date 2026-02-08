@@ -115,3 +115,46 @@ Examples:
 
 - Start by specifying “what we store in state (DB)” and the “command boundaries” in `docs/spec/**`.
 - Only move items into `docs/BACKLOG.md` once ambiguity is reduced enough to define “done” precisely.
+
+## 5) Workspace Unified Entry (Idea Competition 2026-02-08)
+
+### Context
+
+- Current `ws` operations are split across commands (`ws close`, `ws go`, `ws add-repo`).
+- Goal: make human workflow feel like operating one workspace-management tool, while keeping automation strong.
+
+### Compared ideas
+
+- A: one screen with mixed `close/go` shortcuts
+- B: keep command split + add unified UI entry
+- C: select one workspace first, then choose action (`close/go`)
+- D: plan/apply two-phase execution for destructive operations
+
+### Agreed direction (for backlog/spec)
+
+- Keep **dual entry**:
+  - human: unified interactive launcher
+  - agent: operation-fixed non-interactive commands
+- Human canonical entrypoint: `gionx ws select`
+- `gionx ws` becomes context-aware launcher:
+  - outside workspace: same as `ws select`
+  - inside workspace: skip workspace selection, show action menu for current workspace
+- In-workspace action menu:
+  - order: `add-repo` first, `close` second
+  - `go` is excluded
+- Selection model:
+  - start with single-select only
+  - multi-select is postponed
+- Listing:
+  - keep `ws list` read-only
+  - add `ws ls` alias
+- Shell integration:
+  - move toward post-exec action protocol (`action file`) for parent-shell effects
+- Scope note:
+  - `ws current` is out of initial scope (possible later)
+
+### Current status
+
+- This idea set is now scheduled into backlog as:
+  - `UX-WS-020` through `UX-WS-026` in `docs/BACKLOG.md`
+- Next step is spec-first refinement for those tickets.
