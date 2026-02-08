@@ -110,7 +110,7 @@ func (c *CLI) runWSReopen(args []string) int {
 				return selected, nil
 			}
 
-			candidates, err := listWorkspaceCandidatesByStatus(ctx, db, "archived")
+			candidates, err := listWorkspaceCandidatesByStatus(ctx, db, root, "archived")
 			if err != nil {
 				return nil, fmt.Errorf("list archived workspaces: %w", err)
 			}

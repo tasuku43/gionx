@@ -115,7 +115,7 @@ func (c *CLI) runWSGo(args []string) int {
 				return selected, nil
 			}
 
-			candidates, err := listWorkspaceCandidatesByStatus(ctx, db, scope)
+			candidates, err := listWorkspaceCandidatesByStatus(ctx, db, root, scope)
 			if err != nil {
 				return nil, fmt.Errorf("list %s workspaces: %w", scope, err)
 			}
@@ -178,7 +178,7 @@ func (c *CLI) runWSGo(args []string) int {
 	return exitOK
 }
 
-func listWorkspaceCandidatesByStatus(ctx context.Context, db *sql.DB, status string) ([]workspaceSelectorCandidate, error) {
+func listWorkspaceCandidatesByStatus(ctx context.Context, db *sql.DB, root string, status string) ([]workspaceSelectorCandidate, error) {
 	items, err := statestore.ListWorkspaces(ctx, db)
 	if err != nil {
 		return nil, err
@@ -189,9 +189,18 @@ func listWorkspaceCandidatesByStatus(ctx context.Context, db *sql.DB, status str
 		if it.Status != status {
 			continue
 		}
+		description := strings.TrimSpace(it.Description)
+		if status == "active" {
+			repos, err := statestore.ListWorkspaceRepos(ctx, db, it.ID)
+			if err != nil {
+				return nil, err
+			}
+			workState := deriveLogicalWorkState(ctx, root, it.ID, it.Status, repos)
+			description = formatWorkspaceDescriptionWithLogicalState(workState, description)
+		}
 		out = append(out, workspaceSelectorCandidate{
 			ID:          it.ID,
-			Description: strings.TrimSpace(it.Description),
+			Description: description,
 		})
 	}
 	return out, nil

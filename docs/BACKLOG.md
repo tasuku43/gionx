@@ -115,7 +115,7 @@ It does not replace per-item dependencies.
   - Depends: FS-STATE-004
   - Serial: yes
 
-- [ ] FS-STATE-006: logical work-state (`todo`/`in-progress`) in `ws list`/`ws go`
+- [x] FS-STATE-006: logical work-state (`todo`/`in-progress`) in `ws list`/`ws go`
   - What: derive logical state at read time from filesystem + git signals, without DB persistence.
   - Specs:
     - `docs/spec/commands/ws/list.md`
@@ -124,7 +124,7 @@ It does not replace per-item dependencies.
   - Depends: FS-STATE-005
   - Parallel: yes
 
-- [ ] FS-STATE-007: `repo gc` safety gates read FS metadata + registry
+- [x] FS-STATE-007: `repo gc` safety gates read FS metadata + registry
   - What: evaluate references from workspace/archive metadata and known roots without relying on SQL joins.
   - Specs:
     - `docs/spec/commands/repo/gc.md`

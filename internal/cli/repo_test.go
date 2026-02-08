@@ -466,6 +466,89 @@ func TestCLI_RepoGC_FailsWhenNoEligibleCandidates(t *testing.T) {
 	}
 }
 
+func TestCLI_RepoGC_BlockedByArchiveMetadataReference(t *testing.T) {
+	testutil.RequireCommand(t, "git")
+
+	runGit := func(dir string, args ...string) {
+		t.Helper()
+		cmd := exec.Command("git", args...)
+		if dir != "" {
+			cmd.Dir = dir
+		}
+		out, err := cmd.CombinedOutput()
+		if err != nil {
+			t.Fatalf("git %s failed: %v (output=%s)", strings.Join(args, " "), err, strings.TrimSpace(string(out)))
+		}
+	}
+
+	env := testutil.NewEnv(t)
+	initAndConfigureRootRepo(t, env.Root)
+
+	repoSpec := prepareRemoteRepoSpecWithName(t, runGit, "github.com", "example-org", "gc-archive-ref")
+	{
+		var out bytes.Buffer
+		var err bytes.Buffer
+		c := New(&out, &err)
+		if code := c.Run([]string{"repo", "add", repoSpec}); code != exitOK {
+			t.Fatalf("repo add exit code = %d, want %d (stderr=%q)", code, exitOK, err.String())
+		}
+	}
+	{
+		var out bytes.Buffer
+		var err bytes.Buffer
+		c := New(&out, &err)
+		if code := c.Run([]string{"ws", "create", "--no-prompt", "WS1"}); code != exitOK {
+			t.Fatalf("ws create exit code = %d, want %d (stderr=%q)", code, exitOK, err.String())
+		}
+	}
+	{
+		var out bytes.Buffer
+		var err bytes.Buffer
+		c := New(&out, &err)
+		c.In = strings.NewReader(addRepoSelectionInput("", "WS1/test"))
+		if code := c.Run([]string{"ws", "add-repo", "WS1"}); code != exitOK {
+			t.Fatalf("ws add-repo exit code = %d, want %d (stderr=%q)", code, exitOK, err.String())
+		}
+	}
+	{
+		var out bytes.Buffer
+		var err bytes.Buffer
+		c := New(&out, &err)
+		if code := c.Run([]string{"ws", "close", "WS1"}); code != exitOK {
+			t.Fatalf("ws close exit code = %d, want %d (stderr=%q)", code, exitOK, err.String())
+		}
+	}
+
+	ctx := context.Background()
+	db, openErr := statestore.Open(ctx, env.StateDBPath())
+	if openErr != nil {
+		t.Fatalf("Open(state db) error: %v", openErr)
+	}
+	t.Cleanup(func() { _ = db.Close() })
+	if _, err := db.ExecContext(ctx, "DELETE FROM workspace_repos WHERE workspace_id = ?", "WS1"); err != nil {
+		t.Fatalf("delete workspace_repos: %v", err)
+	}
+	{
+		var out bytes.Buffer
+		var err bytes.Buffer
+		c := New(&out, &err)
+		if code := c.Run([]string{"repo", "remove", "example-org/gc-archive-ref"}); code != exitOK {
+			t.Fatalf("repo remove exit code = %d, want %d (stderr=%q)", code, exitOK, err.String())
+		}
+	}
+
+	var out bytes.Buffer
+	var err bytes.Buffer
+	c := New(&out, &err)
+	code := c.Run([]string{"repo", "gc", "example-org/gc-archive-ref"})
+	if code != exitError {
+		t.Fatalf("repo gc exit code = %d, want %d", code, exitError)
+	}
+	if !strings.Contains(err.String(), "workspace bindings exist in current root") {
+		t.Fatalf("stderr missing archive metadata block reason: %q", err.String())
+	}
+}
+
 func prepareRemoteRepoSpecWithName(t *testing.T, runGit func(dir string, args ...string), host string, owner string, repo string) string {
 	t.Helper()
 

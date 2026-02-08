@@ -363,6 +363,107 @@ func TestRenderWSListSummaryRow_FixedColumnOrderContract(t *testing.T) {
 	}
 }
 
+func TestCLI_WS_List_ShowsLogicalWorkStateTodoAndInProgress(t *testing.T) {
+	root := t.TempDir()
+	dataHome := filepath.Join(t.TempDir(), "xdg-data")
+	cacheHome := filepath.Join(t.TempDir(), "xdg-cache")
+
+	if err := os.MkdirAll(filepath.Join(root, "workspaces"), 0o755); err != nil {
+		t.Fatalf("create workspaces/: %v", err)
+	}
+	if err := os.MkdirAll(filepath.Join(root, "archive"), 0o755); err != nil {
+		t.Fatalf("create archive/: %v", err)
+	}
+	if err := os.MkdirAll(filepath.Join(root, "workspaces", "WIP", "repos", "r"), 0o755); err != nil {
+		t.Fatalf("create WIP repo dir: %v", err)
+	}
+
+	t.Setenv("GIONX_ROOT", root)
+	t.Setenv("XDG_DATA_HOME", dataHome)
+	t.Setenv("XDG_CACHE_HOME", cacheHome)
+
+	ctx := context.Background()
+	dbPath, pathErr := paths.StateDBPathForRoot(root)
+	if pathErr != nil {
+		t.Fatalf("StateDBPathForRoot() error: %v", pathErr)
+	}
+	db, openErr := statestore.Open(ctx, dbPath)
+	if openErr != nil {
+		t.Fatalf("Open(state db) error: %v", openErr)
+	}
+	t.Cleanup(func() { _ = db.Close() })
+	repoPoolPath := filepath.Join(cacheHome, "gionx", "repo-pool")
+	if err := statestore.EnsureSettings(ctx, db, root, repoPoolPath); err != nil {
+		t.Fatalf("EnsureSettings error: %v", err)
+	}
+	if _, err := statestore.CreateWorkspace(ctx, db, statestore.CreateWorkspaceInput{ID: "TODO", Description: "", SourceURL: "", Now: 100}); err != nil {
+		t.Fatalf("CreateWorkspace TODO error: %v", err)
+	}
+	if _, err := statestore.CreateWorkspace(ctx, db, statestore.CreateWorkspaceInput{ID: "WIP", Description: "", SourceURL: "", Now: 101}); err != nil {
+		t.Fatalf("CreateWorkspace WIP error: %v", err)
+	}
+	if _, err := db.ExecContext(ctx, `
+INSERT INTO repos (repo_uid, repo_key, remote_url, created_at, updated_at)
+VALUES ('github.com/o/r', 'o/r', 'https://example.com/o/r.git', 1, 1)
+`); err != nil {
+		t.Fatalf("insert repo: %v", err)
+	}
+	if _, err := db.ExecContext(ctx, `
+INSERT INTO workspace_repos (
+  workspace_id, repo_uid, repo_key, alias, branch, base_ref, repo_spec_input, missing_at, created_at, updated_at
+) VALUES (
+  'WIP', 'github.com/o/r', 'o/r', 'r', 'main', 'origin/main', 'github.com/o/r', NULL, 1, 1
+)
+`); err != nil {
+		t.Fatalf("insert workspace_repo: %v", err)
+	}
+
+	var out bytes.Buffer
+	var err bytes.Buffer
+	c := New(&out, &err)
+	code := c.Run([]string{"ws", "list"})
+	if code != exitOK {
+		t.Fatalf("ws list exit code = %d, want %d (stderr=%q)", code, exitOK, err.String())
+	}
+	got := out.String()
+	if !strings.Contains(got, "TODO") || !strings.Contains(got, "todo") {
+		t.Fatalf("stdout should include todo workspace state: %q", got)
+	}
+	if !strings.Contains(got, "WIP") || !strings.Contains(got, "in-progress") {
+		t.Fatalf("stdout should include in-progress workspace state: %q", got)
+	}
+}
+
+func TestCLI_WS_List_TSVIncludesWorkStateColumn(t *testing.T) {
+	env := testutil.NewEnv(t)
+	initAndConfigureRootRepo(t, env.Root)
+
+	{
+		var out bytes.Buffer
+		var err bytes.Buffer
+		c := New(&out, &err)
+		code := c.Run([]string{"ws", "create", "--no-prompt", "WS1"})
+		if code != exitOK {
+			t.Fatalf("ws create exit code = %d, want %d (stderr=%q)", code, exitOK, err.String())
+		}
+	}
+
+	var out bytes.Buffer
+	var err bytes.Buffer
+	c := New(&out, &err)
+	code := c.Run([]string{"ws", "list", "--format", "tsv"})
+	if code != exitOK {
+		t.Fatalf("ws list --format tsv exit code = %d, want %d (stderr=%q)", code, exitOK, err.String())
+	}
+	got := out.String()
+	if !strings.HasPrefix(got, "id\tstatus\tupdated_at\trepo_count\trisk\twork_state\tdescription\n") {
+		t.Fatalf("tsv header missing work_state: %q", got)
+	}
+	if !strings.Contains(got, "\ttodo\t") {
+		t.Fatalf("tsv should include logical work_state token: %q", got)
+	}
+}
+
 func TestPrintWSListHuman_EmptyRowsUsesIndentedNone(t *testing.T) {
 	var out bytes.Buffer
 	printWSListHuman(&out, nil, "active", false, false)

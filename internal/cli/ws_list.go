@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/tasuku43/gion-core/workspacerisk"
+	"github.com/tasuku43/gionx/internal/gitutil"
 	"github.com/tasuku43/gionx/internal/paths"
 	"github.com/tasuku43/gionx/internal/statestore"
 )
@@ -28,6 +29,7 @@ type wsListRow struct {
 	UpdatedAt   int64
 	RepoCount   int
 	Risk        workspacerisk.WorkspaceRisk
+	WorkState   string
 	Description string
 	Repos       []statestore.WorkspaceRepo
 }
@@ -119,6 +121,7 @@ func (c *CLI) runWSList(args []string) int {
 			UpdatedAt:   it.UpdatedAt,
 			RepoCount:   it.RepoCount,
 			Risk:        computeWorkspaceRisk(ctx, root, it.ID, it.Status, repos),
+			WorkState:   deriveLogicalWorkState(ctx, root, it.ID, it.Status, repos),
 			Description: strings.TrimSpace(it.Description),
 			Repos:       repos,
 		})
@@ -182,16 +185,17 @@ func parseWSListOptions(args []string) (wsListOptions, error) {
 }
 
 func printWSListTSV(out io.Writer, rows []wsListRow) {
-	fmt.Fprintln(out, "id\tstatus\tupdated_at\trepo_count\trisk\tdescription")
+	fmt.Fprintln(out, "id\tstatus\tupdated_at\trepo_count\trisk\twork_state\tdescription")
 	for _, row := range rows {
 		fmt.Fprintf(
 			out,
-			"%s\t%s\t%s\t%d\t%s\t%s\n",
+			"%s\t%s\t%s\t%d\t%s\t%s\t%s\n",
 			row.ID,
 			row.Status,
 			time.Unix(row.UpdatedAt, 0).UTC().Format(time.RFC3339),
 			row.RepoCount,
 			formatWorkspaceRisk(row.Risk),
+			row.WorkState,
 			row.Description,
 		)
 	}
@@ -244,10 +248,7 @@ func renderWSListSummaryRow(row wsListRow, idWidth int, riskWidth int, repoWidth
 	idPlain := fmt.Sprintf("%-*s", idWidth, truncateDisplay(row.ID, idWidth))
 	riskPlain := fmt.Sprintf("%-*s", riskWidth, renderWorkspaceRiskIndicator(row.Risk, false))
 	repoPlain := fmt.Sprintf("%-*s", repoWidth, fmt.Sprintf("repos:%d", row.RepoCount))
-	desc := row.Description
-	if desc == "" {
-		desc = "(no description)"
-	}
+	desc := formatWorkspaceDescriptionWithLogicalState(row.WorkState, row.Description)
 
 	prefixPlain := fmt.Sprintf("%s%s  %s  %s  ", uiIndent, idPlain, riskPlain, repoPlain)
 	availableDescCols := maxCols - displayWidth(prefixPlain)
@@ -359,6 +360,80 @@ func computeWorkspaceRisk(ctx context.Context, root string, workspaceID string, 
 	}
 	risk, _ := inspectWorkspaceRepoRisk(ctx, root, workspaceID, repos)
 	return risk
+}
+
+func deriveLogicalWorkState(ctx context.Context, root string, workspaceID string, status string, repos []statestore.WorkspaceRepo) string {
+	if status != "active" {
+		return ""
+	}
+	if len(repos) == 0 {
+		return "todo"
+	}
+	for _, repo := range repos {
+		if repo.MissingAt.Valid {
+			return "in-progress"
+		}
+		worktreePath := filepath.Join(root, "workspaces", workspaceID, "repos", repo.Alias)
+		repoStatus := inspectGitRepoStatus(ctx, worktreePath)
+		if workspacerisk.ClassifyRepoStatus(repoStatus) != workspacerisk.RepoStateClean {
+			return "in-progress"
+		}
+		started, known := hasCommitsSinceBaseRef(ctx, worktreePath, repo.BaseRef)
+		if !known || started {
+			return "in-progress"
+		}
+	}
+	return "todo"
+}
+
+func hasCommitsSinceBaseRef(ctx context.Context, worktreePath string, baseRef string) (started bool, known bool) {
+	baseRef = strings.TrimSpace(baseRef)
+	if baseRef == "" {
+		baseRef = detectOriginHeadBaseRef(ctx, worktreePath)
+	}
+	if baseRef == "" {
+		return false, false
+	}
+	out, err := gitutil.Run(ctx, worktreePath, "rev-list", "--count", baseRef+"..HEAD")
+	if err != nil {
+		return false, false
+	}
+	n, err := strconv.Atoi(strings.TrimSpace(out))
+	if err != nil {
+		return false, false
+	}
+	return n > 0, true
+}
+
+func detectOriginHeadBaseRef(ctx context.Context, worktreePath string) string {
+	out, err := gitutil.Run(ctx, worktreePath, "symbolic-ref", "--quiet", "refs/remotes/origin/HEAD")
+	if err != nil {
+		return ""
+	}
+	ref := strings.TrimSpace(out)
+	const pfx = "refs/remotes/origin/"
+	if !strings.HasPrefix(ref, pfx) {
+		return ""
+	}
+	branch := strings.TrimSpace(strings.TrimPrefix(ref, pfx))
+	if branch == "" {
+		return ""
+	}
+	return "origin/" + branch
+}
+
+func formatWorkspaceDescriptionWithLogicalState(workState string, description string) string {
+	desc := strings.TrimSpace(description)
+	if workState == "" {
+		if desc == "" {
+			return "(no description)"
+		}
+		return desc
+	}
+	if desc == "" {
+		return workState
+	}
+	return workState + " | " + desc
 }
 
 func renderWorkspaceRiskIndicator(risk workspacerisk.WorkspaceRisk, useColor bool) string {

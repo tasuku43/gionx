@@ -1,8 +1,6 @@
 ---
 title: "`gionx repo gc`"
 status: implemented
-pending:
-  - FS-STATE-007
 ---
 
 # `gionx repo gc`
@@ -55,7 +53,7 @@ If any gate fails, that repo is not included in gc candidates.
 - default: shared repo pool path from settings/XDG
 - no automatic execution from `repo remove`
 
-## Planned delta (FS-STATE-007)
+## FS metadata safety behavior
 
 - Safety gate evaluation must include FS-based references from workspace/archive `.gionx.meta.json`.
 - Cross-root checks should work without SQL joins, using canonical metadata + registry/index scan.
