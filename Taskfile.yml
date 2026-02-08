@@ -1,0 +1,40 @@
+version: "3"
+
+tasks:
+  build:
+    desc: Build gionx binary at ./gionx
+    cmds:
+      - go build -o gionx ./cmd/gionx
+
+  run:
+    desc: Run gionx from source
+    cmds:
+      - go run ./cmd/gionx {{.CLI_ARGS}}
+
+  test:
+    desc: Run all tests
+    cmds:
+      - go test ./...
+
+  vet:
+    desc: Run go vet
+    cmds:
+      - go vet ./...
+
+  fmt:
+    desc: Format all Go files
+    cmds:
+      - gofmt -w $(gofmt -l .)
+
+  check:
+    desc: Run minimum quality gate
+    cmds:
+      - test -z "$(gofmt -l .)"
+      - ./scripts/lint-ui-color.sh
+      - go vet ./...
+      - go test ./...
+
+  clean:
+    desc: Remove built binary
+    cmds:
+      - rm -f gionx
