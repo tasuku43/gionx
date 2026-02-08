@@ -1,6 +1,8 @@
 ---
 title: "`gionx ws create`"
 status: implemented
+pending:
+  - FS-STATE-002
 ---
 
 # `gionx ws create <id>`
@@ -40,3 +42,12 @@ Create an empty workspace with scaffolding for notes/artifacts.
   - `  path: <GIONX_ROOT/workspaces/<id>>`
 - `Result:` heading style follows shared UI token rules (`text.primary` + bold).
 - Summary line should follow shared result color semantics (`status.success` on success).
+
+## Planned delta (FS-STATE-002)
+
+- `ws create` must create `workspaces/<id>/.gionx.meta.json` as canonical workspace metadata.
+- Initial file content must include:
+  - `schema_version`
+  - `workspace` object (`id`, `description`, `source_url`, `status=active`, timestamps)
+  - `repos_restore` as an empty array
+- File write must be atomic (`temp + rename`).

@@ -1,6 +1,8 @@
 ---
 title: "Data Model"
 status: implemented
+pending:
+  - FS-STATE-008
 ---
 
 # Data Model
@@ -154,3 +156,9 @@ Notes:
 - This table is UX-oriented ranking metadata (not strict audit log).
 - Ranking currently uses 30-day simple sum (`SUM(add_count)` where `day >= start_day`).
 - Update timing is success-only: increment after `ws add-repo` completes successfully.
+
+## Planned delta (FS-STATE-008)
+
+- Canonical workspace-level model is migrating to per-workspace `.gionx.meta.json`.
+- SQL tables are retained only if needed as secondary index/cache and must be rebuildable from filesystem data.
+- Lifecycle/reopen correctness must not depend on SQL-only rows.

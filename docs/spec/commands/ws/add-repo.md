@@ -1,6 +1,8 @@
 ---
 title: "`gionx ws add-repo`"
 status: implemented
+pending:
+  - FS-STATE-003
 ---
 
 # `gionx ws add-repo [<workspace-id>]`
@@ -102,3 +104,11 @@ Add repositories from the existing repo pool to a workspace as Git worktrees.
 - Lock file stores owner PID metadata.
 - If an existing lock is stale (owner process no longer alive), command must auto-recover by removing stale lock
   and retrying once.
+
+## Planned delta (FS-STATE-003)
+
+- On successful apply, command must update `workspaces/<id>/.gionx.meta.json`:
+  - upsert corresponding entries in `repos_restore`
+  - persist `repo_uid`, `repo_key`, `remote_url`, `alias`, `branch`, `base_ref`
+- `repos_restore` alias uniqueness must be validated before file replace.
+- Metadata update must be atomic (`temp + rename`).

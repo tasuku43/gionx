@@ -30,6 +30,8 @@ Implementation should reference these specs. When behavior changes, update the s
 - Concepts
   - `concepts/layout.md`: GIONX_ROOT layout and Git tracking policy
   - `concepts/state-store.md`: Global state store (SQLite) and migrations
+  - `concepts/fs-source-of-truth.md`: FS=SoT and index-store downgrade policy (planned)
+  - `concepts/workspace-meta-json.md`: `.gionx.meta.json` schema and atomic update rules (planned)
   - `concepts/ui-color.md`: CLI/TUI semantic color token policy
   - `concepts/workspace-lifecycle.md`: Workspace lifecycle state machine and transition policy
 - Commands

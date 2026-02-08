@@ -1,6 +1,8 @@
 ---
 title: "`gionx ws list`"
 status: implemented
+pending:
+  - FS-STATE-006
 ---
 
 # `gionx ws list [--archived] [--tree] [--format human|tsv]`
@@ -81,3 +83,12 @@ action commands (`ws close`, `ws go`, `ws reopen`, `ws purge`).
   - mark it as `missing` in the state store (do not delete)
 - If a workspace directory exists on disk but is missing in the state store:
   - import it automatically using the directory name as the workspace ID
+
+## Planned delta (FS-STATE-006)
+
+- Within `active` scope, list rows must show logical work state derived at read time:
+  - `todo`
+  - `in-progress`
+- Logical work state must not be persisted.
+- Classification inputs are filesystem + git signals (e.g., modified/untracked files, local commits divergence).
+- If classification cannot be determined safely, fallback behavior must be explicit and deterministic.

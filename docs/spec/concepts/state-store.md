@@ -1,6 +1,8 @@
 ---
 title: "State Store"
 status: implemented
+pending:
+  - FS-STATE-008
 ---
 
 # State Store
@@ -106,3 +108,9 @@ SQLite note:
 For repository intake, `gionx repo add` / `gionx repo discover` use a hybrid model:
 - shared physical bare pool (`repo_pool_path`)
 - root-local logical registry (`repos` table in each root state DB)
+
+## Planned delta (FS-STATE-008)
+
+- Reframe SQLite from canonical state store to optional/rebuildable index store.
+- Canonical workspace and reopen metadata moves to filesystem-local `.gionx.meta.json`.
+- Commands must remain operable when SQL index is absent/corrupt by rebuilding or scanning canonical files.

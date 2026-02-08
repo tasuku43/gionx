@@ -1,6 +1,8 @@
 ---
 title: "`gionx ws reopen`"
 status: implemented
+pending:
+  - FS-STATE-005
 ---
 
 # `gionx ws reopen [<id>]`
@@ -69,3 +71,10 @@ If the Git working tree has unrelated changes, this command must not include the
 - If `<id>` is omitted, run selector mode in `archived` scope.
 - Selector mode supports multi-select.
 - Non-TTY invocation without `<id>` is rejected (no fallback mode).
+
+## Planned delta (FS-STATE-005)
+
+- `ws reopen` must read `workspaces/<id>/.gionx.meta.json` (moved from archive) and recreate worktrees from
+  `repos_restore`.
+- Reopen flow must not require DB `workspace_repos` rows to rebuild worktrees.
+- On success, update `.gionx.meta.json.workspace.status` to `active` atomically.

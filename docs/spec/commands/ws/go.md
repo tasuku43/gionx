@@ -1,6 +1,8 @@
 ---
 title: "`gionx ws go`"
 status: implemented
+pending:
+  - FS-STATE-006
 ---
 
 # `gionx ws go [--archived] [--ui] [--emit-cd] [<id>]`
@@ -53,3 +55,10 @@ Jump to a workspace directory as a "start work" action.
 - invalid mixed selection (more than one selected in selector mode)
 - target directory does not exist
 - non-TTY invocation in selector mode
+
+## Planned delta (FS-STATE-006)
+
+- Candidate discovery for `ws go` should align with FS-first workspace discovery and `.gionx.meta.json`.
+- `active` scope candidate rows should expose the same logical work-state semantics as `ws list`
+  (`todo` / `in-progress`, runtime-derived).
+- No logical work-state persistence is allowed.
