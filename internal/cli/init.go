@@ -9,8 +9,7 @@ import (
 	"strings"
 
 	"github.com/tasuku43/gionx/internal/app/initcmd"
-	"github.com/tasuku43/gionx/internal/paths"
-	"github.com/tasuku43/gionx/internal/statestore"
+	"github.com/tasuku43/gionx/internal/infra/appports"
 )
 
 const (
@@ -42,7 +41,7 @@ func (c *CLI) runInit(args []string) int {
 	c.debugf("run init args=%q", args)
 
 	ctx := context.Background()
-	svc := initcmd.NewService(&initAdapter{cli: c})
+	svc := initcmd.NewService(appports.NewInitPort(ensureInitLayout, c.touchStateRegistry))
 	result, err := svc.Run(ctx, initcmd.Request{Root: root})
 	if err != nil {
 		switch {
@@ -68,44 +67,6 @@ func (c *CLI) runInit(args []string) int {
 	printResultSection(c.Out, useColorOut, styleSuccess(fmt.Sprintf("Initialized: %s", result.Root), useColorOut))
 	c.debugf("init completed root=%s", result.Root)
 	return exitOK
-}
-
-type initAdapter struct {
-	cli *CLI
-}
-
-func (a *initAdapter) EnsureLayout(root string) error {
-	if err := ensureInitLayout(root); err != nil {
-		return fmt.Errorf("init layout: %w", err)
-	}
-	return nil
-}
-
-func (a *initAdapter) EnsureState(ctx context.Context, root string) error {
-	dbPath, err := paths.StateDBPathForRoot(root)
-	if err != nil {
-		return fmt.Errorf("resolve state db path: %w", err)
-	}
-	repoPoolPath, err := paths.DefaultRepoPoolPath()
-	if err != nil {
-		return fmt.Errorf("resolve repo pool path: %w", err)
-	}
-	db, err := statestore.Open(ctx, dbPath)
-	if err != nil {
-		return fmt.Errorf("open state store: %w", err)
-	}
-	defer func() { _ = db.Close() }()
-	if err := statestore.EnsureSettings(ctx, db, root, repoPoolPath); err != nil {
-		return fmt.Errorf("initialize settings: %w", err)
-	}
-	return nil
-}
-
-func (a *initAdapter) TouchRegistry(root string) error {
-	if err := a.cli.touchStateRegistry(root); err != nil {
-		return fmt.Errorf("update root registry: %w", err)
-	}
-	return nil
 }
 
 func resolveInitRoot() (string, error) {

@@ -19,9 +19,9 @@ import (
 	"github.com/tasuku43/gion-core/repospec"
 	"github.com/tasuku43/gion-core/repostore"
 	appws "github.com/tasuku43/gionx/internal/app/ws"
-	"github.com/tasuku43/gionx/internal/gitutil"
-	"github.com/tasuku43/gionx/internal/paths"
-	"github.com/tasuku43/gionx/internal/statestore"
+	"github.com/tasuku43/gionx/internal/infra/gitutil"
+	"github.com/tasuku43/gionx/internal/infra/paths"
+	"github.com/tasuku43/gionx/internal/infra/statestore"
 	"golang.org/x/term"
 )
 

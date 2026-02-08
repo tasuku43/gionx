@@ -8,8 +8,9 @@ import (
 	"strings"
 
 	"github.com/tasuku43/gionx/internal/app/repocmd"
+	"github.com/tasuku43/gionx/internal/infra/appports"
+	"github.com/tasuku43/gionx/internal/infra/statestore"
 	"github.com/tasuku43/gionx/internal/repodiscovery"
-	"github.com/tasuku43/gionx/internal/statestore"
 )
 
 var newRepoDiscoveryProvider = repodiscovery.NewProvider
@@ -85,7 +86,7 @@ func (c *CLI) runRepoDiscover(args []string) int {
 		return exitError
 	}
 	ctx := context.Background()
-	repoUC := repocmd.NewService(&repoAppAdapter{cli: c})
+	repoUC := repocmd.NewService(appports.NewRepoPort(c.ensureDebugLog, c.touchStateRegistry))
 	session, err := repoUC.Run(ctx, repocmd.Request{
 		CWD:           wd,
 		DebugTag:      "repo-discover",

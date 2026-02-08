@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/tasuku43/gionx/internal/app/repocmd"
+	"github.com/tasuku43/gionx/internal/infra/appports"
 )
 
 func (c *CLI) runRepoAdd(args []string) int {
@@ -28,7 +29,7 @@ func (c *CLI) runRepoAdd(args []string) int {
 		return exitError
 	}
 	ctx := context.Background()
-	repoUC := repocmd.NewService(&repoAppAdapter{cli: c})
+	repoUC := repocmd.NewService(appports.NewRepoPort(c.ensureDebugLog, c.touchStateRegistry))
 	session, err := repoUC.Run(ctx, repocmd.Request{
 		CWD:           wd,
 		DebugTag:      "repo-add",

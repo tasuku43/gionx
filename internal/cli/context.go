@@ -8,8 +8,7 @@ import (
 	"time"
 
 	"github.com/tasuku43/gionx/internal/app/contextcmd"
-	"github.com/tasuku43/gionx/internal/paths"
-	"github.com/tasuku43/gionx/internal/stateregistry"
+	"github.com/tasuku43/gionx/internal/infra/appports"
 )
 
 func (c *CLI) runContext(args []string) int {
@@ -52,7 +51,7 @@ func (c *CLI) runContextCurrent(args []string) int {
 		fmt.Fprintf(c.Err, "get working dir: %v\n", err)
 		return exitError
 	}
-	svc := contextcmd.NewService(&contextAdapter{})
+	svc := contextcmd.NewService(appports.NewContextPort(resolveContextUseRoot))
 	root, err := svc.Current(wd)
 	if err != nil {
 		fmt.Fprintf(c.Err, "resolve GIONX_ROOT: %v\n", err)
@@ -74,7 +73,7 @@ func (c *CLI) runContextList(args []string) int {
 		return exitUsage
 	}
 
-	svc := contextcmd.NewService(&contextAdapter{})
+	svc := contextcmd.NewService(appports.NewContextPort(resolveContextUseRoot))
 	entries, err := svc.List()
 	if err != nil {
 		fmt.Fprintf(c.Err, "%v\n", err)
@@ -108,7 +107,7 @@ func (c *CLI) runContextUse(args []string) int {
 		return exitOK
 	}
 
-	svc := contextcmd.NewService(&contextAdapter{})
+	svc := contextcmd.NewService(appports.NewContextPort(resolveContextUseRoot))
 	root, err := svc.Use(args[0])
 	if err != nil {
 		switch {
@@ -124,46 +123,6 @@ func (c *CLI) runContextUse(args []string) int {
 	useColorOut := writerSupportsColor(c.Out)
 	printResultSection(c.Out, useColorOut, styleSuccess(fmt.Sprintf("Context set: %s", root), useColorOut))
 	return exitOK
-}
-
-type contextAdapter struct{}
-
-func (a *contextAdapter) ResolveCurrentRoot(cwd string) (string, error) {
-	return paths.ResolveExistingRoot(cwd)
-}
-
-func (a *contextAdapter) ListEntries() ([]contextcmd.Entry, error) {
-	registryPath, err := stateregistry.Path()
-	if err != nil {
-		return nil, fmt.Errorf("resolve root registry path: %w", err)
-	}
-	entries, err := stateregistry.Load(registryPath)
-	if err != nil {
-		return nil, err
-	}
-	out := make([]contextcmd.Entry, 0, len(entries))
-	for _, e := range entries {
-		out = append(out, contextcmd.Entry{
-			RootPath:   e.RootPath,
-			LastUsedAt: e.LastUsedAt,
-		})
-	}
-	return out, nil
-}
-
-func (a *contextAdapter) ResolveUseRoot(raw string) (string, error) {
-	root, err := resolveContextUseRoot(raw)
-	if err != nil {
-		return "", fmt.Errorf("validate root: %w", err)
-	}
-	return root, nil
-}
-
-func (a *contextAdapter) WriteCurrent(root string) error {
-	if err := paths.WriteCurrentContext(root); err != nil {
-		return fmt.Errorf("write current context: %w", err)
-	}
-	return nil
 }
 
 func resolveContextUseRoot(raw string) (string, error) {

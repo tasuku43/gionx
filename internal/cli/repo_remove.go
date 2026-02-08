@@ -11,7 +11,8 @@ import (
 	"time"
 
 	"github.com/tasuku43/gionx/internal/app/repocmd"
-	"github.com/tasuku43/gionx/internal/statestore"
+	"github.com/tasuku43/gionx/internal/infra/appports"
+	"github.com/tasuku43/gionx/internal/infra/statestore"
 )
 
 var promptRepoRemoveSelection = func(c *CLI, candidates []workspaceSelectorCandidate) ([]string, error) {
@@ -33,7 +34,7 @@ func (c *CLI) runRepoRemove(args []string) int {
 		return exitError
 	}
 	ctx := context.Background()
-	repoUC := repocmd.NewService(&repoAppAdapter{cli: c})
+	repoUC := repocmd.NewService(appports.NewRepoPort(c.ensureDebugLog, c.touchStateRegistry))
 	session, err := repoUC.Run(ctx, repocmd.Request{
 		CWD:           wd,
 		DebugTag:      "repo-remove",

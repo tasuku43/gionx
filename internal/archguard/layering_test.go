@@ -36,6 +36,15 @@ func TestLayerDependencyDirection(t *testing.T) {
 	}
 }
 
+func TestCLINoDirectInfraImports(t *testing.T) {
+	assertNoForbiddenImport(t, "../cli", []string{
+		"/internal/paths",
+		"/internal/statestore",
+		"/internal/gitutil",
+		"/internal/stateregistry",
+	})
+}
+
 func assertNoForbiddenImport(t *testing.T, dir string, forbidden []string) {
 	t.Helper()
 

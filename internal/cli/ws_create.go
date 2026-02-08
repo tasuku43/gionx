@@ -11,8 +11,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/tasuku43/gionx/internal/paths"
-	"github.com/tasuku43/gionx/internal/statestore"
+	"github.com/tasuku43/gionx/internal/infra/paths"
+	"github.com/tasuku43/gionx/internal/infra/statestore"
 )
 
 func (c *CLI) runWSCreate(args []string) int {

@@ -12,9 +12,9 @@ import (
 	"time"
 
 	"github.com/tasuku43/gion-core/workspacerisk"
-	"github.com/tasuku43/gionx/internal/gitutil"
-	"github.com/tasuku43/gionx/internal/paths"
-	"github.com/tasuku43/gionx/internal/statestore"
+	"github.com/tasuku43/gionx/internal/infra/gitutil"
+	"github.com/tasuku43/gionx/internal/infra/paths"
+	"github.com/tasuku43/gionx/internal/infra/statestore"
 )
 
 type wsListOptions struct {

@@ -1,11 +1,7 @@
 package cli
 
-import (
-	"time"
-
-	"github.com/tasuku43/gionx/internal/stateregistry"
-)
+import "github.com/tasuku43/gionx/internal/infra/appports"
 
 func (c *CLI) touchStateRegistry(root string) error {
-	return stateregistry.Touch(root, time.Now())
+	return appports.TouchStateRegistry(root)
 }
