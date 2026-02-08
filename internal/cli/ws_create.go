@@ -160,6 +160,13 @@ func (c *CLI) runWSCreate(args []string) int {
 	}
 
 	now := time.Now().Unix()
+	meta := newWorkspaceMetaFileForCreate(id, description, now)
+	if err := writeWorkspaceMetaFile(wsPath, meta); err != nil {
+		cleanup()
+		fmt.Fprintf(c.Err, "write %s: %v\n", workspaceMetaFilename, err)
+		return exitError
+	}
+
 	if _, err := statestore.CreateWorkspace(ctx, db, statestore.CreateWorkspaceInput{
 		ID:          id,
 		Description: description,

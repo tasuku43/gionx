@@ -75,7 +75,7 @@ It does not replace per-item dependencies.
 
 ## FS-first migration (new critical path)
 
-- [ ] FS-STATE-001: FS=SoT migration spec baseline
+- [x] FS-STATE-001: FS=SoT migration spec baseline
   - What: define filesystem as source of truth and position index data as rebuildable.
   - Specs:
     - `docs/spec/concepts/fs-source-of-truth.md`
@@ -83,7 +83,7 @@ It does not replace per-item dependencies.
   - Depends: -
   - Serial: yes (foundation for migration items)
 
-- [ ] FS-STATE-002: `ws create` writes `.gionx.meta.json`
+- [x] FS-STATE-002: `ws create` writes `.gionx.meta.json`
   - What: create workspace-local canonical metadata file with schema version and workspace core fields.
   - Specs:
     - `docs/spec/concepts/workspace-meta-json.md`

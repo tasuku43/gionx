@@ -1,6 +1,10 @@
 ---
 title: "Workspace Meta JSON"
-status: planned
+status: implemented
+pending:
+  - FS-STATE-003
+  - FS-STATE-004
+  - FS-STATE-005
 ---
 
 # Workspace Meta JSON (`.gionx.meta.json`)

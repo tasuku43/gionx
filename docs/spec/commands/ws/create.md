@@ -1,8 +1,6 @@
 ---
 title: "`gionx ws create`"
 status: implemented
-pending:
-  - FS-STATE-002
 ---
 
 # `gionx ws create <id>`

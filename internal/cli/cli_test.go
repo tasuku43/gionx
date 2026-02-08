@@ -3,6 +3,7 @@ package cli
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -304,6 +305,35 @@ func TestCLI_WS_Create_CreatesScaffoldAndStateStoreRows(t *testing.T) {
 	}
 	if !strings.Contains(string(agentsBytes), "Description: hello world") {
 		t.Fatalf("AGENTS.md missing description: %q", string(agentsBytes))
+	}
+	metaBytes, statErr := os.ReadFile(filepath.Join(wsDir, workspaceMetaFilename))
+	if statErr != nil {
+		t.Fatalf("%s not created: %v", workspaceMetaFilename, statErr)
+	}
+	var meta workspaceMetaFile
+	if err := json.Unmarshal(metaBytes, &meta); err != nil {
+		t.Fatalf("unmarshal %s: %v", workspaceMetaFilename, err)
+	}
+	if meta.SchemaVersion != 1 {
+		t.Fatalf("schema_version = %d, want %d", meta.SchemaVersion, 1)
+	}
+	if meta.Workspace.ID != "MVP-020" {
+		t.Fatalf("workspace.id = %q, want %q", meta.Workspace.ID, "MVP-020")
+	}
+	if meta.Workspace.Description != "hello world" {
+		t.Fatalf("workspace.description = %q, want %q", meta.Workspace.Description, "hello world")
+	}
+	if meta.Workspace.Status != "active" {
+		t.Fatalf("workspace.status = %q, want %q", meta.Workspace.Status, "active")
+	}
+	if len(meta.ReposRestore) != 0 {
+		t.Fatalf("repos_restore length = %d, want %d", len(meta.ReposRestore), 0)
+	}
+	if meta.Workspace.CreatedAt <= 0 || meta.Workspace.UpdatedAt <= 0 {
+		t.Fatalf("workspace timestamps should be positive: created_at=%d updated_at=%d", meta.Workspace.CreatedAt, meta.Workspace.UpdatedAt)
+	}
+	if meta.Workspace.CreatedAt != meta.Workspace.UpdatedAt {
+		t.Fatalf("workspace created/updated should match on create: created_at=%d updated_at=%d", meta.Workspace.CreatedAt, meta.Workspace.UpdatedAt)
 	}
 
 	ctx := context.Background()

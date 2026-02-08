@@ -1,6 +1,6 @@
 ---
 title: "FS Source of Truth"
-status: planned
+status: implemented
 ---
 
 # FS Source of Truth
