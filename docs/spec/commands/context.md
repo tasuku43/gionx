@@ -26,7 +26,7 @@ Notes:
 - `gionx context current`
   - print current root after applying the resolution order above
 - `gionx context list`
-  - show known roots from state registry with metadata (`last_used_at`)
+  - show known roots from root registry with metadata (`last_used_at`)
 - `gionx context use <root>`
   - validate `<root>` exists (or can be initialized via `gionx init`)
   - write `current-context` atomically

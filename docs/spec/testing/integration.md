@@ -11,7 +11,7 @@ Define an expanded integration test plan for `gionx` commands through the archiv
 
 This ticket focuses on "drift" and partial failure scenarios across:
 - filesystem under `GIONX_ROOT`
-- SQLite state store
+- root index cache
 - git repo pool + worktrees
 
 ## Scope (initial)
@@ -26,13 +26,13 @@ Commands implemented through `MVP-042`:
 
 ## Done definition
 
-- Add tests that run the CLI (`CLI.Run`) and verify side effects in both FS and DB.
+- Add tests that run the CLI (`CLI.Run`) and verify side effects in both FS and index.
 - Include at least some non-happy-path coverage for:
-  - drift between DB and filesystem
+  - drift between index and filesystem
   - git worktree constraints / repo pool issues (as applicable)
 - Keep tests isolated:
   - temp `GIONX_ROOT` per test
-  - isolated sqlite file per test
+  - isolated metadata/index files per test
   - avoid using the developer’s global git config/state
 
 ## Coverage map (spec -> tests)
@@ -50,14 +50,14 @@ This section maps the spec scenarios to concrete CLI integration tests.
 
 - invalid root:
   - `internal/cli/drift_test.go`: `TestCLI_WS_Create_InvalidRoot_Errors`
-- filesystem collision does not create DB row:
+- filesystem collision does not create index row:
   - `internal/cli/drift_test.go`: `TestCLI_WS_Create_FilesystemCollision_DoesNotInsertDBRow`
 - recreate after `purged` increments generation:
   - `internal/cli/drift_test.go`: `TestCLI_WS_Create_Purged_AllowsNewGeneration`
 
 ### `ws list`
 
-- import workspace dir drift into DB:
+- import workspace dir drift into index:
   - `internal/cli/ws_list_test.go`: `TestCLI_WS_List_ImportsWorkspaceDirAndPrintsIt`
 - mark missing active repo worktree:
   - `internal/cli/ws_list_test.go`: `TestCLI_WS_List_MarksMissingRepoWorktree`
@@ -66,7 +66,7 @@ This section maps the spec scenarios to concrete CLI integration tests.
 
 ### `ws add-repo`
 
-- happy path (worktree + DB):
+- happy path (worktree + index):
   - `internal/cli/cli_test.go`: `TestCLI_WS_AddRepo_CreatesWorktreeAndRecordsState`
 - repo pool corrupted:
   - `internal/cli/integration_lifecycle_test.go`: `TestCLI_WS_AddRepo_CorruptedRepoPool_FailsWithoutStateMutation`
@@ -75,18 +75,18 @@ This section maps the spec scenarios to concrete CLI integration tests.
 
 ### `ws close`
 
-- full archive lifecycle side effects (FS + DB + git):
+- full archive lifecycle side effects (FS + index + git):
   - `internal/cli/ws_close_test.go`: `TestCLI_WS_Close_ArchivesWorkspaceRemovesWorktreesCommitsAndUpdatesDB`
 - dirty worktree risk prompt and abort:
   - `internal/cli/ws_close_test.go`: `TestCLI_WS_Close_DirtyRepo_PromptsAndCanAbort`
 - staged changes guard:
   - `internal/cli/integration_comprehensive_test.go`: `TestCLI_WS_Close_WithStagedChanges_FailsBeforeMutatingWorkspace`
-- DB drift (`workspace_repos` references missing `repos` row):
+- index drift (workspace repo binding metadata mismatch):
   - `internal/cli/integration_lifecycle_test.go`: `TestCLI_WS_Close_RepoMetadataDrift_FailsWithoutArchiving`
 
 ### `ws reopen`
 
-- full reopen lifecycle side effects (FS + DB + git):
+- full reopen lifecycle side effects (FS + index + git):
   - `internal/cli/ws_reopen_test.go`: `TestCLI_WS_Reopen_RestoresWorkspaceRecreatesWorktreesCommitsAndUpdatesDB`
 - branch checked out elsewhere:
   - `internal/cli/ws_reopen_test.go`: `TestCLI_WS_Reopen_ErrorsWhenBranchCheckedOutElsewhere`
@@ -95,7 +95,7 @@ This section maps the spec scenarios to concrete CLI integration tests.
 
 ### `ws purge`
 
-- archived purge lifecycle side effects (FS + DB + git):
+- archived purge lifecycle side effects (FS + index + git):
   - `internal/cli/ws_purge_test.go`: `TestCLI_WS_Purge_ArchivedWorkspace_DeletesPathsCommitsAndUpdatesDB`
 - confirmation/force behavior:
   - `internal/cli/ws_purge_test.go`: `TestCLI_WS_Purge_NoPromptWithoutForce_Refuses`
@@ -114,7 +114,7 @@ This section maps the spec scenarios to concrete CLI integration tests.
 ### `ws create`
 
 - invalid root should error
-- filesystem collision should not insert DB rows
+- filesystem collision should not insert index rows
 - allow re-create after `purged` (generation increments)
 
 ### `ws add-repo`
@@ -125,6 +125,6 @@ This section maps the spec scenarios to concrete CLI integration tests.
 
 ### Archive lifecycle
 
-- `ws close` removes worktrees and archives atomically (FS + DB + git)
-- `ws reopen` restores archived workspace and recreates worktrees (FS + DB + git)
-- `ws purge` removes workspace snapshot + files with confirmations (FS + DB)
+- `ws close` removes worktrees and archives atomically (FS + index + git)
+- `ws reopen` restores archived workspace and recreates worktrees (FS + index + git)
+- `ws purge` removes workspace snapshot + files with confirmations (FS + index)

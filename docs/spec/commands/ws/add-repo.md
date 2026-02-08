@@ -17,7 +17,7 @@ Add repositories from the existing repo pool to a workspace as Git worktrees.
 
 ## Selection source
 
-- Candidate repos are taken from the state store `repos` table + existing bare repos under repo pool.
+- Candidate repos are taken from root index (`repos`) + existing bare repos under repo pool.
 - No direct repo URL input in this command.
 - Repos already bound in the target workspace are excluded from candidates.
 - Candidate ordering:
@@ -75,7 +75,7 @@ Add repositories from the existing repo pool to a workspace as Git worktrees.
 5. Apply (all-or-nothing)
   - create local branches as needed
   - create worktrees under `GIONX_ROOT/workspaces/<id>/repos/<alias>`
-  - record `workspace_repos` bindings
+  - record workspace-repo bindings in index
   - on any failure, rollback all created branches/worktrees/bindings
 
 6. Update usage metrics (success only)

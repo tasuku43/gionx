@@ -8,7 +8,7 @@ status: implemented
 ## Purpose
 
 Permanently delete a workspace and its archive from `GIONX_ROOT`, and remove the workspace snapshot
-from the global state store.
+from runtime index data.
 
 This is a destructive operation. It is separate from `ws close`, which keeps an archive.
 
@@ -16,7 +16,7 @@ This is a destructive operation. It is separate from `ws close`, which keeps an 
 
 ### Preconditions
 
-- Workspace `<id>` should exist in the global state store (either `active` or `archived`).
+- Workspace `<id>` should exist as metadata/index entry (either `active` or `archived`).
 
 ### Confirmation
 
@@ -41,7 +41,7 @@ This is a destructive operation. It is separate from `ws close`, which keeps an 
 - Delete `GIONX_ROOT/workspaces/<id>/` if it exists.
 - Delete `GIONX_ROOT/archive/<id>/` if it exists.
 
-4) Update state store
+4) Update metadata/index
 
 - Append `workspace_events(event_type='purged', workspace_id='<id>', workspace_generation=<gen>, at=..., meta='{}')`.
 - Remove the workspace snapshot row from `workspaces` for `<id>`.

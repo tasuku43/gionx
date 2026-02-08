@@ -7,7 +7,7 @@ status: implemented
 
 ## Purpose
 
-Remove repository registrations from the current root state DB.
+Remove repository registrations from the current root index.
 
 This command is a logical detach from the current root context.  
 It does not delete physical bare repositories from the shared repo pool.
@@ -33,7 +33,7 @@ It does not delete physical bare repositories from the shared repo pool.
 ## Removal policy
 
 - Removal target is current root `repos` rows only.
-- If selected repo has one or more references from `workspace_repos` in the same root,
+- If selected repo has one or more workspace references in the same root,
   command must fail fast and remove nothing.
 - `repo_usage_daily` cleanup relies on FK cascade from `repos` deletion.
 

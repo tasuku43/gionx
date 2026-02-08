@@ -8,7 +8,8 @@ status: implemented
 ## Goals
 
 `gionx` is a workspace lifecycle tool that coordinates:
-- the global state store (SQLite)
+- filesystem metadata (`.gionx.meta.json`)
+- optional/rebuildable root index
 - the filesystem under `GIONX_ROOT`
 - Git repositories (bare repo pool + worktrees)
 
@@ -22,9 +23,9 @@ This spec exists so an agent (e.g. Agen2MD) can extract test requirements and ke
 - Prefer table-driven tests for drift scenarios.
 - Keep side effects bounded:
   - use temporary directories for `GIONX_ROOT`
-  - use an isolated SQLite file for each test
+  - use isolated root metadata/index files for each test
   - avoid relying on global user environment
-- When a command performs multiple phases (DB + FS + Git), ensure tests cover partial failure behavior.
+- When a command performs multiple phases (index + FS + Git), ensure tests cover partial failure behavior.
 
 ## UI color compliance check
 
@@ -36,12 +37,12 @@ This spec exists so an agent (e.g. Agen2MD) can extract test requirements and ke
 The following are examples of "typical" drift/inconsistency scenarios.
 They are not exhaustive, but should have explicit tests because they are common in practice:
 
-### State store vs filesystem
+### Metadata/index vs filesystem
 
-- Workspace exists in DB, but `GIONX_ROOT/workspaces/<id>/` is missing.
-- Workspace exists on disk, but not in DB (import path).
-- Repo binding exists in DB, but `workspaces/<id>/repos/<alias>` is missing.
-- Files exist in `archive/<id>` but DB says workspace is open (or vice versa).
+- Workspace exists in metadata/index, but `GIONX_ROOT/workspaces/<id>/` is missing.
+- Workspace exists on disk, but metadata/index is stale or missing (import/reconcile path).
+- Repo binding exists in metadata/index, but `workspaces/<id>/repos/<alias>` is missing.
+- Files exist in `archive/<id>` but metadata says workspace is open (or vice versa).
 
 ### Git-specific
 

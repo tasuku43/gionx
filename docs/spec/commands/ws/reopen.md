@@ -9,7 +9,7 @@ status: implemented
 
 Reopen a previously closed workspace:
 - move `archive/<id>` back to `workspaces/<id>`
-- recreate Git worktrees for the workspace from the state store
+- recreate Git worktrees for the workspace from metadata
 
 This supports the common case where a task was considered done, but more work is needed.
 
@@ -19,7 +19,7 @@ This supports the common case where a task was considered done, but more work is
 
 - `archive/<id>` must exist
 - `workspaces/<id>` must not exist
-- Workspace `<id>` must exist in the global state store and be `archived`
+- Workspace `<id>` metadata must exist and be `archived`
 
 ### Steps
 
@@ -31,7 +31,7 @@ This supports the common case where a task was considered done, but more work is
 
 - Ensure `GIONX_ROOT/workspaces/<id>/repos/` exists.
 
-3) Recreate worktrees from state store
+3) Recreate worktrees from metadata
 
 For each recorded workspace repo entry:
 - Ensure the bare repo exists in the repo pool and `fetch` (prefetch should start as soon as possible)
@@ -41,7 +41,7 @@ For each recorded workspace repo entry:
   - otherwise, create it from the default branch
 - If the branch is already checked out by another worktree, error (Git worktree constraint).
 
-4) Update state store
+4) Update workspace metadata/index
 
 - Mark the workspace as `active`.
 - Update `updated_at`.
@@ -74,5 +74,5 @@ If the Git working tree has unrelated changes, this command must not include the
 
 - `ws reopen` must read `workspaces/<id>/.gionx.meta.json` (moved from archive) and recreate worktrees from
   `repos_restore`.
-- Reopen flow must not require DB `workspace_repos` rows to rebuild worktrees.
+- Reopen flow must not require index-only rows to rebuild worktrees.
 - On success, update `.gionx.meta.json.workspace.status` to `active` atomically.

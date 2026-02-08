@@ -69,18 +69,18 @@ action commands (`ws close`, `ws go`, `ws reopen`, `ws purge`).
 
 ## Behavior (MVP)
 
-- The global state store is the primary source of desired state.
-- The filesystem under `GIONX_ROOT/workspaces/` is treated as actual state.
+- Filesystem metadata (`.gionx.meta.json`) is the primary source of desired/current state.
+- Directory existence under `GIONX_ROOT/workspaces/` and `GIONX_ROOT/archive/` is treated as physical truth.
 - `risk` is reported as:
   - `clean` when `repo_count == 0`
   - `unknown` otherwise (repo-level risk computation is implemented later)
 
 ### Drift repair (MVP)
 
-- If a repo is present in the state store but its worktree is missing on disk:
-  - mark it as `missing` in the state store (do not delete)
-- If a workspace directory exists on disk but is missing in the state store:
-  - import it automatically using the directory name as the workspace ID
+- If a repo appears in metadata but its worktree is missing on disk:
+  - mark/reconcile drift in index data without mutating canonical metadata unexpectedly
+- If a workspace directory exists on disk but index/cached record is missing:
+  - import it using directory and metadata signals.
 
 ## Logical work-state behavior
 

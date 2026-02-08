@@ -23,7 +23,7 @@ Create an empty workspace with scaffolding for notes/artifacts.
   - `GIONX_ROOT/workspaces/<id>/artifacts/`
   - `GIONX_ROOT/workspaces/<id>/AGENTS.md` with a short description of the directory meaning
     - include a short explanation of `notes/` vs `artifacts/`
-- Prompt for `description` and store it in the global state store
+- Prompt for `description` and store it in workspace metadata (`.gionx.meta.json`)
   - if in a no-prompt mode, store an empty description
 - Workspace ID collisions:
   - if `<id>` already exists as `active`, return an error and reference the existing workspace

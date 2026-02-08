@@ -18,7 +18,7 @@ This is the primary "task completed" flow in `gionx`.
 ### Preconditions
 
 - `GIONX_ROOT` must be a Git working tree (or `gionx init` must have been run).
-- Workspace `<id>` must exist in the global state store.
+- Workspace `<id>` must exist as workspace metadata and be active.
 
 ### Steps
 
@@ -38,7 +38,7 @@ This is the primary "task completed" flow in `gionx`.
 - Move `GIONX_ROOT/workspaces/<id>/` to `GIONX_ROOT/archive/<id>/` using an atomic rename.
 - After this step, `GIONX_ROOT/workspaces/<id>/` should not exist.
 
-4) Update state store
+4) Update workspace metadata/index
 
 - Mark the workspace as `archived`.
 - Update `updated_at`.
@@ -52,7 +52,7 @@ This is the primary "task completed" flow in `gionx`.
 - Stage only paths touched by this operation, at minimum:
   - `archive/<id>/`
   - removal of `workspaces/<id>/` (and any emptied parent folders as needed)
- - After committing, store the commit SHA in the state store as `archived_commit_sha`.
+ - After committing, store the commit SHA in metadata/index as `archived_commit_sha`.
 
 6) Append an event
 

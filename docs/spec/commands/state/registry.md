@@ -7,25 +7,24 @@ status: implemented
 
 ## Purpose
 
-Provide a stable foundation for state-store hygiene when `GIONX_ROOT`-scoped DB files increase over time.
+Provide a stable foundation for root discovery and cross-root metadata scan.
 
 ## Background
 
-- `gionx` now uses one SQLite file per `GIONX_ROOT`.
-- As roots are created and abandoned, orphaned DB files can remain under XDG data paths.
-- We need a canonical registry to make future `state` subcommands (`list`, `gc`) reliable.
+- `gionx` keeps canonical workspace metadata under each root filesystem.
+- Cross-root operations (e.g. `repo gc`) still need a compact list of known roots.
+- We need a canonical registry to make future `state`/`context` workflows reliable.
 
 ## Scope (foundation only)
 
 - Define a registry file managed by `gionx`:
   - location: `XDG_DATA_HOME/gionx/registry.json`
   - format: JSON
-- Each entry tracks one root-scoped DB:
+- Each entry tracks one known root:
   - `root_path` (absolute, canonical path)
-  - `state_db_path`
   - `first_seen_at` (unix epoch)
   - `last_used_at` (unix epoch)
-- Registry updates happen on state store open paths used by current commands (`init`, `ws create`, `ws list`).
+- Registry updates happen on root-touch paths used by current commands (`init`, `ws create`, `ws list`, `repo *`).
 
 Implemented command integration:
 - `gionx init`
@@ -35,7 +34,6 @@ Implemented command integration:
 ## Invariants
 
 - `root_path` is unique in the registry.
-- `state_db_path` must match path resolution rules for that `root_path`.
 - `last_used_at` is monotonic non-decreasing per entry.
 - Missing registry file is treated as empty and lazily created.
 

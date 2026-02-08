@@ -13,7 +13,7 @@ gionx repo add <repo-spec>...
 
 ## Purpose
 
-Register repositories into the shared bare repo pool and the current root state DB.
+Register repositories into the shared bare repo pool and the current root index.
 
 ## Root resolution
 

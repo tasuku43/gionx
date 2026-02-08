@@ -22,9 +22,9 @@ Garbage-collect physical bare repositories from the shared repo pool when safe.
 Before deleting a bare repo from pool, command must verify:
 
 1. no current-root registration references (`repos`)
-2. no current-root workspace bindings (`workspace_repos`)
+2. no current-root workspace metadata references
 3. no live worktrees from that bare repo (`git worktree list --porcelain`)
-4. no references from other known roots (loaded from state registry entries)
+4. no references from other known roots (loaded from root registry entries)
 
 If any gate fails, that repo is not included in gc candidates.
 

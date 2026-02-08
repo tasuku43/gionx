@@ -132,7 +132,7 @@ It does not replace per-item dependencies.
   - Depends: FS-STATE-005
   - Parallel: yes (with FS-STATE-006)
 
-- [ ] FS-STATE-008: state-store downgrade/deprecation plan
+- [x] FS-STATE-008: state-store downgrade/deprecation plan
   - What: redefine SQLite as optional/rebuildable index (or remove), and align docs/tests accordingly.
   - Specs:
     - `docs/spec/concepts/state-store.md`

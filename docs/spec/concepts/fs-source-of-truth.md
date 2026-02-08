@@ -12,7 +12,7 @@ Define the next architecture direction:
 - JSON files are primary durable metadata
 - index-like data is derived/rebuildable
 
-This spec is a migration target from the current SQLite-centric state model.
+This spec defines the current canonical model.
 
 ## Principles
 
@@ -45,9 +45,8 @@ If rebuildable data is missing/corrupt, commands should either:
 
 - During migration window, command behavior is defined by command specs with explicit precedence.
 - Target steady-state:
-  - workspace lifecycle and reopen restore do not require SQLite tables.
+  - workspace lifecycle and reopen restore do not require SQL tables.
   - `ws list` / `ws go` operate from filesystem + meta JSON.
-- SQLite removal/deprecation is a later, explicit step (separate backlog item).
 
 ## Non-goals (this phase)
 

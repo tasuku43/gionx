@@ -7,7 +7,7 @@ status: implemented
 
 ## Purpose
 
-Initialize `GIONX_ROOT` and the global state store.
+Initialize `GIONX_ROOT` and filesystem-first runtime metadata.
 
 ## Behavior
 
@@ -21,11 +21,7 @@ Initialize `GIONX_ROOT` and the global state store.
   - `GIONX_ROOT/.gitignore`
   - `GIONX_ROOT/AGENTS.md`
 - Write `.gitignore` such that `workspaces/**/repos/**` is ignored
-- Initialize the global state store (SQLite) if missing
-- Record:
-  - `root_path` (single root)
-  - `repo_pool_path` (bare pool, in XDG cache by default)
-  - an empty workspace list (schema only)
+- Touch root registry metadata for this root.
 
 ## Notes
 
