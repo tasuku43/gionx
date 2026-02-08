@@ -111,6 +111,34 @@ func TestCLI_WS_ListAlias_LS_DelegatesToList(t *testing.T) {
 	}
 }
 
+func TestCLI_WS_SelectFlagConflictsWithID(t *testing.T) {
+	tests := []struct {
+		name string
+		args []string
+	}{
+		{name: "go", args: []string{"ws", "go", "--select", "WS-1"}},
+		{name: "close", args: []string{"ws", "close", "--select", "WS-1"}},
+		{name: "add-repo", args: []string{"ws", "add-repo", "--select", "WS-1"}},
+		{name: "reopen", args: []string{"ws", "reopen", "--select", "WS-1"}},
+		{name: "purge", args: []string{"ws", "purge", "--select", "WS-1"}},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			var out bytes.Buffer
+			var err bytes.Buffer
+			c := New(&out, &err)
+			code := c.Run(tc.args)
+			if code != exitUsage {
+				t.Fatalf("exit code = %d, want %d (stderr=%q)", code, exitUsage, err.String())
+			}
+			if !strings.Contains(err.String(), "--select cannot be used with <id>") &&
+				!strings.Contains(err.String(), "--select cannot be used with <workspace-id>") {
+				t.Fatalf("stderr missing conflict error: %q", err.String())
+			}
+		})
+	}
+}
+
 func TestCLI_WS_Create_NotImplemented(t *testing.T) {
 	var out bytes.Buffer
 	var err bytes.Buffer
