@@ -1,8 +1,6 @@
 ---
 title: "gionx CLI specs"
 status: implemented
-pending:
-  - ws_unified_launcher
 ---
 
 # gionx specs

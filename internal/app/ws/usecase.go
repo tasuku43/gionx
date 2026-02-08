@@ -42,7 +42,7 @@ type LauncherResult struct {
 	Action    Action
 }
 
-// SelectRequest defines shared --select operation contract.
+// SelectRequest defines workspace selection contract used by `ws select`.
 type SelectRequest struct {
 	Scope  Scope
 	Action string
@@ -70,7 +70,7 @@ type LauncherUseCase interface {
 	Run(ctx context.Context, req LauncherRequest) (LauncherResult, error)
 }
 
-// SelectUseCase is the app-layer contract for operation-level --select flow.
+// SelectUseCase is the app-layer contract for explicit workspace-selection flow.
 type SelectUseCase interface {
 	RunSelect(ctx context.Context, req SelectRequest) (SelectResult, error)
 }

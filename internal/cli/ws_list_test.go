@@ -31,6 +31,20 @@ func TestCLI_WS_List_Help_ShowsUsage(t *testing.T) {
 	}
 }
 
+func TestCLI_WS_List_SelectFlagRejected(t *testing.T) {
+	var out bytes.Buffer
+	var err bytes.Buffer
+	c := New(&out, &err)
+
+	code := c.Run([]string{"ws", "list", "--select"})
+	if code != exitUsage {
+		t.Fatalf("exit code = %d, want %d (stderr=%q)", code, exitUsage, err.String())
+	}
+	if !strings.Contains(err.String(), "unknown flag for ws list") {
+		t.Fatalf("stderr missing unknown flag error: %q", err.String())
+	}
+}
+
 func TestCLI_WS_List_ImportsWorkspaceDirAndPrintsIt(t *testing.T) {
 	root := t.TempDir()
 	dataHome := filepath.Join(t.TempDir(), "xdg-data")

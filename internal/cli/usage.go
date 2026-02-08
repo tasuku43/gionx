@@ -171,13 +171,12 @@ Safety gates:
 
 func (c *CLI) printWSListUsage(w io.Writer) {
 	fmt.Fprint(w, `Usage:
-  gionx ws list [--select] [--archived] [--tree] [--format human|tsv]
-  gionx ws ls [--select] [--archived] [--tree] [--format human|tsv]
+  gionx ws list [--archived] [--tree] [--format human|tsv]
+  gionx ws ls [--archived] [--tree] [--format human|tsv]
 
 List workspaces from filesystem metadata and repair basic drift.
 
 Options:
-  --select          Open interactive workspace/action selector
   --archived        Show archived workspaces (default: active only)
   --tree            Show repo detail lines under each workspace
   --format          Output format (default: human)
@@ -239,7 +238,7 @@ Reopen an archived workspace:
 - recreate git worktrees under workspaces/<id>/repos/
 - commit the reopen change in GIONX_ROOT
 
-Use gionx ws list --select --archived for interactive selection.
+Use gionx ws select --archived for interactive selection.
 `)
 }
 
@@ -258,6 +257,6 @@ Options:
   --no-prompt        Do not ask confirmations (requires --force)
   --force            Required with --no-prompt
 
-Use gionx ws list --select --archived for interactive selection.
+Use gionx ws select --archived for interactive selection.
 `)
 }

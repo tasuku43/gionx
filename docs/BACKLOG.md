@@ -524,7 +524,7 @@ It does not replace per-item dependencies.
 
 ## WS Unified Entry (idea competition agreed set: 2026-02-08)
 
-- [ ] UX-WS-020: Dual-entry architecture spec (`human` interactive vs `agent` non-interactive)
+- [x] UX-WS-020: Dual-entry architecture spec (`human` interactive vs `agent` non-interactive)
   - What: define facade split while keeping a single execution core for workspace actions.
     Clarify role boundaries: humans use unified launcher flow, agents use operation-fixed commands.
   - Specs:

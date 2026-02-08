@@ -1,8 +1,6 @@
 ---
 title: "`gionx ws go`"
 status: implemented
-pending:
-  - ws_list_select_entrypoint_doc_sync
 ---
 
 # `gionx ws go [--archived] [--id <id>] [--ui] [<id>]`
@@ -23,7 +21,7 @@ Jump to a workspace directory as a "start work" action.
 ### Mode selection
 
 - This command is explicit-id mode only (`--id` or positional `<id>`).
-- For interactive selection, use `gionx ws list --select`.
+- For interactive selection, use `gionx ws select`.
 
 ### Target path
 
@@ -34,7 +32,7 @@ Jump to a workspace directory as a "start work" action.
 
 - In standard mode, do not print shell command snippets to stdout.
 - In `--ui` mode, print `Result:` and destination path (human-readable).
-- Non-TTY constraints for selection are handled by `ws list --select`.
+- Non-TTY constraints for selection are handled by `ws select`.
 
 ### Shell integration
 

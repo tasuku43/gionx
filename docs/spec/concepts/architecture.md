@@ -55,5 +55,5 @@ the same application use cases.
 - Command handlers in `internal/cli` are thin wrappers over `app` use cases.
 - Shared behavior parity is verified by integration tests for:
   - launcher vs direct command execution
-  - `--select` vs direct id
+  - `ws select` vs direct id
 - No layering violations according to architecture guard tests.

@@ -1,8 +1,6 @@
 ---
 title: "`gionx ws add-repo`"
 status: implemented
-pending:
-  - ws_list_select_entrypoint_doc_sync
 ---
 
 # `gionx ws add-repo [--id <workspace-id>] [<workspace-id>]`
@@ -18,7 +16,7 @@ Add repositories from the existing repo pool to a workspace as Git worktrees.
   - cannot be combined with positional `workspace-id`
   - if omitted, current working directory must be under `GIONX_ROOT/workspaces/<id>/`
   - otherwise the command fails fast
-- interactive selection is handled by `gionx ws select` (or compatibility path `ws list --select`).
+- interactive selection is handled by `gionx ws select`.
 
 ## Selection source
 

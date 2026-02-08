@@ -3,7 +3,7 @@ title: "`gionx ws list`"
 status: implemented
 ---
 
-# `gionx ws list [--select] [--archived] [--tree] [--format human|tsv]`
+# `gionx ws list [--archived] [--tree] [--format human|tsv]`
 
 Alias:
 - `gionx ws ls` (same semantics as `ws list`)
@@ -13,7 +13,7 @@ Alias:
 List workspaces with status and risk, similar in spirit to `gion manifest ls`.
 
 `ws list` is a read-only listing command.
-`--select` exists as compatibility path; primary selection entrypoint is `ws select`.
+`ws list` is read-only. Interactive selection entrypoint is `ws select`.
 
 ## Role boundary
 

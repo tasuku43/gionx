@@ -152,6 +152,20 @@ func TestCLI_WS_Select_UnsupportedAct(t *testing.T) {
 	}
 }
 
+func TestCLI_WS_Select_IDFlagRejected(t *testing.T) {
+	var out bytes.Buffer
+	var err bytes.Buffer
+	c := New(&out, &err)
+
+	code := c.Run([]string{"ws", "select", "--id", "WS-1"})
+	if code != exitUsage {
+		t.Fatalf("exit code = %d, want %d (stderr=%q)", code, exitUsage, err.String())
+	}
+	if !strings.Contains(err.String(), "ws select does not support --id") {
+		t.Fatalf("stderr missing --id rejection: %q", err.String())
+	}
+}
+
 func TestCLI_WS_Select_ActScopeMismatch(t *testing.T) {
 	var out bytes.Buffer
 	var err bytes.Buffer

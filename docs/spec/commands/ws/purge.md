@@ -60,4 +60,4 @@ If the Git working tree has unrelated changes, this command must not include the
 ## Modes
 
 - This command is explicit-id mode only.
-- Interactive selection must use `gionx ws list --select --archived`.
+- Interactive selection must use `gionx ws select --archived`.

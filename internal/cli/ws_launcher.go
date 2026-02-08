@@ -51,17 +51,17 @@ func detectWorkspaceFromCWD(root string, cwd string) (workspaceContextSelection,
 }
 
 func (c *CLI) runWSLauncher(args []string) int {
+	return c.runWSLauncherWithSelectMode(args, false)
+}
+
+func (c *CLI) runWSLauncherWithSelectMode(args []string, forceSelect bool) int {
 	var archivedScope bool
-	var forceSelect bool
 	fixedAction := ""
 	workspaceID := ""
 	for len(args) > 0 && strings.HasPrefix(args[0], "-") {
 		switch args[0] {
 		case "--archived":
 			archivedScope = true
-			args = args[1:]
-		case "--select":
-			forceSelect = true
 			args = args[1:]
 		case "--act":
 			if len(args) < 2 {
@@ -204,8 +204,14 @@ func (c *CLI) runWSSelect(args []string) int {
 		c.printWSUsage(c.Out)
 		return exitOK
 	}
-	all := append([]string{"--select"}, args...)
-	return c.runWSLauncher(all)
+	for i := 0; i < len(args); i++ {
+		if args[i] == "--id" || strings.HasPrefix(args[i], "--id=") {
+			fmt.Fprintln(c.Err, "ws select does not support --id (always starts from workspace selection)")
+			c.printWSUsage(c.Err)
+			return exitUsage
+		}
+	}
+	return c.runWSLauncherWithSelectMode(args, true)
 }
 
 type cliWSLauncherAdapter struct {
