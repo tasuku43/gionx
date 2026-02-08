@@ -77,6 +77,7 @@ func (c *CLI) printWSUsage(w io.Writer) {
 
 Subcommands:
   create            Create a workspace
+  ls                Alias of list
   list              List workspaces
   add-repo          Add repo to workspace
   go                Navigate to workspace path
@@ -163,6 +164,7 @@ Safety gates:
 func (c *CLI) printWSListUsage(w io.Writer) {
 	fmt.Fprint(w, `Usage:
   gionx ws list [--archived] [--tree] [--format human|tsv]
+  gionx ws ls [--archived] [--tree] [--format human|tsv]
 
 List workspaces from filesystem metadata and repair basic drift.
 

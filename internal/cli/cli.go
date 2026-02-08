@@ -83,6 +83,8 @@ func (c *CLI) runWS(args []string) int {
 		return exitOK
 	case "create":
 		return c.runWSCreate(args[1:])
+	case "ls":
+		return c.runWSList(args[1:])
 	case "list":
 		return c.runWSList(args[1:])
 	case "add-repo":

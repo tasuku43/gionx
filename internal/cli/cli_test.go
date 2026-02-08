@@ -83,6 +83,32 @@ func TestCLI_WS_NoArgs_ShowsWSUsage(t *testing.T) {
 	}
 }
 
+func TestCLI_WS_ListAlias_LS_DelegatesToList(t *testing.T) {
+	root := t.TempDir()
+	dataHome := filepath.Join(t.TempDir(), "xdg-data")
+	cacheHome := filepath.Join(t.TempDir(), "xdg-cache")
+	if err := os.MkdirAll(filepath.Join(root, "workspaces"), 0o755); err != nil {
+		t.Fatalf("create workspaces/: %v", err)
+	}
+	if err := os.MkdirAll(filepath.Join(root, "archive"), 0o755); err != nil {
+		t.Fatalf("create archive/: %v", err)
+	}
+	t.Setenv("GIONX_ROOT", root)
+	t.Setenv("XDG_DATA_HOME", dataHome)
+	t.Setenv("XDG_CACHE_HOME", cacheHome)
+
+	var out bytes.Buffer
+	var err bytes.Buffer
+	c := New(&out, &err)
+	code := c.Run([]string{"ws", "ls"})
+	if code != exitOK {
+		t.Fatalf("exit code = %d, want %d (stderr=%q)", code, exitOK, err.String())
+	}
+	if !strings.Contains(out.String(), "Workspaces(active):") {
+		t.Fatalf("stdout missing workspace heading: %q", out.String())
+	}
+}
+
 func TestCLI_WS_Create_NotImplemented(t *testing.T) {
 	var out bytes.Buffer
 	var err bytes.Buffer
