@@ -132,6 +132,13 @@ func (c *CLI) runWSClose(args []string) int {
 		}
 		directWorkspaceID = fromCWD.ID
 	}
+	shouldShiftCWD := isPathInside(filepath.Join(root, "workspaces", directWorkspaceID), wd)
+	if shouldShiftCWD {
+		if err := os.Chdir(root); err != nil {
+			fmt.Fprintf(c.Err, "shift process cwd to GIONX_ROOT: %v\n", err)
+			return exitError
+		}
+	}
 
 	flow := workspaceSelectRiskResultFlowConfig{
 		FlowName: "ws close",
@@ -188,8 +195,40 @@ func (c *CLI) runWSClose(args []string) int {
 		}
 	}
 
+	if shouldShiftCWD {
+		if err := emitShellActionCD(root); err != nil {
+			fmt.Fprintf(c.Err, "write shell action: %v\n", err)
+			return exitError
+		}
+	}
 	c.debugf("ws close completed archived=%v", archived)
 	return exitOK
+}
+
+func isPathInside(base string, target string) bool {
+	if strings.TrimSpace(base) == "" || strings.TrimSpace(target) == "" {
+		return false
+	}
+	basePath := filepath.Clean(base)
+	targetPath := filepath.Clean(target)
+	if resolved, err := filepath.EvalSymlinks(basePath); err == nil {
+		basePath = filepath.Clean(resolved)
+	}
+	if resolved, err := filepath.EvalSymlinks(targetPath); err == nil {
+		targetPath = filepath.Clean(resolved)
+	}
+	rel, err := filepath.Rel(basePath, targetPath)
+	if err != nil {
+		return false
+	}
+	rel = filepath.Clean(rel)
+	if rel == "." {
+		return true
+	}
+	if rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
+		return false
+	}
+	return true
 }
 
 func listActiveCloseCandidates(ctx context.Context, db *sql.DB, root string) ([]workspaceSelectorCandidate, error) {

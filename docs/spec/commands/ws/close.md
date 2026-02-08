@@ -21,6 +21,8 @@ This is the primary "task completed" flow in `gionx`.
 
 - `GIONX_ROOT` must be a Git working tree (or `gionx init` must have been run).
 - Workspace `<id>` must exist as workspace metadata and be active.
+- If current process cwd is inside the target workspace path (`workspaces/<id>/...`), the command must
+  shift process cwd to `GIONX_ROOT` before worktree removal starts.
 
 ### Steps
 
@@ -34,6 +36,7 @@ This is the primary "task completed" flow in `gionx`.
 
 - Remove each worktree under `workspaces/<id>/repos/<alias>`.
 - Remove `workspaces/<id>/repos/` if it becomes empty.
+- This step must run after process-cwd shift when current cwd is under target workspace.
 
 3) Archive the workspace contents
 
@@ -62,6 +65,12 @@ This is the primary "task completed" flow in `gionx`.
   for the archive timestamp).
 
 If the Git working tree has unrelated changes, this command must not include them in the commit.
+
+### Shell synchronization for close
+
+- When process cwd was shifted to `GIONX_ROOT` due to target-workspace containment, successful close must emit
+  shell action `cd '<GIONX_ROOT>'` via action-file protocol.
+- On failure, parent-shell cwd must not be modified.
 
 ## Notes
 
