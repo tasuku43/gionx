@@ -194,7 +194,9 @@ func (c *CLI) runWSAddRepo(args []string) int {
 		if opened, err := statestore.Open(ctx, dbPath); err == nil {
 			if err := statestore.EnsureSettings(ctx, opened, root, repoPoolPath); err == nil {
 				db = opened
-				defer func() { _ = db.Close() }()
+				defer func(closedb *sql.DB) {
+					_ = closedb.Close()
+				}(opened)
 			} else {
 				_ = opened.Close()
 				c.debugf("ws add-repo: state store unavailable (initialize settings): %v", err)
