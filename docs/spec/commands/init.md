@@ -1,10 +1,6 @@
 ---
 title: "`gionx init`"
 status: implemented
-pending:
-  - interactive_root_prompt
-  - init_updates_current_context
-  - root_flag_for_non_tty
 ---
 
 # `gionx init [--root <path>]`
@@ -17,9 +13,10 @@ Initialize a gionx root and filesystem-first runtime metadata.
 
 - `--root <path>` is an explicit non-interactive root selector.
 - Without `--root`:
+  - If `GIONX_ROOT` is set: use it (backward-compatible behavior).
   - TTY: ask interactively for root path.
   - default suggestion: `~/gionx`
-  - non-TTY: fail fast and require `--root`.
+  - non-TTY: fail fast and require `--root` (or set `GIONX_ROOT`).
 - If selected root path does not exist, create it automatically (when parent exists).
 
 ## Behavior

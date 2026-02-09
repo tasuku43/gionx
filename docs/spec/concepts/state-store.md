@@ -47,5 +47,6 @@ XDG environment variables may override these defaults:
 
 ## Legacy compatibility
 
-- Existing SQLite files created in earlier versions are treated as legacy index data.
-- Runtime behavior should continue to work when legacy index data is absent, stale, or removed.
+- SQLite state store and SQL migrations are retired.
+- Runtime behavior must not depend on any SQLite file.
+- If legacy SQLite files exist from older versions, they are ignored.

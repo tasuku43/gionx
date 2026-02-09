@@ -22,7 +22,7 @@ Backlog is managed by epic/prefix under `docs/backlog/*.md`.
 ## Key Docs
 
 - Data model: `docs/spec/core/DATA_MODEL.md`
-- State store / migrations: `docs/spec/concepts/state-store.md`, `migrations/*.sql`
+- State store / registry: `docs/spec/concepts/state-store.md`, `docs/spec/commands/state/registry.md`
 - Root layout + git tracking: `docs/spec/concepts/layout.md`
 - Testing principles: `docs/dev/TESTING.md`
 
@@ -35,6 +35,7 @@ Backlog is managed by epic/prefix under `docs/backlog/*.md`.
 - `docs/backlog/UX-CORE.md`: core UX polish
 - `docs/backlog/ARCH.md`: architecture refactor
 - `docs/backlog/INT-JIRA.md`: external integration (Jira)
+- `docs/backlog/POST-MVP.md`: post-MVP follow-up items
 
 ## File Status
 
@@ -45,6 +46,7 @@ Backlog is managed by epic/prefix under `docs/backlog/*.md`.
 - [x] `docs/backlog/UX-CORE.md` (`2/2` done)
 - [x] `docs/backlog/ARCH.md` (`10/10` done)
 - [x] `docs/backlog/INT-JIRA.md` (`1/1` done)
+- [x] `docs/backlog/POST-MVP.md` (`3/3` done)
 
 Update this section whenever any ticket checkbox changes.
 
