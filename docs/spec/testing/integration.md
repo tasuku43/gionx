@@ -54,6 +54,14 @@ This section maps the spec scenarios to concrete CLI integration tests.
   - `internal/cli/drift_test.go`: `TestCLI_WS_Create_FilesystemCollision_DoesNotInsertDBRow`
 - recreate after `purged` increments generation:
   - `internal/cli/drift_test.go`: `TestCLI_WS_Create_Purged_AllowsNewGeneration`
+- Jira single-issue create success:
+  - `internal/cli/ws_create_jira_test.go`: `TestCLI_WS_Create_Jira_Success`
+- Jira env missing fail-fast:
+  - `internal/cli/ws_create_jira_test.go`: `TestCLI_WS_Create_Jira_MissingEnv_FailsFastWithoutWorkspaceCreation`
+- Jira URL resolve failure (404) fail-fast:
+  - `internal/cli/ws_create_jira_test.go`: `TestCLI_WS_Create_Jira_404_FailsFastWithoutStateMutation`
+- Jira strict flag conflict (`--jira` with `--id/--title`) usage error:
+  - `internal/cli/ws_create_jira_test.go`: `TestCLI_WS_Create_Jira_ConflictWithIDOrTitle_FailsUsage`
 
 ### `ws list`
 
@@ -116,6 +124,10 @@ This section maps the spec scenarios to concrete CLI integration tests.
 - invalid root should error
 - filesystem collision should not insert index rows
 - allow re-create after `purged` (generation increments)
+- `ws create --jira <ticket-url>` should resolve `id/title` from Jira issue
+- missing Jira env vars should fail without mutating FS/state
+- Jira issue fetch errors (e.g. 404/auth) should fail without mutating FS/state
+- `--jira` + `--id/--title` should fail with usage
 
 ### `ws add-repo`
 

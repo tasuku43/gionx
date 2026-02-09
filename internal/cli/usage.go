@@ -103,11 +103,13 @@ Notes:
 func (c *CLI) printWSCreateUsage(w io.Writer) {
 	fmt.Fprint(w, `Usage:
   gionx ws create [--no-prompt] <id>
+  gionx ws create --jira <ticket-url>
 
 Create a workspace directory under GIONX_ROOT/workspaces/<id>/ and write .gionx.meta.json.
 
 Options:
   --no-prompt        Do not prompt for title (store empty)
+  --jira             Resolve workspace id/title from Jira issue URL (env auth required)
 `)
 }
 

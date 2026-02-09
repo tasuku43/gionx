@@ -3,7 +3,7 @@ title: "`gionx ws create`"
 status: implemented
 ---
 
-# `gionx ws create <id>`
+# `gionx ws create`
 
 ## Purpose
 
@@ -14,6 +14,15 @@ Create an empty workspace with scaffolding for notes/artifacts.
 - `id`: user-provided workspace ID
   - validation rules should follow `gion` (e.g. reject `/`)
 - `--no-prompt` (optional): do not prompt for `title` (store empty)
+- `--jira <ticket-url>` (optional): resolve `id` and `title` from Jira issue
+  - `id = issueKey`
+  - `title = issue summary`
+  - auth is env-only:
+    - `GIONX_JIRA_BASE_URL`
+    - `GIONX_JIRA_EMAIL`
+    - `GIONX_JIRA_API_TOKEN`
+  - fail-fast if issue fetch/auth/parse fails (no workspace dir, no state row)
+  - must not be combined with `--id` / `--title`
 
 ## Behavior
 
@@ -25,6 +34,9 @@ Create an empty workspace with scaffolding for notes/artifacts.
     - include a short explanation of `notes/` vs `artifacts/`
 - Prompt for `title` and store it in workspace metadata (`.gionx.meta.json`)
   - if in a no-prompt mode, store an empty title
+- In `--jira` mode:
+  - do not prompt
+  - store `workspace.source_url = <ticket-url>`
 - Workspace ID collisions:
   - if `<id>` already exists as `active`, return an error and reference the existing workspace
   - if `<id>` already exists as `archived`, guide the user to `gionx ws --act reopen <id>`

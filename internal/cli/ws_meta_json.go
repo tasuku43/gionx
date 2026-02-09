@@ -35,13 +35,13 @@ type workspaceMetaRepoRestore struct {
 	BaseRef   string `json:"base_ref"`
 }
 
-func newWorkspaceMetaFileForCreate(id string, title string, now int64) workspaceMetaFile {
+func newWorkspaceMetaFileForCreate(id string, title string, sourceURL string, now int64) workspaceMetaFile {
 	return workspaceMetaFile{
 		SchemaVersion: 1,
 		Workspace: workspaceMetaWorkspace{
 			ID:        id,
 			Title:     title,
-			SourceURL: "",
+			SourceURL: sourceURL,
 			Status:    "active",
 			CreatedAt: now,
 			UpdatedAt: now,

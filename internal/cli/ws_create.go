@@ -11,12 +11,17 @@ import (
 	"strings"
 	"time"
 
+	"github.com/tasuku43/gionx/internal/app/wscreate"
+	"github.com/tasuku43/gionx/internal/infra/appports"
 	"github.com/tasuku43/gionx/internal/infra/paths"
 	"github.com/tasuku43/gionx/internal/infra/statestore"
 )
 
 func (c *CLI) runWSCreate(args []string) int {
 	var noPrompt bool
+	var jiraTicketURL string
+	var idFlag string
+	var titleFlag string
 	for len(args) > 0 && strings.HasPrefix(args[0], "-") {
 		switch args[0] {
 		case "-h", "--help", "help":
@@ -25,6 +30,30 @@ func (c *CLI) runWSCreate(args []string) int {
 		case "--no-prompt":
 			noPrompt = true
 			args = args[1:]
+		case "--jira":
+			if len(args) < 2 {
+				fmt.Fprintln(c.Err, "--jira requires a ticket URL")
+				c.printWSCreateUsage(c.Err)
+				return exitUsage
+			}
+			jiraTicketURL = strings.TrimSpace(args[1])
+			args = args[2:]
+		case "--id":
+			if len(args) < 2 {
+				fmt.Fprintln(c.Err, "--id requires a value")
+				c.printWSCreateUsage(c.Err)
+				return exitUsage
+			}
+			idFlag = strings.TrimSpace(args[1])
+			args = args[2:]
+		case "--title":
+			if len(args) < 2 {
+				fmt.Fprintln(c.Err, "--title requires a value")
+				c.printWSCreateUsage(c.Err)
+				return exitUsage
+			}
+			titleFlag = args[1]
+			args = args[2:]
 		default:
 			fmt.Fprintf(c.Err, "unknown flag for ws create: %q\n", args[0])
 			c.printWSCreateUsage(c.Err)
@@ -32,20 +61,32 @@ func (c *CLI) runWSCreate(args []string) int {
 		}
 	}
 
-	if len(args) == 0 {
-		c.printWSCreateUsage(c.Err)
-		return exitUsage
-	}
-	if len(args) > 1 {
-		fmt.Fprintf(c.Err, "unexpected args for ws create: %q\n", strings.Join(args[1:], " "))
-		c.printWSCreateUsage(c.Err)
-		return exitUsage
-	}
-
-	id := args[0]
-	if err := validateWorkspaceID(id); err != nil {
-		fmt.Fprintf(c.Err, "invalid workspace id: %v\n", err)
-		return exitUsage
+	if jiraTicketURL != "" {
+		if idFlag != "" || titleFlag != "" {
+			fmt.Fprintln(c.Err, "--jira cannot be combined with --id or --title")
+			c.printWSCreateUsage(c.Err)
+			return exitUsage
+		}
+		if len(args) > 0 {
+			fmt.Fprintf(c.Err, "unexpected args for ws create: %q\n", strings.Join(args, " "))
+			c.printWSCreateUsage(c.Err)
+			return exitUsage
+		}
+	} else {
+		if idFlag != "" || titleFlag != "" {
+			fmt.Fprintln(c.Err, "--id/--title are only supported with --jira")
+			c.printWSCreateUsage(c.Err)
+			return exitUsage
+		}
+		if len(args) == 0 {
+			c.printWSCreateUsage(c.Err)
+			return exitUsage
+		}
+		if len(args) > 1 {
+			fmt.Fprintf(c.Err, "unexpected args for ws create: %q\n", strings.Join(args[1:], " "))
+			c.printWSCreateUsage(c.Err)
+			return exitUsage
+		}
 	}
 
 	wd, err := os.Getwd()
@@ -61,9 +102,31 @@ func (c *CLI) runWSCreate(args []string) int {
 	if err := c.ensureDebugLog(root, "ws-create"); err != nil {
 		fmt.Fprintf(c.Err, "enable debug logging: %v\n", err)
 	}
-	c.debugf("run ws create id=%s noPrompt=%t", id, noPrompt)
+	c.debugf("run ws create noPrompt=%t jira=%t", noPrompt, jiraTicketURL != "")
 
 	ctx := context.Background()
+	id := ""
+	title := ""
+	sourceURL := ""
+	if jiraTicketURL != "" {
+		svc := wscreate.NewService(appports.NewWSCreateJiraPort())
+		in, err := svc.ResolveJiraWorkspaceInput(ctx, jiraTicketURL)
+		if err != nil {
+			fmt.Fprintf(c.Err, "resolve jira issue: %v\n", err)
+			return exitError
+		}
+		id = in.ID
+		title = in.Title
+		sourceURL = in.SourceURL
+	} else {
+		id = args[0]
+	}
+
+	if err := validateWorkspaceID(id); err != nil {
+		fmt.Fprintf(c.Err, "invalid workspace id: %v\n", err)
+		return exitUsage
+	}
+
 	dbPath, err := paths.StateDBPathForRoot(root)
 	if err != nil {
 		fmt.Fprintf(c.Err, "resolve state db path: %v\n", err)
@@ -108,8 +171,7 @@ func (c *CLI) runWSCreate(args []string) int {
 		}
 	}
 
-	title := ""
-	if !noPrompt {
+	if jiraTicketURL == "" && !noPrompt {
 		d, err := c.promptLine("title: ")
 		if err != nil {
 			fmt.Fprintf(c.Err, "read title: %v\n", err)
@@ -160,7 +222,7 @@ func (c *CLI) runWSCreate(args []string) int {
 	}
 
 	now := time.Now().Unix()
-	meta := newWorkspaceMetaFileForCreate(id, title, now)
+	meta := newWorkspaceMetaFileForCreate(id, title, sourceURL, now)
 	if err := writeWorkspaceMetaFile(wsPath, meta); err != nil {
 		cleanup()
 		fmt.Fprintf(c.Err, "write %s: %v\n", workspaceMetaFilename, err)
@@ -170,7 +232,7 @@ func (c *CLI) runWSCreate(args []string) int {
 	if _, err := statestore.CreateWorkspace(ctx, db, statestore.CreateWorkspaceInput{
 		ID:        id,
 		Title:     title,
-		SourceURL: "",
+		SourceURL: sourceURL,
 		Now:       now,
 	}); err != nil {
 		cleanup()
