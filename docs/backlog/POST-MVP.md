@@ -59,3 +59,11 @@ status: planned
     - `docs/spec/commands/init.md`
   - Depends: POST-MVP-001
   - Serial: yes
+
+- [x] POST-MVP-008: named context model (`name -> path`)
+  - What: add Docker-like context management (`create/list/use/current`) and init wizard inputs for context name/path.
+  - Specs:
+    - `docs/spec/commands/context.md`
+    - `docs/spec/commands/init.md`
+  - Depends: POST-MVP-007
+  - Serial: yes

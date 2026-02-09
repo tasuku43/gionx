@@ -3,7 +3,7 @@ title: "`gionx init`"
 status: implemented
 ---
 
-# `gionx init [--root <path>]`
+# `gionx init [--root <path>] [--context <name>]`
 
 ## Purpose
 
@@ -18,6 +18,15 @@ Initialize a gionx root and filesystem-first runtime metadata.
   - non-TTY: fail fast and require `--root`.
 - If selected root path does not exist, create it automatically (when parent exists).
 
+## Context selection policy
+
+- `--context <name>` is an explicit non-interactive context selector.
+- Without `--context`:
+  - TTY: ask interactively for context name.
+  - default suggestion: current directory basename
+  - non-TTY: fail fast and require `--context`.
+- `init` always selects the context on success (no `use now?` confirmation).
+
 ## Behavior
 
 - Ensure `<root>/` exists (create if missing)
@@ -31,6 +40,7 @@ Initialize a gionx root and filesystem-first runtime metadata.
   - `<root>/AGENTS.md`
 - Write `.gitignore` such that `workspaces/**/repos/**` is ignored
 - Touch root registry metadata for this root.
+- Register/refresh context binding (`name -> root`) in root registry.
 - Update global current context (`current-context`) to this root on success.
 
 ## Notes
@@ -43,5 +53,6 @@ Initialize a gionx root and filesystem-first runtime metadata.
 - Success output must use shared section style:
   - `Result:`
   - `  Initialized: <root>`
+  - `  Context selected: <name>`
 - `Result:` heading style follows shared UI token rules (`text.primary` + bold).
 - Success line should use shared success semantics (`status.success`).

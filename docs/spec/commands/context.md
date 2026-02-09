@@ -7,7 +7,7 @@ status: implemented
 
 ## Purpose
 
-Manage the current root context when multiple roots exist.
+Manage named contexts (`name -> path`) and current selection.
 
 ## Resolution order
 
@@ -23,17 +23,23 @@ Notes:
 ## Commands (MVP)
 
 - `gionx context current`
-  - print current root after applying the resolution order above
+  - print current context name
+  - fallback: print current path when name is unavailable (legacy entry)
 - `gionx context list`
-  - show known roots from root registry with metadata (`last_used_at`)
-- `gionx context use <root>`
-  - validate `<root>` exists (or can be initialized via `gionx init`)
+  - show known contexts from registry (`name`, `path`, `last_used_at`)
+- `gionx context create <name> --path <path> [--use]`
+  - validate path
+  - persist name/path relation into registry
+  - `--use` is specified, also select it as current context
+- `gionx context use <name>`
+  - resolve context by name
   - write `current-context` atomically
   - print success in shared section style (`Result:`)
 
 ## Error handling
 
 - If `current-context` points to a non-existent path, show a clear recovery hint.
+- If `context create` uses an existing name for another path, fail with clear conflict error.
 - Path writes must be atomic (temp + rename).
 
 ## Out of scope
@@ -44,9 +50,10 @@ Notes:
 ## Output
 
 - `context current`:
-  - keep machine-friendly plain path output (`<root>`) for composability.
-- `context use <root>`:
+  - plain output (`<name>` or `<path>` fallback)
+- `context use <name>`:
   - success output:
     - `Result:`
-    - `  Context set: <root>`
+    - `  Context selected: <name>`
+    - `  path: <root>`
   - section/title colors follow shared token rules from `docs/spec/concepts/ui-color.md`.
