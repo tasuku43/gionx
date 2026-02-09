@@ -2,6 +2,7 @@ package statestore
 
 import (
 	"context"
+	"database/sql"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -123,5 +124,65 @@ func TestEnsureSettings_ErrorsWhenDifferent(t *testing.T) {
 	}
 	if !strings.Contains(err.Error(), "different value") {
 		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+func TestOpen_repairsLegacyWorkspacesColumnsEvenWhenMigrationsRecorded(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+	dbPath := filepath.Join(t.TempDir(), "legacy.db")
+	dsn, err := sqliteDSN(dbPath)
+	if err != nil {
+		t.Fatalf("sqliteDSN() error: %v", err)
+	}
+
+	legacyDB, err := sql.Open("sqlite", dsn)
+	if err != nil {
+		t.Fatalf("open legacy sqlite: %v", err)
+	}
+	if _, err := legacyDB.ExecContext(ctx, `
+CREATE TABLE schema_migrations (
+  id TEXT PRIMARY KEY,
+  applied_at INTEGER NOT NULL
+);
+INSERT INTO schema_migrations (id, applied_at) VALUES ('0001_init.sql', 1);
+INSERT INTO schema_migrations (id, applied_at) VALUES ('0002_repo_usage_daily.sql', 1);
+CREATE TABLE workspaces (
+  id TEXT PRIMARY KEY,
+  generation INTEGER NOT NULL,
+  status TEXT NOT NULL,
+  created_at INTEGER NOT NULL,
+  updated_at INTEGER NOT NULL
+);
+CREATE TABLE workspace_events (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  workspace_id TEXT NOT NULL,
+  workspace_generation INTEGER NOT NULL,
+  event_type TEXT NOT NULL,
+  at INTEGER NOT NULL,
+  meta TEXT NOT NULL
+);
+`); err != nil {
+		_ = legacyDB.Close()
+		t.Fatalf("prepare legacy schema: %v", err)
+	}
+	if err := legacyDB.Close(); err != nil {
+		t.Fatalf("close legacy db: %v", err)
+	}
+
+	db, err := Open(ctx, dbPath)
+	if err != nil {
+		t.Fatalf("Open() error: %v", err)
+	}
+	t.Cleanup(func() { _ = db.Close() })
+
+	if _, err := CreateWorkspace(ctx, db, CreateWorkspaceInput{
+		ID:        "DEMO-0000",
+		Title:     "legacy fix test",
+		SourceURL: "https://example.atlassian.net/browse/DEMO-0000",
+		Now:       123,
+	}); err != nil {
+		t.Fatalf("CreateWorkspace() after repair error: %v", err)
 	}
 }

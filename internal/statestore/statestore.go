@@ -115,11 +115,90 @@ CREATE TABLE IF NOT EXISTS schema_migrations (
 			return fmt.Errorf("record migration %q: %w", m.ID, err)
 		}
 	}
+	if err := repairLegacyWorkspaceColumns(ctx, tx); err != nil {
+		return err
+	}
 
 	if err := tx.Commit(); err != nil {
 		return fmt.Errorf("commit migrations: %w", err)
 	}
 	return nil
+}
+
+func repairLegacyWorkspaceColumns(ctx context.Context, tx *sql.Tx) error {
+	exists, err := tableExists(ctx, tx, "workspaces")
+	if err != nil {
+		return fmt.Errorf("check workspaces table: %w", err)
+	}
+	if !exists {
+		return nil
+	}
+	columns, err := tableColumns(ctx, tx, "workspaces")
+	if err != nil {
+		return fmt.Errorf("load workspaces columns: %w", err)
+	}
+
+	// Keep legacy DBs compatible even when schema_migrations says "applied".
+	patches := []struct {
+		name string
+		sql  string
+	}{
+		{name: "title", sql: "ALTER TABLE workspaces ADD COLUMN title TEXT NOT NULL DEFAULT ''"},
+		{name: "source_url", sql: "ALTER TABLE workspaces ADD COLUMN source_url TEXT NOT NULL DEFAULT ''"},
+		{name: "archived_commit_sha", sql: "ALTER TABLE workspaces ADD COLUMN archived_commit_sha TEXT"},
+		{name: "reopened_commit_sha", sql: "ALTER TABLE workspaces ADD COLUMN reopened_commit_sha TEXT"},
+	}
+	for _, p := range patches {
+		if columns[p.name] {
+			continue
+		}
+		if _, err := tx.ExecContext(ctx, p.sql); err != nil {
+			return fmt.Errorf("repair workspaces.%s: %w", p.name, err)
+		}
+	}
+	return nil
+}
+
+func tableExists(ctx context.Context, q interface {
+	QueryRowContext(context.Context, string, ...any) *sql.Row
+}, name string) (bool, error) {
+	var got string
+	err := q.QueryRowContext(ctx, "SELECT name FROM sqlite_master WHERE type = 'table' AND name = ?", name).Scan(&got)
+	if err == sql.ErrNoRows {
+		return false, nil
+	}
+	if err != nil {
+		return false, err
+	}
+	return true, nil
+}
+
+func tableColumns(ctx context.Context, q interface {
+	QueryContext(context.Context, string, ...any) (*sql.Rows, error)
+}, name string) (map[string]bool, error) {
+	rows, err := q.QueryContext(ctx, "PRAGMA table_info("+name+")")
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	out := map[string]bool{}
+	for rows.Next() {
+		var cid int
+		var colName string
+		var colType string
+		var notNull int
+		var dflt sql.NullString
+		var pk int
+		if err := rows.Scan(&cid, &colName, &colType, &notNull, &dflt, &pk); err != nil {
+			return nil, err
+		}
+		out[colName] = true
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return out, nil
 }
 
 func loadApplied(ctx context.Context, q interface {
