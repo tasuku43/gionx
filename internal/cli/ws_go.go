@@ -2,7 +2,6 @@ package cli
 
 import (
 	"context"
-	"database/sql"
 	"errors"
 	"fmt"
 	"os"
@@ -10,7 +9,6 @@ import (
 	"strings"
 
 	"github.com/tasuku43/gionx/internal/infra/paths"
-	"github.com/tasuku43/gionx/internal/infra/statestore"
 )
 
 var errWSGoSingleSelectionRequired = errors.New("ws go requires exactly one workspace selected")
@@ -272,29 +270,16 @@ func (c *CLI) runWSGoJSON(workspaceID string, archivedScope bool) int {
 	return exitOK
 }
 
-func listWorkspaceCandidatesByStatus(ctx context.Context, db *sql.DB, root string, status string) ([]workspaceSelectorCandidate, error) {
-	items, err := statestore.ListWorkspaces(ctx, db)
+func listWorkspaceCandidatesByStatus(ctx context.Context, root string, status string) ([]workspaceSelectorCandidate, error) {
+	rows, err := listRowsFromFilesystem(ctx, root, status)
 	if err != nil {
 		return nil, err
 	}
-
-	out := make([]workspaceSelectorCandidate, 0, len(items))
-	for _, it := range items {
-		if it.Status != status {
-			continue
-		}
-		title := strings.TrimSpace(it.Title)
-		if status == "active" {
-			repos, err := statestore.ListWorkspaceRepos(ctx, db, it.ID)
-			if err != nil {
-				return nil, err
-			}
-			workState := deriveLogicalWorkState(ctx, root, it.ID, it.Status, repos)
-			title = formatWorkspaceTitleWithLogicalState(workState, title)
-		}
+	out := make([]workspaceSelectorCandidate, 0, len(rows))
+	for _, row := range rows {
 		out = append(out, workspaceSelectorCandidate{
-			ID:    it.ID,
-			Title: title,
+			ID:    row.ID,
+			Title: formatWorkspaceTitleWithLogicalState(row.WorkState, row.Title),
 		})
 	}
 	return out, nil

@@ -10,7 +10,6 @@ import (
 
 	appws "github.com/tasuku43/gionx/internal/app/ws"
 	"github.com/tasuku43/gionx/internal/infra/paths"
-	"github.com/tasuku43/gionx/internal/infra/statestore"
 )
 
 type workspaceContextSelection struct {
@@ -348,25 +347,7 @@ func (a *cliWSLauncherAdapter) ResolveByID(ctx context.Context, id string) (appw
 
 func (c *CLI) selectWorkspaceIDByStatus(root string, status string, action string) (string, error) {
 	ctx := context.Background()
-	dbPath, err := paths.StateDBPathForRoot(root)
-	if err != nil {
-		return "", fmt.Errorf("resolve state db path: %w", err)
-	}
-	repoPoolPath, err := paths.DefaultRepoPoolPath()
-	if err != nil {
-		return "", fmt.Errorf("resolve repo pool path: %w", err)
-	}
-	db, err := statestore.Open(ctx, dbPath)
-	if err != nil {
-		return "", fmt.Errorf("open state store: %w", err)
-	}
-	defer func() { _ = db.Close() }()
-
-	if err := statestore.EnsureSettings(ctx, db, root, repoPoolPath); err != nil {
-		return "", fmt.Errorf("initialize settings: %w", err)
-	}
-
-	candidates, err := listWorkspaceCandidatesByStatus(ctx, db, root, status)
+	candidates, err := listWorkspaceCandidatesByStatus(ctx, root, status)
 	if err != nil {
 		return "", err
 	}
@@ -384,24 +365,25 @@ func (c *CLI) selectWorkspaceIDByStatus(root string, status string, action strin
 }
 
 func lookupWorkspaceStatusByID(ctx context.Context, root string, workspaceID string) (string, bool, error) {
-	dbPath, err := paths.StateDBPathForRoot(root)
-	if err != nil {
-		return "", false, fmt.Errorf("resolve state db path: %w", err)
+	_ = ctx
+	activePath := filepath.Join(root, "workspaces", workspaceID)
+	if fi, err := os.Stat(activePath); err == nil {
+		if fi.IsDir() {
+			return "active", true, nil
+		}
+	} else if err != nil && !os.IsNotExist(err) {
+		return "", false, fmt.Errorf("stat active workspace path: %w", err)
 	}
-	repoPoolPath, err := paths.DefaultRepoPoolPath()
-	if err != nil {
-		return "", false, fmt.Errorf("resolve repo pool path: %w", err)
-	}
-	db, err := statestore.Open(ctx, dbPath)
-	if err != nil {
-		return "", false, fmt.Errorf("open state store: %w", err)
-	}
-	defer func() { _ = db.Close() }()
 
-	if err := statestore.EnsureSettings(ctx, db, root, repoPoolPath); err != nil {
-		return "", false, fmt.Errorf("initialize settings: %w", err)
+	archivedPath := filepath.Join(root, "archive", workspaceID)
+	if fi, err := os.Stat(archivedPath); err == nil {
+		if fi.IsDir() {
+			return "archived", true, nil
+		}
+	} else if err != nil && !os.IsNotExist(err) {
+		return "", false, fmt.Errorf("stat archived workspace path: %w", err)
 	}
-	return statestore.LookupWorkspaceStatus(ctx, db, workspaceID)
+	return "", false, nil
 }
 
 func (c *CLI) promptLauncherAction(target workspaceContextSelection, fromContext bool) (string, error) {
