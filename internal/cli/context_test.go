@@ -106,8 +106,12 @@ func TestCLI_Context_ListMarksCurrentContext(t *testing.T) {
 	t.Setenv("XDG_DATA_HOME", dataHome)
 
 	root := t.TempDir()
+	otherRoot := t.TempDir()
 	if err := stateregistry.SetContextName(root, "current", time.Unix(200, 0)); err != nil {
 		t.Fatalf("SetContextName(root): %v", err)
+	}
+	if err := stateregistry.SetContextName(otherRoot, "other", time.Unix(300, 0)); err != nil {
+		t.Fatalf("SetContextName(otherRoot): %v", err)
 	}
 	if err := paths.WriteCurrentContext(root); err != nil {
 		t.Fatalf("WriteCurrentContext() error: %v", err)
@@ -122,6 +126,9 @@ func TestCLI_Context_ListMarksCurrentContext(t *testing.T) {
 	}
 	if !strings.Contains(out.String(), "current [current]") {
 		t.Fatalf("context list missing current marker: %q", out.String())
+	}
+	if strings.Index(out.String(), "current [current]") > strings.Index(out.String(), "other") {
+		t.Fatalf("current context should be listed first: %q", out.String())
 	}
 }
 

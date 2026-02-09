@@ -89,10 +89,21 @@ func (c *CLI) runContextList(args []string) int {
 
 	useColorOut := writerSupportsColor(c.Out)
 	fmt.Fprintln(c.Out, styleBold("Contexts:", useColorOut))
-	fmt.Fprintln(c.Out)
 	currentRoot, _, _ := paths.ReadCurrentContext()
 
+	ordered := make([]contextcmd.Entry, 0, len(entries))
 	for _, e := range entries {
+		if strings.TrimSpace(e.RootPath) == strings.TrimSpace(currentRoot) {
+			ordered = append(ordered, e)
+		}
+	}
+	for _, e := range entries {
+		if strings.TrimSpace(e.RootPath) != strings.TrimSpace(currentRoot) {
+			ordered = append(ordered, e)
+		}
+	}
+
+	for _, e := range ordered {
 		isCurrent := strings.TrimSpace(e.RootPath) != "" && strings.TrimSpace(e.RootPath) == strings.TrimSpace(currentRoot)
 		last := time.Unix(e.LastUsedAt, 0).UTC().Format(time.RFC3339)
 		name := strings.TrimSpace(e.ContextName)
@@ -114,7 +125,6 @@ func (c *CLI) runContextList(args []string) int {
 		fmt.Fprintf(c.Out, "%s%s %s%s\n", uiIndent, prefix, title, currentLabel)
 		fmt.Fprintf(c.Out, "%s├─ %s%s\n", uiIndent, styleMuted("path: ", useColorOut), e.RootPath)
 		fmt.Fprintf(c.Out, "%s└─ %s%s\n", uiIndent, styleMuted("last used: ", useColorOut), styleMuted(last, useColorOut))
-		fmt.Fprintln(c.Out)
 	}
 	return exitOK
 }
