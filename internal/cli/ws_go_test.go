@@ -7,6 +7,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/tasuku43/gionx/internal/paths"
 	"github.com/tasuku43/gionx/internal/testutil"
 )
 
@@ -197,5 +198,43 @@ func TestCLI_WS_Go_SelectorModeWithoutTTY_Errors(t *testing.T) {
 		if !strings.Contains(err.String(), "ws go requires --id <id> or positional <id>") && !strings.Contains(err.String(), "ws requires --id <id> or workspace context") {
 			t.Fatalf("stderr missing id requirement: %q", err.String())
 		}
+	}
+}
+
+func TestCLI_WS_Go_DirectActive_WorksEvenWhenStateDBIsCorrupted(t *testing.T) {
+	env := testutil.NewEnv(t)
+	env.EnsureRootLayout(t)
+	if err := os.MkdirAll(filepath.Join(env.Root, "workspaces", "WS1"), 0o755); err != nil {
+		t.Fatalf("create workspace dir: %v", err)
+	}
+
+	dbPath, err := paths.StateDBPathForRoot(env.Root)
+	if err != nil {
+		t.Fatalf("StateDBPathForRoot() error: %v", err)
+	}
+	if err := os.MkdirAll(filepath.Dir(dbPath), 0o755); err != nil {
+		t.Fatalf("mkdir db dir: %v", err)
+	}
+	if err := os.WriteFile(dbPath, []byte("not a sqlite db"), 0o644); err != nil {
+		t.Fatalf("write corrupted db: %v", err)
+	}
+
+	var out bytes.Buffer
+	var errBuf bytes.Buffer
+	c := New(&out, &errBuf)
+	actionFile := filepath.Join(t.TempDir(), "action.sh")
+	t.Setenv(shellActionFileEnv, actionFile)
+
+	code := c.Run([]string{"ws", "--act", "go", "WS1"})
+	if code != exitOK {
+		t.Fatalf("ws go exit code = %d, want %d (stderr=%q)", code, exitOK, errBuf.String())
+	}
+	action, readErr := os.ReadFile(actionFile)
+	if readErr != nil {
+		t.Fatalf("ReadFile(action) error: %v", readErr)
+	}
+	want := filepath.Join(env.Root, "workspaces", "WS1")
+	if !strings.Contains(string(action), want) {
+		t.Fatalf("action file missing destination: %q", string(action))
 	}
 }

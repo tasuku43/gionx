@@ -137,30 +137,6 @@ func (c *CLI) runWSGo(args []string) int {
 	}
 	c.debugf("run ws go args=%q archived=%t ui=%t", args, archivedScope, uiOutput)
 
-	ctx := context.Background()
-	dbPath, err := paths.StateDBPathForRoot(root)
-	if err != nil {
-		fmt.Fprintf(c.Err, "resolve state db path: %v\n", err)
-		return exitError
-	}
-	repoPoolPath, err := paths.DefaultRepoPoolPath()
-	if err != nil {
-		fmt.Fprintf(c.Err, "resolve repo pool path: %v\n", err)
-		return exitError
-	}
-
-	db, err := statestore.Open(ctx, dbPath)
-	if err != nil {
-		fmt.Fprintf(c.Err, "open state store: %v\n", err)
-		return exitError
-	}
-	defer func() { _ = db.Close() }()
-
-	if err := statestore.EnsureSettings(ctx, db, root, repoPoolPath); err != nil {
-		fmt.Fprintf(c.Err, "initialize settings: %v\n", err)
-		return exitError
-	}
-
 	scope := "active"
 	if archivedScope {
 		scope = "archived"
@@ -175,7 +151,7 @@ func (c *CLI) runWSGo(args []string) int {
 			return selected, nil
 		},
 		ApplyOne: func(item workspaceFlowSelection) error {
-			targetPath, err := resolveWorkspaceGoTarget(ctx, db, root, scope, item.ID)
+			targetPath, err := resolveWorkspaceGoTarget(root, scope, item.ID)
 			if err != nil {
 				return err
 			}
@@ -248,64 +224,11 @@ func (c *CLI) runWSGoJSON(workspaceID string, archivedScope bool) int {
 		})
 		return exitError
 	}
-	ctx := context.Background()
-	dbPath, err := paths.StateDBPathForRoot(root)
-	if err != nil {
-		_ = writeCLIJSON(c.Out, cliJSONResponse{
-			OK:          false,
-			Action:      "go",
-			WorkspaceID: workspaceID,
-			Error: &cliJSONError{
-				Code:    "internal_error",
-				Message: fmt.Sprintf("resolve state db path: %v", err),
-			},
-		})
-		return exitError
-	}
-	repoPoolPath, err := paths.DefaultRepoPoolPath()
-	if err != nil {
-		_ = writeCLIJSON(c.Out, cliJSONResponse{
-			OK:          false,
-			Action:      "go",
-			WorkspaceID: workspaceID,
-			Error: &cliJSONError{
-				Code:    "internal_error",
-				Message: fmt.Sprintf("resolve repo pool path: %v", err),
-			},
-		})
-		return exitError
-	}
-	db, err := statestore.Open(ctx, dbPath)
-	if err != nil {
-		_ = writeCLIJSON(c.Out, cliJSONResponse{
-			OK:          false,
-			Action:      "go",
-			WorkspaceID: workspaceID,
-			Error: &cliJSONError{
-				Code:    "internal_error",
-				Message: fmt.Sprintf("open state store: %v", err),
-			},
-		})
-		return exitError
-	}
-	defer func() { _ = db.Close() }()
-	if err := statestore.EnsureSettings(ctx, db, root, repoPoolPath); err != nil {
-		_ = writeCLIJSON(c.Out, cliJSONResponse{
-			OK:          false,
-			Action:      "go",
-			WorkspaceID: workspaceID,
-			Error: &cliJSONError{
-				Code:    "internal_error",
-				Message: fmt.Sprintf("initialize settings: %v", err),
-			},
-		})
-		return exitError
-	}
 	scope := "active"
 	if archivedScope {
 		scope = "archived"
 	}
-	targetPath, err := resolveWorkspaceGoTarget(ctx, db, root, scope, workspaceID)
+	targetPath, err := resolveWorkspaceGoTarget(root, scope, workspaceID)
 	if err != nil {
 		code := "internal_error"
 		msg := err.Error()
@@ -377,24 +300,26 @@ func listWorkspaceCandidatesByStatus(ctx context.Context, db *sql.DB, root strin
 	return out, nil
 }
 
-func resolveWorkspaceGoTarget(ctx context.Context, db *sql.DB, root string, scope string, workspaceID string) (string, error) {
-	status, ok, err := statestore.LookupWorkspaceStatus(ctx, db, workspaceID)
-	if err != nil {
-		return "", fmt.Errorf("load workspace: %w", err)
-	}
-	if !ok {
-		return "", fmt.Errorf("workspace not found: %s", workspaceID)
-	}
-	if status != scope {
-		return "", fmt.Errorf("workspace is not %s (status=%s): %s", scope, status, workspaceID)
-	}
-
+func resolveWorkspaceGoTarget(root string, scope string, workspaceID string) (string, error) {
 	targetPath := filepath.Join(root, "workspaces", workspaceID)
 	if scope == "archived" {
 		targetPath = filepath.Join(root, "archive", workspaceID)
 	}
+	otherScopePath := filepath.Join(root, "archive", workspaceID)
+	otherScopeName := "archived"
+	if scope == "archived" {
+		otherScopePath = filepath.Join(root, "workspaces", workspaceID)
+		otherScopeName = "active"
+	}
+
 	fi, err := os.Stat(targetPath)
 	if err != nil {
+		if os.IsNotExist(err) {
+			if other, otherErr := os.Stat(otherScopePath); otherErr == nil && other.IsDir() {
+				return "", fmt.Errorf("workspace is not %s (status=%s): %s", scope, otherScopeName, workspaceID)
+			}
+			return "", fmt.Errorf("workspace not found: %s", workspaceID)
+		}
 		return "", fmt.Errorf("stat target path: %w", err)
 	}
 	if !fi.IsDir() {
