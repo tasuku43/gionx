@@ -100,36 +100,9 @@ func TestFindRoot_NotFound(t *testing.T) {
 	}
 }
 
-func TestResolveExistingRoot_UsesEnv(t *testing.T) {
-	root := t.TempDir()
-	mustMkdirAll(t, filepath.Join(root, "workspaces"))
-	mustMkdirAll(t, filepath.Join(root, "archive"))
-	t.Setenv("GIONX_ROOT", root)
-
-	other := t.TempDir()
-	got, err := ResolveExistingRoot(other)
-	if err != nil {
-		t.Fatalf("ResolveExistingRoot() err = %v", err)
-	}
-	if got != root {
-		t.Fatalf("ResolveExistingRoot() = %q, want %q", got, root)
-	}
-}
-
-func TestResolveExistingRoot_EnvMustLookLikeRoot(t *testing.T) {
-	root := t.TempDir()
-	t.Setenv("GIONX_ROOT", root)
-
-	_, err := ResolveExistingRoot(t.TempDir())
-	if err == nil {
-		t.Fatalf("ResolveExistingRoot() err = nil, want error")
-	}
-}
-
-func TestResolveExistingRoot_UsesCurrentContextWhenEnvUnset(t *testing.T) {
+func TestResolveExistingRoot_UsesCurrentContext(t *testing.T) {
 	dataHome := filepath.Join(t.TempDir(), "xdg-data")
 	t.Setenv("XDG_DATA_HOME", dataHome)
-	t.Setenv("GIONX_ROOT", "")
 
 	root := t.TempDir()
 	mustMkdirAll(t, filepath.Join(root, "workspaces"))
@@ -151,7 +124,6 @@ func TestResolveExistingRoot_UsesCurrentContextWhenEnvUnset(t *testing.T) {
 func TestResolveExistingRoot_CurrentContextMissingPathErrors(t *testing.T) {
 	dataHome := filepath.Join(t.TempDir(), "xdg-data")
 	t.Setenv("XDG_DATA_HOME", dataHome)
-	t.Setenv("GIONX_ROOT", "")
 
 	missingRoot := filepath.Join(t.TempDir(), "missing-root")
 	if err := WriteCurrentContext(missingRoot); err != nil {

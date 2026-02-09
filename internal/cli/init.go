@@ -86,10 +86,6 @@ func (c *CLI) resolveInitRoot(rootFromFlag string) (string, error) {
 		return normalizeInitRoot(rootFromFlag)
 	}
 
-	if envRoot := strings.TrimSpace(os.Getenv("GIONX_ROOT")); envRoot != "" {
-		return normalizeInitRoot(envRoot)
-	}
-
 	if inFile, ok := c.In.(*os.File); ok && isatty.IsTerminal(inFile.Fd()) {
 		defaultRoot, err := defaultInitRootSuggestion()
 		if err != nil {
@@ -106,7 +102,7 @@ func (c *CLI) resolveInitRoot(rootFromFlag string) (string, error) {
 		return normalizeInitRoot(selected)
 	}
 
-	return "", fmt.Errorf("non-interactive init requires --root (or set GIONX_ROOT)")
+	return "", fmt.Errorf("non-interactive init requires --root")
 }
 
 func defaultInitRootSuggestion() (string, error) {

@@ -289,7 +289,7 @@ func initAndConfigureRootRepo(t *testing.T, root string) {
 		var out bytes.Buffer
 		var err bytes.Buffer
 		c := New(&out, &err)
-		code := c.Run([]string{"init"})
+		code := c.Run([]string{"init", "--root", root})
 		if code != exitOK {
 			t.Fatalf("init exit code = %d, want %d (stderr=%q)", code, exitOK, err.String())
 		}

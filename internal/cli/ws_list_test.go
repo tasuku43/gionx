@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/tasuku43/gion-core/workspacerisk"
+	"github.com/tasuku43/gionx/internal/paths"
 	"github.com/tasuku43/gionx/internal/testutil"
 )
 
@@ -57,9 +58,11 @@ func TestCLI_WS_List_ImportsWorkspaceDirAndPrintsIt(t *testing.T) {
 		t.Fatalf("create imported ws dir: %v", err)
 	}
 
-	t.Setenv("GIONX_ROOT", root)
 	t.Setenv("XDG_DATA_HOME", dataHome)
 	t.Setenv("XDG_CACHE_HOME", cacheHome)
+	if err := paths.WriteCurrentContext(root); err != nil {
+		t.Fatalf("WriteCurrentContext() error: %v", err)
+	}
 
 	var out bytes.Buffer
 	var err bytes.Buffer
@@ -103,9 +106,11 @@ func TestCLI_WS_List_MarksMissingRepoWorktree(t *testing.T) {
 		t.Fatalf("write workspace meta: %v", err)
 	}
 
-	t.Setenv("GIONX_ROOT", root)
 	t.Setenv("XDG_DATA_HOME", dataHome)
 	t.Setenv("XDG_CACHE_HOME", cacheHome)
+	if err := paths.WriteCurrentContext(root); err != nil {
+		t.Fatalf("WriteCurrentContext() error: %v", err)
+	}
 
 	var out bytes.Buffer
 	var err bytes.Buffer
@@ -363,9 +368,11 @@ func TestCLI_WS_List_ShowsLogicalWorkStateTodoAndInProgress(t *testing.T) {
 		t.Fatalf("create WIP repo dir: %v", err)
 	}
 
-	t.Setenv("GIONX_ROOT", root)
 	t.Setenv("XDG_DATA_HOME", dataHome)
 	t.Setenv("XDG_CACHE_HOME", cacheHome)
+	if err := paths.WriteCurrentContext(root); err != nil {
+		t.Fatalf("WriteCurrentContext() error: %v", err)
+	}
 
 	if err := os.MkdirAll(filepath.Join(root, "workspaces", "TODO"), 0o755); err != nil {
 		t.Fatalf("create TODO workspace dir: %v", err)

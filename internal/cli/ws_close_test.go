@@ -52,7 +52,7 @@ func TestCLI_WS_Close_ArchivesWorkspaceRemovesWorktreesCommitsAndUpdatesDB(t *te
 		var out bytes.Buffer
 		var err bytes.Buffer
 		c := New(&out, &err)
-		code := c.Run([]string{"init"})
+		code := c.Run([]string{"init", "--root", env.Root})
 		if code != exitOK {
 			t.Fatalf("init exit code = %d, want %d (stderr=%q)", code, exitOK, err.String())
 		}
@@ -172,7 +172,7 @@ func TestCLI_WS_Close_DirtyRepo_PromptsAndCanAbort(t *testing.T) {
 		var out bytes.Buffer
 		var err bytes.Buffer
 		c := New(&out, &err)
-		code := c.Run([]string{"init"})
+		code := c.Run([]string{"init", "--root", env.Root})
 		if code != exitOK {
 			t.Fatalf("init exit code = %d, want %d (stderr=%q)", code, exitOK, err.String())
 		}
@@ -259,7 +259,7 @@ func TestCLI_WS_Close_SelectorModeWithoutTTY_Errors(t *testing.T) {
 		var out bytes.Buffer
 		var err bytes.Buffer
 		c := New(&out, &err)
-		code := c.Run([]string{"init"})
+		code := c.Run([]string{"init", "--root", env.Root})
 		if code != exitOK {
 			t.Fatalf("init exit code = %d, want %d (stderr=%q)", code, exitOK, err.String())
 		}
@@ -302,7 +302,7 @@ func TestCLI_WS_Close_ShiftsProcessCWDWhenInsideTargetWorkspace(t *testing.T) {
 		var out bytes.Buffer
 		var err bytes.Buffer
 		c := New(&out, &err)
-		code := c.Run([]string{"init"})
+		code := c.Run([]string{"init", "--root", env.Root})
 		if code != exitOK {
 			t.Fatalf("init exit code = %d, want %d (stderr=%q)", code, exitOK, err.String())
 		}

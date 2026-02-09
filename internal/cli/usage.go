@@ -71,9 +71,8 @@ Initialize GIONX_ROOT and set current context.
 
 Root selection order:
 - --root <path> (explicit)
-- $GIONX_ROOT (when set)
 - interactive prompt in TTY (default: ~/gionx)
-- non-TTY without --root/$GIONX_ROOT: fail
+- non-TTY without --root: fail
 `)
 }
 

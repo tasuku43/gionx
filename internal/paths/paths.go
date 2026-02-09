@@ -60,23 +60,12 @@ func XDGCacheHome() (string, error) {
 	return filepath.Join(home, ".cache"), nil
 }
 
-// ResolveExistingRoot resolves the current GIONX_ROOT.
+// ResolveExistingRoot resolves the current root.
 //
 // Resolution order:
-//  1. $GIONX_ROOT (must look like a gionx root)
+//  1. current-context file (must look like a gionx root)
 //  2. Walk up from startDir looking for a gionx root
 func ResolveExistingRoot(startDir string) (string, error) {
-	if envRoot := os.Getenv("GIONX_ROOT"); envRoot != "" {
-		root, err := cleanAbs(envRoot)
-		if err != nil {
-			return "", fmt.Errorf("resolve $GIONX_ROOT: %w", err)
-		}
-		if !LooksLikeRoot(root) {
-			return "", fmt.Errorf("$GIONX_ROOT does not look like a gionx root: %s", root)
-		}
-		return root, nil
-	}
-
 	contextRoot, ok, err := ReadCurrentContext()
 	if err != nil {
 		return "", err

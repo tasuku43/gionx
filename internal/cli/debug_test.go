@@ -6,6 +6,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/tasuku43/gionx/internal/paths"
 )
 
 func TestCLI_GlobalDebugFlag_BeforeHelp(t *testing.T) {
@@ -37,9 +39,11 @@ func TestCLI_WSList_Debug_WritesLogUnderGIONXRoot(t *testing.T) {
 		t.Fatalf("create archive/: %v", err)
 	}
 
-	t.Setenv("GIONX_ROOT", root)
 	t.Setenv("XDG_DATA_HOME", dataHome)
 	t.Setenv("XDG_CACHE_HOME", cacheHome)
+	if err := paths.WriteCurrentContext(root); err != nil {
+		t.Fatalf("WriteCurrentContext() error: %v", err)
+	}
 
 	var out bytes.Buffer
 	var err bytes.Buffer

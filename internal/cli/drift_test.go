@@ -93,19 +93,18 @@ func TestCLI_Init_UsesDifferentRootsWithoutStateDBDependency(t *testing.T) {
 	var err1 bytes.Buffer
 	c1 := New(&out1, &err1)
 
-	code := c1.Run([]string{"init"})
+	code := c1.Run([]string{"init", "--root", env.Root})
 	if code != exitOK {
 		t.Fatalf("first init exit code = %d, want %d (stderr=%q)", code, exitOK, err1.String())
 	}
 
 	otherRoot := t.TempDir()
-	t.Setenv("GIONX_ROOT", otherRoot)
 
 	var out2 bytes.Buffer
 	var err2 bytes.Buffer
 	c2 := New(&out2, &err2)
 
-	code = c2.Run([]string{"init"})
+	code = c2.Run([]string{"init", "--root", otherRoot})
 	if code != exitOK {
 		t.Fatalf("second init exit code = %d, want %d (stderr=%q)", code, exitOK, err2.String())
 	}
@@ -123,13 +122,15 @@ func TestCLI_Init_UsesDifferentRootsWithoutStateDBDependency(t *testing.T) {
 func TestCLI_Init_IgnoresLegacyRepoPoolDrift(t *testing.T) {
 	testutil.RequireCommand(t, "git")
 
-	_ = testutil.NewEnv(t)
+	root := t.TempDir()
+	t.Setenv("XDG_DATA_HOME", filepath.Join(t.TempDir(), "xdg-data"))
+	t.Setenv("XDG_CACHE_HOME", filepath.Join(t.TempDir(), "xdg-cache"))
 
 	var out1 bytes.Buffer
 	var err1 bytes.Buffer
 	c1 := New(&out1, &err1)
 
-	code := c1.Run([]string{"init"})
+	code := c1.Run([]string{"init", "--root", root})
 	if code != exitOK {
 		t.Fatalf("first init exit code = %d, want %d (stderr=%q)", code, exitOK, err1.String())
 	}
@@ -141,7 +142,7 @@ func TestCLI_Init_IgnoresLegacyRepoPoolDrift(t *testing.T) {
 	var err2 bytes.Buffer
 	c2 := New(&out2, &err2)
 
-	code = c2.Run([]string{"init"})
+	code = c2.Run([]string{"init", "--root", root})
 	if code != exitOK {
 		t.Fatalf("second init exit code = %d, want %d (stderr=%q)", code, exitOK, err2.String())
 	}

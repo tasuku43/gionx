@@ -4,6 +4,8 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+
+	"github.com/tasuku43/gionx/internal/paths"
 )
 
 type Env struct {
@@ -19,9 +21,11 @@ func NewEnv(t *testing.T) Env {
 	dataHome := filepath.Join(t.TempDir(), "xdg-data")
 	cacheHome := filepath.Join(t.TempDir(), "xdg-cache")
 
-	t.Setenv("GIONX_ROOT", root)
 	t.Setenv("XDG_DATA_HOME", dataHome)
 	t.Setenv("XDG_CACHE_HOME", cacheHome)
+	if err := paths.WriteCurrentContext(root); err != nil {
+		t.Fatalf("WriteCurrentContext(%q): %v", root, err)
+	}
 
 	return Env{
 		Root:      root,
