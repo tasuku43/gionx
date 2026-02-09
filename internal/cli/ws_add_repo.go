@@ -183,27 +183,27 @@ func (c *CLI) runWSAddRepo(args []string) int {
 	}
 
 	ctx := context.Background()
-	dbPath, err := paths.StateDBPathForRoot(root)
-	if err != nil {
-		fmt.Fprintf(c.Err, "resolve state db path: %v\n", err)
-		return exitError
-	}
 	repoPoolPath, err := paths.DefaultRepoPoolPath()
 	if err != nil {
 		fmt.Fprintf(c.Err, "resolve repo pool path: %v\n", err)
 		return exitError
 	}
 
-	db, err := statestore.Open(ctx, dbPath)
-	if err != nil {
-		fmt.Fprintf(c.Err, "open state store: %v\n", err)
-		return exitError
-	}
-	defer func() { _ = db.Close() }()
-
-	if err := statestore.EnsureSettings(ctx, db, root, repoPoolPath); err != nil {
-		fmt.Fprintf(c.Err, "initialize settings: %v\n", err)
-		return exitError
+	var db *sql.DB
+	if dbPath, err := paths.StateDBPathForRoot(root); err == nil {
+		if opened, err := statestore.Open(ctx, dbPath); err == nil {
+			if err := statestore.EnsureSettings(ctx, opened, root, repoPoolPath); err == nil {
+				db = opened
+				defer func() { _ = db.Close() }()
+			} else {
+				_ = opened.Close()
+				c.debugf("ws add-repo: state store unavailable (initialize settings): %v", err)
+			}
+		} else {
+			c.debugf("ws add-repo: state store unavailable (open): %v", err)
+		}
+	} else {
+		c.debugf("ws add-repo: state store unavailable (resolve path): %v", err)
 	}
 
 	workspaceID := ""
@@ -235,19 +235,30 @@ func (c *CLI) runWSAddRepo(args []string) int {
 		return exitUsage
 	}
 	if outputFormat == "json" {
-		return c.runWSAddRepoJSON(workspaceID, repoPoolPath, db, repoKeysFromFlag, baseRefFromFlag, branchFromFlag, forceApply)
+		return c.runWSAddRepoJSON(workspaceID, root, repoPoolPath, db, repoKeysFromFlag, baseRefFromFlag, branchFromFlag, forceApply)
 	}
 	c.debugf("run ws add-repo workspace=%s cwd=%s", workspaceID, wd)
 
-	if status, ok, err := statestore.LookupWorkspaceStatus(ctx, db, workspaceID); err != nil {
-		fmt.Fprintf(c.Err, "load workspace: %v\n", err)
-		return exitError
-	} else if !ok {
-		fmt.Fprintf(c.Err, "workspace not found: %s\n", workspaceID)
-		return exitError
-	} else if status != "active" {
-		fmt.Fprintf(c.Err, "workspace is not active (status=%s): %s\n", status, workspaceID)
-		return exitError
+	if db != nil {
+		if status, ok, err := statestore.LookupWorkspaceStatus(ctx, db, workspaceID); err != nil {
+			fmt.Fprintf(c.Err, "load workspace: %v\n", err)
+			return exitError
+		} else if !ok {
+			fmt.Fprintf(c.Err, "workspace not found: %s\n", workspaceID)
+			return exitError
+		} else if status != "active" {
+			fmt.Fprintf(c.Err, "workspace is not active (status=%s): %s\n", status, workspaceID)
+			return exitError
+		}
+	} else {
+		if fi, err := os.Stat(filepath.Join(root, "workspaces", workspaceID)); err != nil || !fi.IsDir() {
+			fmt.Fprintf(c.Err, "workspace not found: %s\n", workspaceID)
+			return exitError
+		}
+		if fi, err := os.Stat(filepath.Join(root, "archive", workspaceID)); err == nil && fi.IsDir() {
+			fmt.Fprintf(c.Err, "workspace is not active (status=archived): %s\n", workspaceID)
+			return exitError
+		}
 	}
 
 	releaseLock, err := acquireWorkspaceAddRepoLock(root, workspaceID)
@@ -257,7 +268,7 @@ func (c *CLI) runWSAddRepo(args []string) int {
 	}
 	defer releaseLock()
 
-	candidates, err := listAddRepoPoolCandidates(ctx, db, repoPoolPath, workspaceID, time.Now(), c.debugf)
+	candidates, err := listAddRepoPoolCandidates(ctx, db, root, repoPoolPath, workspaceID, time.Now(), c.debugf)
 	if err != nil {
 		fmt.Fprintf(c.Err, "list repo pool candidates: %v\n", err)
 		return exitError
@@ -374,14 +385,16 @@ func (c *CLI) runWSAddRepo(args []string) int {
 	now := time.Now()
 	day := localDayKey(now)
 	nowUnix = now.Unix()
-	for _, it := range applied {
-		if err := statestore.TouchRepoUpdatedAt(ctx, db, it.Plan.Candidate.RepoUID, nowUnix); err != nil {
-			fmt.Fprintf(c.Err, "touch repo updated_at: %v\n", err)
-			return exitError
-		}
-		if err := statestore.IncrementRepoUsageDaily(ctx, db, it.Plan.Candidate.RepoUID, day, nowUnix); err != nil {
-			fmt.Fprintf(c.Err, "update repo usage: %v\n", err)
-			return exitError
+	if db != nil {
+		for _, it := range applied {
+			if err := statestore.TouchRepoUpdatedAt(ctx, db, it.Plan.Candidate.RepoUID, nowUnix); err != nil {
+				fmt.Fprintf(c.Err, "touch repo updated_at: %v\n", err)
+				return exitError
+			}
+			if err := statestore.IncrementRepoUsageDaily(ctx, db, it.Plan.Candidate.RepoUID, day, nowUnix); err != nil {
+				fmt.Fprintf(c.Err, "update repo usage: %v\n", err)
+				return exitError
+			}
 		}
 	}
 
@@ -390,7 +403,7 @@ func (c *CLI) runWSAddRepo(args []string) int {
 	return exitOK
 }
 
-func (c *CLI) runWSAddRepoJSON(workspaceID string, repoPoolPath string, db *sql.DB, repoKeys []string, baseRefInput string, branchInput string, yes bool) int {
+func (c *CLI) runWSAddRepoJSON(workspaceID string, root string, repoPoolPath string, db *sql.DB, repoKeys []string, baseRefInput string, branchInput string, yes bool) int {
 	ctx := context.Background()
 	if len(repoKeys) == 0 {
 		_ = writeCLIJSON(c.Out, cliJSONResponse{
@@ -417,66 +430,66 @@ func (c *CLI) runWSAddRepoJSON(workspaceID string, repoPoolPath string, db *sql.
 		return exitUsage
 	}
 
-	if status, ok, err := statestore.LookupWorkspaceStatus(ctx, db, workspaceID); err != nil {
-		_ = writeCLIJSON(c.Out, cliJSONResponse{
-			OK:          false,
-			Action:      "add-repo",
-			WorkspaceID: workspaceID,
-			Error: &cliJSONError{
-				Code:    "internal_error",
-				Message: fmt.Sprintf("load workspace: %v", err),
-			},
-		})
-		return exitError
-	} else if !ok {
-		_ = writeCLIJSON(c.Out, cliJSONResponse{
-			OK:          false,
-			Action:      "add-repo",
-			WorkspaceID: workspaceID,
-			Error: &cliJSONError{
-				Code:    "workspace_not_found",
-				Message: fmt.Sprintf("workspace not found: %s", workspaceID),
-			},
-		})
-		return exitError
-	} else if status != "active" {
-		_ = writeCLIJSON(c.Out, cliJSONResponse{
-			OK:          false,
-			Action:      "add-repo",
-			WorkspaceID: workspaceID,
-			Error: &cliJSONError{
-				Code:    "conflict",
-				Message: fmt.Sprintf("workspace is not active (status=%s): %s", status, workspaceID),
-			},
-		})
-		return exitError
-	}
-
-	wd, err := os.Getwd()
-	if err != nil {
-		_ = writeCLIJSON(c.Out, cliJSONResponse{
-			OK:          false,
-			Action:      "add-repo",
-			WorkspaceID: workspaceID,
-			Error: &cliJSONError{
-				Code:    "internal_error",
-				Message: fmt.Sprintf("get working dir: %v", err),
-			},
-		})
-		return exitError
-	}
-	root, err := paths.ResolveExistingRoot(wd)
-	if err != nil {
-		_ = writeCLIJSON(c.Out, cliJSONResponse{
-			OK:          false,
-			Action:      "add-repo",
-			WorkspaceID: workspaceID,
-			Error: &cliJSONError{
-				Code:    "internal_error",
-				Message: fmt.Sprintf("resolve GIONX_ROOT: %v", err),
-			},
-		})
-		return exitError
+	if db != nil {
+		if status, ok, err := statestore.LookupWorkspaceStatus(ctx, db, workspaceID); err != nil {
+			_ = writeCLIJSON(c.Out, cliJSONResponse{
+				OK:          false,
+				Action:      "add-repo",
+				WorkspaceID: workspaceID,
+				Error: &cliJSONError{
+					Code:    "internal_error",
+					Message: fmt.Sprintf("load workspace: %v", err),
+				},
+			})
+			return exitError
+		} else if !ok {
+			_ = writeCLIJSON(c.Out, cliJSONResponse{
+				OK:          false,
+				Action:      "add-repo",
+				WorkspaceID: workspaceID,
+				Error: &cliJSONError{
+					Code:    "workspace_not_found",
+					Message: fmt.Sprintf("workspace not found: %s", workspaceID),
+				},
+			})
+			return exitError
+		} else if status != "active" {
+			_ = writeCLIJSON(c.Out, cliJSONResponse{
+				OK:          false,
+				Action:      "add-repo",
+				WorkspaceID: workspaceID,
+				Error: &cliJSONError{
+					Code:    "conflict",
+					Message: fmt.Sprintf("workspace is not active (status=%s): %s", status, workspaceID),
+				},
+			})
+			return exitError
+		}
+	} else {
+		if fi, err := os.Stat(filepath.Join(root, "workspaces", workspaceID)); err != nil || !fi.IsDir() {
+			_ = writeCLIJSON(c.Out, cliJSONResponse{
+				OK:          false,
+				Action:      "add-repo",
+				WorkspaceID: workspaceID,
+				Error: &cliJSONError{
+					Code:    "workspace_not_found",
+					Message: fmt.Sprintf("workspace not found: %s", workspaceID),
+				},
+			})
+			return exitError
+		}
+		if fi, err := os.Stat(filepath.Join(root, "archive", workspaceID)); err == nil && fi.IsDir() {
+			_ = writeCLIJSON(c.Out, cliJSONResponse{
+				OK:          false,
+				Action:      "add-repo",
+				WorkspaceID: workspaceID,
+				Error: &cliJSONError{
+					Code:    "conflict",
+					Message: fmt.Sprintf("workspace is not active (status=archived): %s", workspaceID),
+				},
+			})
+			return exitError
+		}
 	}
 
 	releaseLock, err := acquireWorkspaceAddRepoLock(root, workspaceID)
@@ -494,7 +507,7 @@ func (c *CLI) runWSAddRepoJSON(workspaceID string, repoPoolPath string, db *sql.
 	}
 	defer releaseLock()
 
-	candidates, err := listAddRepoPoolCandidates(ctx, db, repoPoolPath, workspaceID, time.Now(), c.debugf)
+	candidates, err := listAddRepoPoolCandidates(ctx, db, root, repoPoolPath, workspaceID, time.Now(), c.debugf)
 	if err != nil {
 		_ = writeCLIJSON(c.Out, cliJSONResponse{
 			OK:          false,
@@ -623,30 +636,32 @@ func (c *CLI) runWSAddRepoJSON(workspaceID string, repoPoolPath string, db *sql.
 	now := time.Now()
 	day := localDayKey(now)
 	nowUnix = now.Unix()
-	for _, it := range applied {
-		if err := statestore.TouchRepoUpdatedAt(ctx, db, it.Plan.Candidate.RepoUID, nowUnix); err != nil {
-			_ = writeCLIJSON(c.Out, cliJSONResponse{
-				OK:          false,
-				Action:      "add-repo",
-				WorkspaceID: workspaceID,
-				Error: &cliJSONError{
-					Code:    "internal_error",
-					Message: fmt.Sprintf("touch repo updated_at: %v", err),
-				},
-			})
-			return exitError
-		}
-		if err := statestore.IncrementRepoUsageDaily(ctx, db, it.Plan.Candidate.RepoUID, day, nowUnix); err != nil {
-			_ = writeCLIJSON(c.Out, cliJSONResponse{
-				OK:          false,
-				Action:      "add-repo",
-				WorkspaceID: workspaceID,
-				Error: &cliJSONError{
-					Code:    "internal_error",
-					Message: fmt.Sprintf("update repo usage: %v", err),
-				},
-			})
-			return exitError
+	if db != nil {
+		for _, it := range applied {
+			if err := statestore.TouchRepoUpdatedAt(ctx, db, it.Plan.Candidate.RepoUID, nowUnix); err != nil {
+				_ = writeCLIJSON(c.Out, cliJSONResponse{
+					OK:          false,
+					Action:      "add-repo",
+					WorkspaceID: workspaceID,
+					Error: &cliJSONError{
+						Code:    "internal_error",
+						Message: fmt.Sprintf("touch repo updated_at: %v", err),
+					},
+				})
+				return exitError
+			}
+			if err := statestore.IncrementRepoUsageDaily(ctx, db, it.Plan.Candidate.RepoUID, day, nowUnix); err != nil {
+				_ = writeCLIJSON(c.Out, cliJSONResponse{
+					OK:          false,
+					Action:      "add-repo",
+					WorkspaceID: workspaceID,
+					Error: &cliJSONError{
+						Code:    "internal_error",
+						Message: fmt.Sprintf("update repo usage: %v", err),
+					},
+				})
+				return exitError
+			}
 		}
 	}
 	repos := make([]string, 0, len(applied))
@@ -795,16 +810,39 @@ func isProcessAlive(pid int) bool {
 	return true
 }
 
-func listAddRepoPoolCandidates(ctx context.Context, db *sql.DB, repoPoolPath string, workspaceID string, now time.Time, debugf func(string, ...any)) ([]addRepoPoolCandidate, error) {
-	startDay := localDayKey(now.AddDate(0, 0, -29))
-	baseCandidates, err := statestore.ListRepoPoolCandidates(ctx, db, startDay)
-	if err != nil {
-		return nil, err
+func listAddRepoPoolCandidates(ctx context.Context, db *sql.DB, root string, repoPoolPath string, workspaceID string, now time.Time, debugf func(string, ...any)) ([]addRepoPoolCandidate, error) {
+	baseCandidates := make([]addRepoPoolCandidate, 0, 16)
+	if db != nil {
+		startDay := localDayKey(now.AddDate(0, 0, -29))
+		items, err := statestore.ListRepoPoolCandidates(ctx, db, startDay)
+		if err != nil {
+			return nil, err
+		}
+		for _, it := range items {
+			baseCandidates = append(baseCandidates, addRepoPoolCandidate{
+				RepoUID:   it.RepoUID,
+				RepoKey:   it.RepoKey,
+				RemoteURL: it.RemoteURL,
+				Alias:     deriveAliasFromRepoKey(it.RepoKey),
+			})
+		}
+	} else {
+		items, err := scanRepoPoolCandidatesFromFilesystem(ctx, repoPoolPath, debugf)
+		if err != nil {
+			return nil, err
+		}
+		baseCandidates = append(baseCandidates, items...)
 	}
 
-	bound, err := statestore.ListWorkspaceRepos(ctx, db, workspaceID)
-	if err != nil {
-		return nil, fmt.Errorf("list workspace repos: %w", err)
+	var bound []statestore.WorkspaceRepo
+	var err error
+	if db != nil {
+		bound, err = statestore.ListWorkspaceRepos(ctx, db, workspaceID)
+	} else {
+		bound, err = listWorkspaceReposForClose(ctx, nil, root, workspaceID)
+	}
+	if err != nil && debugf != nil {
+		debugf("ws add-repo: bound repo lookup fallback err=%v", err)
 	}
 	boundRepoUID := make(map[string]bool, len(bound))
 	for _, r := range bound {
@@ -839,6 +877,45 @@ func listAddRepoPoolCandidates(ctx context.Context, db *sql.DB, repoPoolPath str
 		})
 	}
 	return out, nil
+}
+
+func scanRepoPoolCandidatesFromFilesystem(ctx context.Context, repoPoolPath string, debugf func(string, ...any)) ([]addRepoPoolCandidate, error) {
+	items := make([]addRepoPoolCandidate, 0, 16)
+	err := filepath.WalkDir(repoPoolPath, func(path string, d os.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		if !d.IsDir() || !strings.HasSuffix(path, ".git") {
+			return nil
+		}
+		remoteURL, err := gitutil.RunBare(ctx, path, "config", "--get", "remote.origin.url")
+		if err != nil {
+			if debugf != nil {
+				debugf("skip bare repo without origin url path=%s err=%v", path, err)
+			}
+			return nil
+		}
+		spec, err := repospec.Normalize(strings.TrimSpace(remoteURL))
+		if err != nil {
+			if debugf != nil {
+				debugf("skip bare repo normalize failed path=%s err=%v", path, err)
+			}
+			return nil
+		}
+		repoKey := fmt.Sprintf("%s/%s", spec.Owner, spec.Repo)
+		items = append(items, addRepoPoolCandidate{
+			RepoUID:   fmt.Sprintf("%s/%s", spec.Host, repoKey),
+			RepoKey:   repoKey,
+			RemoteURL: strings.TrimSpace(remoteURL),
+			Alias:     spec.Repo,
+			BarePath:  path,
+		})
+		return filepath.SkipDir
+	})
+	if err != nil && !errors.Is(err, os.ErrNotExist) {
+		return nil, err
+	}
+	return items, nil
 }
 
 func deriveAliasFromRepoKey(repoKey string) string {
@@ -1013,9 +1090,18 @@ func preflightAddRepoPlan(ctx context.Context, db *sql.DB, root string, workspac
 		return fmt.Errorf("no repo selected")
 	}
 
-	existingRepos, err := statestore.ListWorkspaceRepos(ctx, db, workspaceID)
-	if err != nil {
-		return fmt.Errorf("list workspace repos: %w", err)
+	var existingRepos []statestore.WorkspaceRepo
+	var err error
+	if db != nil {
+		existingRepos, err = statestore.ListWorkspaceRepos(ctx, db, workspaceID)
+		if err != nil {
+			return fmt.Errorf("list workspace repos: %w", err)
+		}
+	} else {
+		existingRepos, err = listWorkspaceReposForClose(ctx, nil, root, workspaceID)
+		if err != nil {
+			return fmt.Errorf("list workspace repos: %w", err)
+		}
 	}
 	aliasTaken := make(map[string]bool, len(existingRepos)+len(plan))
 	for _, r := range existingRepos {
@@ -1330,20 +1416,22 @@ func applyAddRepoPlanAllOrNothing(ctx context.Context, db *sql.DB, workspaceID s
 		}
 		current.CreatedWorktree = true
 
-		if err := statestore.AddWorkspaceRepo(ctx, db, statestore.AddWorkspaceRepoInput{
-			WorkspaceID:   workspaceID,
-			RepoUID:       p.Candidate.RepoUID,
-			RepoKey:       p.Candidate.RepoKey,
-			Alias:         p.Candidate.Alias,
-			Branch:        p.Branch,
-			BaseRef:       p.BaseRefInput,
-			RepoSpecInput: p.Candidate.RemoteURL,
-			Now:           now,
-		}); err != nil {
-			rollbackAddRepoApplied(ctx, db, workspaceID, append(applied, current), debugf)
-			return nil, fmt.Errorf("record workspace repo for %s: %w", p.Candidate.RepoKey, err)
+		if db != nil {
+			if err := statestore.AddWorkspaceRepo(ctx, db, statestore.AddWorkspaceRepoInput{
+				WorkspaceID:   workspaceID,
+				RepoUID:       p.Candidate.RepoUID,
+				RepoKey:       p.Candidate.RepoKey,
+				Alias:         p.Candidate.Alias,
+				Branch:        p.Branch,
+				BaseRef:       p.BaseRefInput,
+				RepoSpecInput: p.Candidate.RemoteURL,
+				Now:           now,
+			}); err != nil {
+				rollbackAddRepoApplied(ctx, db, workspaceID, append(applied, current), debugf)
+				return nil, fmt.Errorf("record workspace repo for %s: %w", p.Candidate.RepoKey, err)
+			}
+			current.AddedBinding = true
 		}
-		current.AddedBinding = true
 		applied = append(applied, current)
 	}
 	return applied, nil

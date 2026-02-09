@@ -724,3 +724,128 @@ WHERE workspace_id = ? AND repo_uid = ?
 		t.Fatalf("repos_restore.base_ref = %q, want %q", got.BaseRef, "origin/main")
 	}
 }
+
+func TestCLI_WS_AddRepo_DBUnavailable_FallsBackToFilesystem(t *testing.T) {
+	if _, err := exec.LookPath("git"); err != nil {
+		t.Skip("git not found in PATH")
+	}
+
+	runGit := func(dir string, args ...string) {
+		t.Helper()
+		cmd := exec.Command("git", args...)
+		cmd.Dir = dir
+		out, err := cmd.CombinedOutput()
+		if err != nil {
+			t.Fatalf("git %s failed: %v (output=%s)", strings.Join(args, " "), err, strings.TrimSpace(string(out)))
+		}
+	}
+
+	// Prepare a local remote bare repo.
+	src := filepath.Join(t.TempDir(), "src")
+	if err := os.MkdirAll(src, 0o755); err != nil {
+		t.Fatalf("mkdir src: %v", err)
+	}
+	runGit(src, "init", "-b", "main")
+	runGit(src, "config", "user.email", "test@example.com")
+	runGit(src, "config", "user.name", "test")
+	if err := os.WriteFile(filepath.Join(src, "README.md"), []byte("hello\n"), 0o644); err != nil {
+		t.Fatalf("write README: %v", err)
+	}
+	runGit(src, "add", ".")
+	runGit(src, "commit", "-m", "init")
+
+	remoteBare := filepath.Join(t.TempDir(), "github.com", "tasuku43", "sample.git")
+	if err := os.MkdirAll(filepath.Dir(remoteBare), 0o755); err != nil {
+		t.Fatalf("mkdir remoteBare dir: %v", err)
+	}
+	runGit("", "clone", "--bare", src, remoteBare)
+	repoSpec := "file://" + remoteBare
+
+	root := t.TempDir()
+	dataHome := filepath.Join(t.TempDir(), "xdg-data")
+	cacheHome := filepath.Join(t.TempDir(), "xdg-cache")
+
+	if err := os.MkdirAll(filepath.Join(root, "workspaces"), 0o755); err != nil {
+		t.Fatalf("create workspaces/: %v", err)
+	}
+	if err := os.MkdirAll(filepath.Join(root, "archive"), 0o755); err != nil {
+		t.Fatalf("create archive/: %v", err)
+	}
+
+	t.Setenv("GIONX_ROOT", root)
+	t.Setenv("XDG_DATA_HOME", dataHome)
+	t.Setenv("XDG_CACHE_HOME", cacheHome)
+	env := testutil.Env{Root: root, DataHome: dataHome, CacheHome: cacheHome}
+
+	{
+		var out bytes.Buffer
+		var err bytes.Buffer
+		c := New(&out, &err)
+		code := c.Run([]string{"ws", "create", "--no-prompt", "MVP-021"})
+		if code != exitOK {
+			t.Fatalf("ws create exit code = %d, want %d (stderr=%q)", code, exitOK, err.String())
+		}
+	}
+
+	// Seed repo-pool, then break SQLite schema to force DB fallback path.
+	{
+		_, _, _ = seedRepoPoolAndState(t, env, repoSpec)
+		if err := os.Remove(env.StateDBPath()); err != nil {
+			t.Fatalf("remove state db: %v", err)
+		}
+		if err := os.MkdirAll(env.StateDBPath(), 0o755); err != nil {
+			t.Fatalf("break state db path: %v", err)
+		}
+		if err := os.MkdirAll(filepath.Join(root, "workspaces", "MVP-021", "repos"), 0o755); err != nil {
+			t.Fatalf("prepare workspace dir: %v", err)
+		}
+	}
+
+	{
+		var out bytes.Buffer
+		var err bytes.Buffer
+		c := New(&out, &err)
+		c.In = strings.NewReader(addRepoSelectionInput("", "MVP-021/test"))
+
+		code := c.Run([]string{"ws", "--act", "add-repo", "MVP-021"})
+		if code != exitOK {
+			t.Fatalf("ws add-repo exit code = %d, want %d (stderr=%q)", code, exitOK, err.String())
+		}
+
+		worktreePath := filepath.Join(root, "workspaces", "MVP-021", "repos", "sample")
+		if _, statErr := os.Stat(filepath.Join(worktreePath, ".git")); statErr != nil {
+			t.Fatalf("worktree .git missing: %v", statErr)
+		}
+	}
+
+	metaBytes, readErr := os.ReadFile(filepath.Join(root, "workspaces", "MVP-021", workspaceMetaFilename))
+	if readErr != nil {
+		t.Fatalf("read %s: %v", workspaceMetaFilename, readErr)
+	}
+	var meta workspaceMetaFile
+	if err := json.Unmarshal(metaBytes, &meta); err != nil {
+		t.Fatalf("unmarshal %s: %v", workspaceMetaFilename, err)
+	}
+	if len(meta.ReposRestore) != 1 {
+		t.Fatalf("repos_restore length = %d, want %d", len(meta.ReposRestore), 1)
+	}
+	got := meta.ReposRestore[0]
+	if got.RepoUID != "github.com/tasuku43/sample" {
+		t.Fatalf("repos_restore.repo_uid = %q, want %q", got.RepoUID, "github.com/tasuku43/sample")
+	}
+	if got.RepoKey != "tasuku43/sample" {
+		t.Fatalf("repos_restore.repo_key = %q, want %q", got.RepoKey, "tasuku43/sample")
+	}
+	if got.RemoteURL != repoSpec {
+		t.Fatalf("repos_restore.remote_url = %q, want %q", got.RemoteURL, repoSpec)
+	}
+	if got.Alias != "sample" {
+		t.Fatalf("repos_restore.alias = %q, want %q", got.Alias, "sample")
+	}
+	if got.Branch != "MVP-021/test" {
+		t.Fatalf("repos_restore.branch = %q, want %q", got.Branch, "MVP-021/test")
+	}
+	if got.BaseRef != "origin/main" {
+		t.Fatalf("repos_restore.base_ref = %q, want %q", got.BaseRef, "origin/main")
+	}
+}
