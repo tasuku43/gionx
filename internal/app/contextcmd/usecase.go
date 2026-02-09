@@ -16,6 +16,8 @@ type Port interface {
 	ResolveCurrentName(root string) (string, bool, error)
 	ListEntries() ([]Entry, error)
 	ResolveUseRootByName(name string) (string, bool, error)
+	RenameContext(oldName string, newName string) (string, error)
+	RemoveContext(name string) (string, error)
 	CreateContext(name string, rawPath string) (string, error)
 	WriteCurrent(root string) error
 }
@@ -65,6 +67,26 @@ func (s *Service) Use(name string) (string, error) {
 		return "", errContextNotFound(name)
 	}
 	if err := s.port.WriteCurrent(root); err != nil {
+		return "", err
+	}
+	return root, nil
+}
+
+func (s *Service) ResolveRootByName(name string) (string, bool, error) {
+	return s.port.ResolveUseRootByName(name)
+}
+
+func (s *Service) Rename(oldName string, newName string) (string, error) {
+	root, err := s.port.RenameContext(oldName, newName)
+	if err != nil {
+		return "", err
+	}
+	return root, nil
+}
+
+func (s *Service) Remove(name string) (string, error) {
+	root, err := s.port.RemoveContext(name)
+	if err != nil {
 		return "", err
 	}
 	return root, nil

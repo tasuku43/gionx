@@ -104,3 +104,56 @@ func TestTouch_MalformedRegistry_ReturnsRecoveryHint(t *testing.T) {
 		t.Fatalf("error missing recovery hint: %v", err)
 	}
 }
+
+func TestRenameContextName_UpdatesNameAndRejectsConflict(t *testing.T) {
+	dataHome := filepath.Join(t.TempDir(), "xdg-data")
+	t.Setenv("XDG_DATA_HOME", dataHome)
+
+	rootA := t.TempDir()
+	rootB := t.TempDir()
+	if err := SetContextName(rootA, "old", time.Unix(100, 0)); err != nil {
+		t.Fatalf("SetContextName(rootA): %v", err)
+	}
+	if err := SetContextName(rootB, "existing", time.Unix(100, 0)); err != nil {
+		t.Fatalf("SetContextName(rootB): %v", err)
+	}
+
+	if _, err := RenameContextName("old", "existing", time.Unix(200, 0)); err == nil {
+		t.Fatalf("RenameContextName conflict should fail")
+	}
+
+	gotRoot, err := RenameContextName("old", "new", time.Unix(200, 0))
+	if err != nil {
+		t.Fatalf("RenameContextName() error: %v", err)
+	}
+	if gotRoot != rootA {
+		t.Fatalf("renamed root = %q, want %q", gotRoot, rootA)
+	}
+	if _, ok, err := ResolveRootByContextName("new"); err != nil || !ok {
+		t.Fatalf("ResolveRootByContextName(new) failed, ok=%t err=%v", ok, err)
+	}
+	if _, ok, err := ResolveRootByContextName("old"); err != nil || ok {
+		t.Fatalf("ResolveRootByContextName(old) should be missing, ok=%t err=%v", ok, err)
+	}
+}
+
+func TestRemoveContextName_RemovesEntry(t *testing.T) {
+	dataHome := filepath.Join(t.TempDir(), "xdg-data")
+	t.Setenv("XDG_DATA_HOME", dataHome)
+
+	root := t.TempDir()
+	if err := SetContextName(root, "remove-me", time.Unix(100, 0)); err != nil {
+		t.Fatalf("SetContextName(): %v", err)
+	}
+
+	gotRoot, err := RemoveContextName("remove-me")
+	if err != nil {
+		t.Fatalf("RemoveContextName() error: %v", err)
+	}
+	if gotRoot != root {
+		t.Fatalf("removed root = %q, want %q", gotRoot, root)
+	}
+	if _, ok, err := ResolveRootByContextName("remove-me"); err != nil || ok {
+		t.Fatalf("context should be removed, ok=%t err=%v", ok, err)
+	}
+}

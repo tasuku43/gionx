@@ -176,3 +176,82 @@ func TestCLI_Context_UseWithoutNameRequiresTTY(t *testing.T) {
 		t.Fatalf("stderr should include context usage: %q", err.String())
 	}
 }
+
+func TestCLI_Context_Rename(t *testing.T) {
+	dataHome := filepath.Join(t.TempDir(), "xdg-data")
+	t.Setenv("XDG_DATA_HOME", dataHome)
+
+	root := t.TempDir()
+	if err := stateregistry.SetContextName(root, "old", time.Unix(100, 0)); err != nil {
+		t.Fatalf("SetContextName(): %v", err)
+	}
+
+	var out bytes.Buffer
+	var err bytes.Buffer
+	c := New(&out, &err)
+	code := c.Run([]string{"context", "rename", "old", "new"})
+	if code != exitOK {
+		t.Fatalf("context rename exit code = %d, want %d (stderr=%q)", code, exitOK, err.String())
+	}
+	if !strings.Contains(out.String(), "Context renamed: old -> new") {
+		t.Fatalf("stdout missing rename result: %q", out.String())
+	}
+	if _, ok, _ := stateregistry.ResolveRootByContextName("new"); !ok {
+		t.Fatalf("renamed context not found in registry")
+	}
+}
+
+func TestCLI_Context_RemoveProtectsCurrent(t *testing.T) {
+	dataHome := filepath.Join(t.TempDir(), "xdg-data")
+	t.Setenv("XDG_DATA_HOME", dataHome)
+
+	root := t.TempDir()
+	if err := stateregistry.SetContextName(root, "sre", time.Unix(100, 0)); err != nil {
+		t.Fatalf("SetContextName(): %v", err)
+	}
+	if err := paths.WriteCurrentContext(root); err != nil {
+		t.Fatalf("WriteCurrentContext(): %v", err)
+	}
+
+	var out bytes.Buffer
+	var err bytes.Buffer
+	c := New(&out, &err)
+	code := c.Run([]string{"context", "rm", "sre"})
+	if code != exitError {
+		t.Fatalf("context rm exit code = %d, want %d", code, exitError)
+	}
+	if !strings.Contains(err.String(), "cannot remove current context: sre") {
+		t.Fatalf("stderr missing protection message: %q", err.String())
+	}
+}
+
+func TestCLI_Context_Remove(t *testing.T) {
+	dataHome := filepath.Join(t.TempDir(), "xdg-data")
+	t.Setenv("XDG_DATA_HOME", dataHome)
+
+	root := t.TempDir()
+	other := t.TempDir()
+	if err := stateregistry.SetContextName(root, "remove-me", time.Unix(100, 0)); err != nil {
+		t.Fatalf("SetContextName(remove-me): %v", err)
+	}
+	if err := stateregistry.SetContextName(other, "keep", time.Unix(100, 0)); err != nil {
+		t.Fatalf("SetContextName(keep): %v", err)
+	}
+	if err := paths.WriteCurrentContext(other); err != nil {
+		t.Fatalf("WriteCurrentContext(other): %v", err)
+	}
+
+	var out bytes.Buffer
+	var err bytes.Buffer
+	c := New(&out, &err)
+	code := c.Run([]string{"context", "rm", "remove-me"})
+	if code != exitOK {
+		t.Fatalf("context rm exit code = %d, want %d (stderr=%q)", code, exitOK, err.String())
+	}
+	if !strings.Contains(out.String(), "Context removed: remove-me") {
+		t.Fatalf("stdout missing remove result: %q", out.String())
+	}
+	if _, ok, _ := stateregistry.ResolveRootByContextName("remove-me"); ok {
+		t.Fatalf("remove-me should be removed from registry")
+	}
+}

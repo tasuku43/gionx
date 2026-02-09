@@ -31,6 +31,10 @@ func (c *CLI) runContext(args []string) int {
 		return c.runContextCreate(args[1:])
 	case "use":
 		return c.runContextUse(args[1:])
+	case "rename":
+		return c.runContextRename(args[1:])
+	case "rm", "remove":
+		return c.runContextRemove(args[1:])
 	default:
 		fmt.Fprintf(c.Err, "unknown command: %q\n", strings.Join(append([]string{"context"}, args[0]), " "))
 		c.printContextUsage(c.Err)
@@ -279,6 +283,67 @@ func (c *CLI) runContextCreate(args []string) int {
 		return exitOK
 	}
 	printResultSection(c.Out, useColorOut, styleSuccess(fmt.Sprintf("Context created: %s", name), useColorOut), styleMuted(fmt.Sprintf("path: %s", root), useColorOut))
+	return exitOK
+}
+
+func (c *CLI) runContextRename(args []string) int {
+	if len(args) == 0 || args[0] == "-h" || args[0] == "--help" || args[0] == "help" {
+		c.printContextUsage(c.Out)
+		return exitOK
+	}
+	if len(args) != 2 {
+		fmt.Fprintf(c.Err, "usage: gionx context rename <old-name> <new-name>\n")
+		return exitUsage
+	}
+
+	oldName := strings.TrimSpace(args[0])
+	newName := strings.TrimSpace(args[1])
+	svc := contextcmd.NewService(appports.NewContextPort(resolveContextUseRoot))
+	root, err := svc.Rename(oldName, newName)
+	if err != nil {
+		fmt.Fprintf(c.Err, "%v\n", err)
+		return exitError
+	}
+
+	useColorOut := writerSupportsColor(c.Out)
+	printResultSection(c.Out, useColorOut, styleSuccess(fmt.Sprintf("Context renamed: %s -> %s", oldName, newName), useColorOut), styleMuted(fmt.Sprintf("path: %s", root), useColorOut))
+	return exitOK
+}
+
+func (c *CLI) runContextRemove(args []string) int {
+	if len(args) == 0 || args[0] == "-h" || args[0] == "--help" || args[0] == "help" {
+		c.printContextUsage(c.Out)
+		return exitOK
+	}
+	if len(args) != 1 {
+		fmt.Fprintf(c.Err, "usage: gionx context rm <name>\n")
+		return exitUsage
+	}
+
+	name := strings.TrimSpace(args[0])
+	svc := contextcmd.NewService(appports.NewContextPort(resolveContextUseRoot))
+	root, ok, err := svc.ResolveRootByName(name)
+	if err != nil {
+		fmt.Fprintf(c.Err, "%v\n", err)
+		return exitError
+	}
+	if !ok {
+		fmt.Fprintf(c.Err, "context not found: %s\n", name)
+		return exitError
+	}
+	currentRoot, _, _ := paths.ReadCurrentContext()
+	if strings.TrimSpace(root) != "" && strings.TrimSpace(root) == strings.TrimSpace(currentRoot) {
+		fmt.Fprintf(c.Err, "cannot remove current context: %s\n", name)
+		return exitError
+	}
+	removedRoot, err := svc.Remove(name)
+	if err != nil {
+		fmt.Fprintf(c.Err, "%v\n", err)
+		return exitError
+	}
+
+	useColorOut := writerSupportsColor(c.Out)
+	printResultSection(c.Out, useColorOut, styleSuccess(fmt.Sprintf("Context removed: %s", name), useColorOut), styleMuted(fmt.Sprintf("path: %s", removedRoot), useColorOut))
 	return exitOK
 }
 

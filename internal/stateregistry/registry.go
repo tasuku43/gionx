@@ -289,3 +289,91 @@ func ResolveContextNameByRoot(rootPath string) (string, bool, error) {
 	}
 	return "", false, nil
 }
+
+func RenameContextName(oldName string, newName string, now time.Time) (string, error) {
+	oldName = strings.TrimSpace(oldName)
+	newName = strings.TrimSpace(newName)
+	if oldName == "" || newName == "" {
+		return "", fmt.Errorf("old and new context names are required")
+	}
+	if oldName == newName {
+		return "", fmt.Errorf("new context name must be different")
+	}
+
+	registryPath, err := Path()
+	if err != nil {
+		return "", fmt.Errorf("resolve root registry path: %w", err)
+	}
+	entries, err := Load(registryPath)
+	if err != nil {
+		return "", err
+	}
+
+	oldIdx := -1
+	for i := range entries {
+		if strings.TrimSpace(entries[i].ContextName) == oldName {
+			oldIdx = i
+			break
+		}
+	}
+	if oldIdx < 0 {
+		return "", fmt.Errorf("context not found: %s", oldName)
+	}
+	for i := range entries {
+		if i == oldIdx {
+			continue
+		}
+		if strings.TrimSpace(entries[i].ContextName) == newName {
+			return "", fmt.Errorf("context name already exists: %s", newName)
+		}
+	}
+
+	nowUnix := now.Unix()
+	if nowUnix <= 0 {
+		nowUnix = time.Now().Unix()
+	}
+	entries[oldIdx].ContextName = newName
+	if entries[oldIdx].LastUsedAt < nowUnix {
+		entries[oldIdx].LastUsedAt = nowUnix
+	}
+
+	slices.SortFunc(entries, func(a, b Entry) int {
+		return strings.Compare(a.RootPath, b.RootPath)
+	})
+	if err := writeAtomic(registryPath, entries); err != nil {
+		return "", err
+	}
+	return entries[oldIdx].RootPath, nil
+}
+
+func RemoveContextName(name string) (string, error) {
+	name = strings.TrimSpace(name)
+	if name == "" {
+		return "", fmt.Errorf("context name is required")
+	}
+	registryPath, err := Path()
+	if err != nil {
+		return "", fmt.Errorf("resolve root registry path: %w", err)
+	}
+	entries, err := Load(registryPath)
+	if err != nil {
+		return "", err
+	}
+
+	idx := -1
+	for i := range entries {
+		if strings.TrimSpace(entries[i].ContextName) == name {
+			idx = i
+			break
+		}
+	}
+	if idx < 0 {
+		return "", fmt.Errorf("context not found: %s", name)
+	}
+	root := entries[idx].RootPath
+	entries = append(entries[:idx], entries[idx+1:]...)
+	if err := writeAtomic(registryPath, entries); err != nil {
+		return "", err
+	}
+	return root, nil
+}

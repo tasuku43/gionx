@@ -31,10 +31,20 @@ Notes:
   - validate path
   - persist name/path relation into registry
   - `--use` is specified, also select it as current context
-- `gionx context use <name>`
-  - resolve context by name
-  - write `current-context` atomically
+- `gionx context use [name]`
+  - when `<name>` is provided:
+    - resolve context by name
+    - write `current-context` atomically
+  - when `<name>` is omitted in TTY:
+    - open shared single-select UI and choose context interactively
+  - non-TTY without `<name>` must fail fast with usage guidance.
   - print success in shared section style (`Result:`)
+- `gionx context rename <old> <new>`
+  - rename context name in registry
+  - fail when destination name already exists
+- `gionx context rm <name>`
+  - remove context name from registry
+  - fail when target is current context (safety guard)
 
 ## Error handling
 

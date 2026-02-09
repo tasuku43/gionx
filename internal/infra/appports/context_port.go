@@ -53,6 +53,22 @@ func (p *ContextPort) ResolveUseRootByName(name string) (string, bool, error) {
 	return root, ok, nil
 }
 
+func (p *ContextPort) RenameContext(oldName string, newName string) (string, error) {
+	root, err := stateregistry.RenameContextName(oldName, newName, time.Now())
+	if err != nil {
+		return "", fmt.Errorf("rename context: %w", err)
+	}
+	return root, nil
+}
+
+func (p *ContextPort) RemoveContext(name string) (string, error) {
+	root, err := stateregistry.RemoveContextName(name)
+	if err != nil {
+		return "", fmt.Errorf("remove context: %w", err)
+	}
+	return root, nil
+}
+
 func (p *ContextPort) CreateContext(name string, rawPath string) (string, error) {
 	if p.ResolveUseRootFn == nil {
 		return "", fmt.Errorf("validate root: resolver callback is required")
