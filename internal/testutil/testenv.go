@@ -4,8 +4,6 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
-
-	"github.com/tasuku43/gionx/internal/paths"
 )
 
 type Env struct {
@@ -30,14 +28,6 @@ func NewEnv(t *testing.T) Env {
 		DataHome:  dataHome,
 		CacheHome: cacheHome,
 	}
-}
-
-func (e Env) StateDBPath() string {
-	p, err := paths.StateDBPathForRoot(e.Root)
-	if err != nil {
-		panic(err)
-	}
-	return p
 }
 
 func (e Env) RepoPoolPath() string {

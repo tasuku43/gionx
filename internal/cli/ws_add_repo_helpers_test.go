@@ -5,12 +5,10 @@ import (
 	"fmt"
 	"strings"
 	"testing"
-	"time"
 
 	"github.com/tasuku43/gion-core/repospec"
 	"github.com/tasuku43/gion-core/repostore"
 	"github.com/tasuku43/gionx/internal/gitutil"
-	"github.com/tasuku43/gionx/internal/statestore"
 	"github.com/tasuku43/gionx/internal/testutil"
 )
 
@@ -33,25 +31,6 @@ func seedRepoPoolAndState(t *testing.T, env testutil.Env, repoSpecInput string) 
 	barePath := repostore.StorePath(env.RepoPoolPath(), spec)
 	if _, err := gitutil.EnsureBareRepoFetched(ctx, repoSpecInput, barePath, defaultBranch); err != nil {
 		t.Fatalf("EnsureBareRepoFetched() error: %v", err)
-	}
-
-	db, err := statestore.Open(ctx, env.StateDBPath())
-	if err != nil {
-		t.Fatalf("Open(state db) error: %v", err)
-	}
-	defer func() { _ = db.Close() }()
-
-	if err := statestore.EnsureSettings(ctx, db, env.Root, env.RepoPoolPath()); err != nil {
-		t.Fatalf("EnsureSettings error: %v", err)
-	}
-	now := time.Now().Unix()
-	if err := statestore.EnsureRepo(ctx, db, statestore.EnsureRepoInput{
-		RepoUID:   repoUID,
-		RepoKey:   repoKey,
-		RemoteURL: strings.TrimSpace(repoSpecInput),
-		Now:       now,
-	}); err != nil {
-		t.Fatalf("EnsureRepo error: %v", err)
 	}
 	return repoUID, repoKey, alias
 }

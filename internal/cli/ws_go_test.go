@@ -7,7 +7,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/tasuku43/gionx/internal/paths"
 	"github.com/tasuku43/gionx/internal/testutil"
 )
 
@@ -201,22 +200,11 @@ func TestCLI_WS_Go_SelectorModeWithoutTTY_Errors(t *testing.T) {
 	}
 }
 
-func TestCLI_WS_Go_DirectActive_WorksEvenWhenStateDBIsCorrupted(t *testing.T) {
+func TestCLI_WS_Go_DirectActive_WorksWithFilesystemOnly(t *testing.T) {
 	env := testutil.NewEnv(t)
 	env.EnsureRootLayout(t)
 	if err := os.MkdirAll(filepath.Join(env.Root, "workspaces", "WS1"), 0o755); err != nil {
 		t.Fatalf("create workspace dir: %v", err)
-	}
-
-	dbPath, err := paths.StateDBPathForRoot(env.Root)
-	if err != nil {
-		t.Fatalf("StateDBPathForRoot() error: %v", err)
-	}
-	if err := os.MkdirAll(filepath.Dir(dbPath), 0o755); err != nil {
-		t.Fatalf("mkdir db dir: %v", err)
-	}
-	if err := os.WriteFile(dbPath, []byte("not a sqlite db"), 0o644); err != nil {
-		t.Fatalf("write corrupted db: %v", err)
 	}
 
 	var out bytes.Buffer

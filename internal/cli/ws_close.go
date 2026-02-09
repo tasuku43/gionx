@@ -841,8 +841,9 @@ func ensureRootGitWorktree(ctx context.Context, root string) error {
 		want = wantEval
 	}
 
-	if got != want {
-		return fmt.Errorf("GIONX_ROOT must be the git toplevel: got=%s want=%s", strings.TrimSpace(out), root)
+	rel, relErr := filepath.Rel(got, want)
+	if relErr != nil || rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
+		return fmt.Errorf("GIONX_ROOT must be inside the git worktree: toplevel=%s root=%s", strings.TrimSpace(out), root)
 	}
 	return nil
 }

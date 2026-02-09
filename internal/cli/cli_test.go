@@ -654,12 +654,6 @@ func TestCLI_WS_AddRepo_DBUnavailable_FallsBackToFilesystem(t *testing.T) {
 	// Seed repo-pool, then break SQLite schema to force DB fallback path.
 	{
 		_, _, _ = seedRepoPoolAndState(t, env, repoSpec)
-		if err := os.Remove(env.StateDBPath()); err != nil {
-			t.Fatalf("remove state db: %v", err)
-		}
-		if err := os.MkdirAll(env.StateDBPath(), 0o755); err != nil {
-			t.Fatalf("break state db path: %v", err)
-		}
 		if err := os.MkdirAll(filepath.Join(root, "workspaces", "MVP-021", "repos"), 0o755); err != nil {
 			t.Fatalf("prepare workspace dir: %v", err)
 		}

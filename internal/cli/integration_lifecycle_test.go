@@ -2,17 +2,14 @@ package cli
 
 import (
 	"bytes"
-	"context"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
-	"time"
 
 	"github.com/tasuku43/gion-core/repospec"
 	"github.com/tasuku43/gion-core/repostore"
-	"github.com/tasuku43/gionx/internal/statestore"
 	"github.com/tasuku43/gionx/internal/testutil"
 )
 
@@ -57,22 +54,6 @@ func TestCLI_WS_AddRepo_CorruptedRepoPool_FailsWithoutStateMutation(t *testing.T
 		t.Fatalf("write corrupted bare path: %v", err)
 	}
 
-	ctx := context.Background()
-	db, err := statestore.Open(ctx, env.StateDBPath())
-	if err != nil {
-		t.Fatalf("Open(state db) error: %v", err)
-	}
-	t.Cleanup(func() { _ = db.Close() })
-	now := time.Now().Unix()
-	if err := statestore.EnsureRepo(ctx, db, statestore.EnsureRepoInput{
-		RepoUID:   "github.com/o/r",
-		RepoKey:   "o/r",
-		RemoteURL: repoSpec,
-		Now:       now,
-	}); err != nil {
-		t.Fatalf("EnsureRepo error: %v", err)
-	}
-
 	{
 		var out bytes.Buffer
 		var err bytes.Buffer
@@ -91,13 +72,6 @@ func TestCLI_WS_AddRepo_CorruptedRepoPool_FailsWithoutStateMutation(t *testing.T
 		t.Fatalf("worktree should not be created on failure")
 	}
 
-	var cnt int
-	if err := db.QueryRowContext(ctx, "SELECT COUNT(*) FROM workspace_repos WHERE workspace_id = ?", "WS1").Scan(&cnt); err != nil {
-		t.Fatalf("query workspace_repos count: %v", err)
-	}
-	if cnt != 0 {
-		t.Fatalf("workspace_repos count = %d, want 0", cnt)
-	}
 }
 
 func TestCLI_WS_Close_RepoMetadataDrift_FailsWithoutArchiving(t *testing.T) {
@@ -139,23 +113,6 @@ func TestCLI_WS_Close_RepoMetadataDrift_FailsWithoutArchiving(t *testing.T) {
 		if code != exitOK {
 			t.Fatalf("ws add-repo exit code = %d, want %d (stderr=%q)", code, exitOK, err.String())
 		}
-	}
-
-	ctx := context.Background()
-	db, err := statestore.Open(ctx, env.StateDBPath())
-	if err != nil {
-		t.Fatalf("Open(state db) error: %v", err)
-	}
-	t.Cleanup(func() { _ = db.Close() })
-
-	if _, err := db.ExecContext(ctx, "PRAGMA foreign_keys=OFF"); err != nil {
-		t.Fatalf("disable foreign keys: %v", err)
-	}
-	if _, err := db.ExecContext(ctx, "DELETE FROM repos WHERE repo_uid = ?", "github.com/o/r"); err != nil {
-		t.Fatalf("delete repos row: %v", err)
-	}
-	if _, err := db.ExecContext(ctx, "PRAGMA foreign_keys=ON"); err != nil {
-		t.Fatalf("enable foreign keys: %v", err)
 	}
 
 	{

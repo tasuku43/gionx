@@ -2,8 +2,6 @@ package cli
 
 import (
 	"bytes"
-	"context"
-	"database/sql"
 	"encoding/base64"
 	"fmt"
 	"net/http"
@@ -13,7 +11,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/tasuku43/gionx/internal/statestore"
 	"github.com/tasuku43/gionx/internal/testutil"
 )
 
@@ -139,19 +136,4 @@ func TestCLI_WS_Create_Jira_404_FailsFastWithoutStateMutation(t *testing.T) {
 		t.Fatalf("workspace dir should not exist, stat err=%v", err)
 	}
 
-	ctx := context.Background()
-	db, err := statestore.Open(ctx, env.StateDBPath())
-	if err != nil {
-		t.Fatalf("Open(state db) error: %v", err)
-	}
-	t.Cleanup(func() { _ = db.Close() })
-	if err := statestore.EnsureSettings(ctx, db, env.Root, env.RepoPoolPath()); err != nil {
-		t.Fatalf("EnsureSettings error: %v", err)
-	}
-
-	var status string
-	err = db.QueryRowContext(ctx, "SELECT status FROM workspaces WHERE id = ?", "PROJ-404").Scan(&status)
-	if err == nil || err != sql.ErrNoRows {
-		t.Fatalf("workspace row should not exist: status=%q err=%v", status, err)
-	}
 }

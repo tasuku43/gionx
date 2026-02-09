@@ -2,15 +2,11 @@ package cli
 
 import (
 	"bytes"
-	"context"
-	"database/sql"
-	"errors"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 
-	"github.com/tasuku43/gionx/internal/statestore"
 	"github.com/tasuku43/gionx/internal/testutil"
 )
 
@@ -30,7 +26,7 @@ func TestCLI_WS_Create_InvalidRoot_Errors(t *testing.T) {
 	}
 }
 
-func TestCLI_WS_Create_FilesystemCollision_DoesNotInsertDBRow(t *testing.T) {
+func TestCLI_WS_Create_FilesystemCollision_Fails(t *testing.T) {
 	env := testutil.NewEnv(t)
 	env.EnsureRootLayout(t)
 
@@ -51,22 +47,6 @@ func TestCLI_WS_Create_FilesystemCollision_DoesNotInsertDBRow(t *testing.T) {
 		t.Fatalf("stderr missing collision error: %q", errBuf.String())
 	}
 
-	ctx := context.Background()
-	db, err := statestore.Open(ctx, env.StateDBPath())
-	if err != nil {
-		t.Fatalf("Open(state db) error: %v", err)
-	}
-	t.Cleanup(func() { _ = db.Close() })
-
-	if err := statestore.EnsureSettings(ctx, db, env.Root, env.RepoPoolPath()); err != nil {
-		t.Fatalf("EnsureSettings error: %v", err)
-	}
-
-	var status string
-	qErr := db.QueryRowContext(ctx, "SELECT status FROM workspaces WHERE id = ?", "MVP-020").Scan(&status)
-	if !errors.Is(qErr, sql.ErrNoRows) {
-		t.Fatalf("expected no workspaces row, got err=%v status=%q", qErr, status)
-	}
 }
 
 func TestCLI_WS_Create_Purged_AllowsNewGeneration(t *testing.T) {
@@ -89,14 +69,6 @@ func TestCLI_WS_Create_Purged_AllowsNewGeneration(t *testing.T) {
 func TestCLI_WS_Create_StateDBCorrupted_StillCreatesWorkspaceFromFS(t *testing.T) {
 	env := testutil.NewEnv(t)
 	env.EnsureRootLayout(t)
-
-	dbPath := env.StateDBPath()
-	if err := os.MkdirAll(filepath.Dir(dbPath), 0o755); err != nil {
-		t.Fatalf("mkdir db dir: %v", err)
-	}
-	if err := os.WriteFile(dbPath, []byte("corrupted"), 0o644); err != nil {
-		t.Fatalf("write corrupted db: %v", err)
-	}
 
 	var out bytes.Buffer
 	var errBuf bytes.Buffer

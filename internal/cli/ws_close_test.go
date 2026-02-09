@@ -2,6 +2,7 @@ package cli
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"os"
 	"os/exec"
@@ -381,6 +382,55 @@ func TestPrintCloseRiskSection_UsesSharedSpacingAndIndent(t *testing.T) {
 	}
 	if !strings.Contains(got, "\n  summary: clean=1 warning=0 danger=1\n  policy: all-or-nothing close\n") {
 		t.Fatalf("risk summary block mismatch: %q", got)
+	}
+}
+
+func TestEnsureRootGitWorktree_AllowsNestedRootInSameGitWorktree(t *testing.T) {
+	testutil.RequireCommand(t, "git")
+
+	parent := t.TempDir()
+	run := func(dir string, args ...string) {
+		t.Helper()
+		cmd := exec.Command("git", args...)
+		cmd.Dir = dir
+		out, err := cmd.CombinedOutput()
+		if err != nil {
+			t.Fatalf("git %s failed: %v (output=%s)", strings.Join(args, " "), err, strings.TrimSpace(string(out)))
+		}
+	}
+	run(parent, "init", "-b", "main")
+
+	root := filepath.Join(parent, "nested", "work")
+	if err := os.MkdirAll(root, 0o755); err != nil {
+		t.Fatalf("mkdir nested root: %v", err)
+	}
+	if err := ensureRootGitWorktree(context.Background(), root); err != nil {
+		t.Fatalf("ensureRootGitWorktree() error = %v, want nil", err)
+	}
+}
+
+func TestEnsureRootGitWorktree_RejectsRootOutsideGitWorktree(t *testing.T) {
+	testutil.RequireCommand(t, "git")
+
+	repo := t.TempDir()
+	run := func(dir string, args ...string) {
+		t.Helper()
+		cmd := exec.Command("git", args...)
+		cmd.Dir = dir
+		out, err := cmd.CombinedOutput()
+		if err != nil {
+			t.Fatalf("git %s failed: %v (output=%s)", strings.Join(args, " "), err, strings.TrimSpace(string(out)))
+		}
+	}
+	run(repo, "init", "-b", "main")
+
+	outside := t.TempDir()
+	err := ensureRootGitWorktree(context.Background(), outside)
+	if err == nil {
+		t.Fatalf("ensureRootGitWorktree() error = nil, want non-nil")
+	}
+	if !strings.Contains(err.Error(), "GIONX_ROOT must be a git working tree") {
+		t.Fatalf("error = %q, want git working tree guidance", err.Error())
 	}
 }
 

@@ -8,7 +8,6 @@ import (
 	"testing"
 
 	"github.com/tasuku43/gion-core/workspacerisk"
-	"github.com/tasuku43/gionx/internal/paths"
 	"github.com/tasuku43/gionx/internal/testutil"
 )
 
@@ -131,17 +130,6 @@ func TestCLI_WS_List_FallbackToFilesystem_WhenStateDBCorrupted(t *testing.T) {
 	meta := newWorkspaceMetaFileForCreate("FS-ONLY", "filesystem workspace", "", 1700000000)
 	if err := writeWorkspaceMetaFile(filepath.Join(env.Root, "workspaces", "FS-ONLY"), meta); err != nil {
 		t.Fatalf("write workspace meta: %v", err)
-	}
-
-	dbPath, err := paths.StateDBPathForRoot(env.Root)
-	if err != nil {
-		t.Fatalf("StateDBPathForRoot() error: %v", err)
-	}
-	if err := os.MkdirAll(filepath.Dir(dbPath), 0o755); err != nil {
-		t.Fatalf("mkdir db dir: %v", err)
-	}
-	if err := os.WriteFile(dbPath, []byte("corrupted"), 0o644); err != nil {
-		t.Fatalf("write corrupted db: %v", err)
 	}
 
 	var out bytes.Buffer
