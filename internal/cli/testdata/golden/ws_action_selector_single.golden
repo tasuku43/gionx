@@ -1,0 +1,8 @@
+Action:
+
+> ○ add-repo    (no title)
+  ○ close       (no title)
+
+  filter: |
+  ↑↓ move  enter run  type filter  esc cancel
+

@@ -1,0 +1,7 @@
+Repos(pool):
+> ○ example-org/helmfiles  
+  ● example-org/sre-apps   
+
+  filter: |
+  selected: 1/2  ↑↓ move  space toggle  enter add  type filter  esc cancel
+
