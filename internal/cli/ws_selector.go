@@ -37,25 +37,26 @@ type workspaceSelectorCandidate struct {
 }
 
 type workspaceSelectorModel struct {
-	candidates []workspaceSelectorCandidate
-	selected   map[int]bool
-	cursor     int // cursor position within filtered indices
-	width      int
-	status     string
-	title      string
-	itemLabel  string
-	showDesc   bool
-	action     string
-	useColor   bool
-	debugf     func(string, ...any)
-	message    string
-	msgLevel   selectorMessageLevel
-	filter     string
-	showCaret  bool
-	canceled   bool
-	done       bool
-	single     bool
-	confirming bool
+	candidates    []workspaceSelectorCandidate
+	selected      map[int]bool
+	cursor        int // cursor position within filtered indices
+	width         int
+	status        string
+	title         string
+	itemLabel     string
+	showDesc      bool
+	action        string
+	useColor      bool
+	debugf        func(string, ...any)
+	message       string
+	msgLevel      selectorMessageLevel
+	filter        string
+	showCaret     bool
+	canceled      bool
+	done          bool
+	single        bool
+	confirming    bool
+	reducedMotion bool
 }
 
 func newWorkspaceSelectorModel(candidates []workspaceSelectorCandidate, status string, action string, useColor bool, debugf func(string, ...any)) workspaceSelectorModel {
@@ -77,20 +78,21 @@ func newWorkspaceSelectorModelWithOptionsAndMode(candidates []workspaceSelectorC
 		itemLabel = "workspace"
 	}
 	return workspaceSelectorModel{
-		candidates: candidates,
-		selected:   make(map[int]bool, len(candidates)),
-		cursor:     0,
-		width:      80,
-		status:     status,
-		title:      title,
-		itemLabel:  itemLabel,
-		showDesc:   strings.ToLower(strings.TrimSpace(itemLabel)) != "repo",
-		action:     action,
-		useColor:   useColor,
-		debugf:     debugf,
-		msgLevel:   selectorMessageLevelMuted,
-		showCaret:  true,
-		single:     single,
+		candidates:    candidates,
+		selected:      make(map[int]bool, len(candidates)),
+		cursor:        0,
+		width:         80,
+		status:        status,
+		title:         title,
+		itemLabel:     itemLabel,
+		showDesc:      strings.ToLower(strings.TrimSpace(itemLabel)) != "repo",
+		action:        action,
+		useColor:      useColor,
+		debugf:        debugf,
+		msgLevel:      selectorMessageLevelMuted,
+		showCaret:     true,
+		single:        single,
+		reducedMotion: isReducedMotionEnabled(),
 	}
 }
 
@@ -148,6 +150,11 @@ func (m workspaceSelectorModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				}
 				idx := visible[m.cursor]
 				m.selected = map[int]bool{idx: true}
+				if m.reducedMotion {
+					m.done = true
+					m.debugf("selector done (single reduced motion) selected=%v", m.selectedIDs())
+					return m, tea.Quit
+				}
 				m.confirming = true
 				return m, selectorSingleConfirmCmd()
 			} else {
@@ -206,7 +213,7 @@ func (m workspaceSelectorModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (m workspaceSelectorModel) View() string {
-	lines := renderWorkspaceSelectorLinesWithOptions(m.status, m.title, m.action, m.candidates, m.selected, m.cursor, m.message, m.msgLevel, m.filter, m.showDesc, m.showCaret, m.single, m.useColor, m.width)
+	lines := renderWorkspaceSelectorLinesWithOptions(m.status, m.title, m.action, m.candidates, m.selected, m.cursor, m.message, m.msgLevel, m.filter, m.showDesc, m.showCaret, m.single, m.confirming, m.useColor, m.width)
 	return strings.Join(lines, "\n")
 }
 
@@ -354,10 +361,10 @@ func runWorkspaceSelectorWithOptionsAndMode(in *os.File, out io.Writer, status s
 }
 
 func renderWorkspaceSelectorLines(status string, action string, candidates []workspaceSelectorCandidate, selected map[int]bool, cursor int, message string, filter string, showCaret bool, useColor bool, termWidth int) []string {
-	return renderWorkspaceSelectorLinesWithOptions(status, "", action, candidates, selected, cursor, message, selectorMessageLevelMuted, filter, true, showCaret, false, useColor, termWidth)
+	return renderWorkspaceSelectorLinesWithOptions(status, "", action, candidates, selected, cursor, message, selectorMessageLevelMuted, filter, true, showCaret, false, false, useColor, termWidth)
 }
 
-func renderWorkspaceSelectorLinesWithOptions(status string, title string, action string, candidates []workspaceSelectorCandidate, selected map[int]bool, cursor int, message string, msgLevel selectorMessageLevel, filter string, showDesc bool, showCaret bool, single bool, useColor bool, termWidth int) []string {
+func renderWorkspaceSelectorLinesWithOptions(status string, title string, action string, candidates []workspaceSelectorCandidate, selected map[int]bool, cursor int, message string, msgLevel selectorMessageLevel, filter string, showDesc bool, showCaret bool, single bool, confirming bool, useColor bool, termWidth int) []string {
 	idWidth := len("workspace")
 	for _, it := range candidates {
 		if n := len(it.ID); n > idWidth {
@@ -449,6 +456,9 @@ func renderWorkspaceSelectorLinesWithOptions(status string, title string, action
 		line := lineRaw
 		if useColor {
 			bodyStyled := bodyRaw
+			if single && confirming && !selected[sourceIdx] {
+				bodyStyled = styleMuted(bodyRaw, true)
+			}
 			if !single && selected[sourceIdx] {
 				bodyStyled = lipgloss.NewStyle().Bold(true).Render(bodyRaw)
 			}
@@ -509,6 +519,15 @@ func renderWorkspaceSelectorLinesWithOptions(status string, title string, action
 	}
 
 	return lines
+}
+
+func isReducedMotionEnabled() bool {
+	switch strings.ToLower(strings.TrimSpace(os.Getenv("GIONX_REDUCED_MOTION"))) {
+	case "1", "true", "yes", "on":
+		return true
+	default:
+		return false
+	}
 }
 
 func renderSelectorFooterLine(selectedCount int, total int, action string, single bool, maxCols int) string {

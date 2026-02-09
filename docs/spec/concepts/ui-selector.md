@@ -29,6 +29,7 @@ Single-select:
   - keep frame visible briefly (`0.2s`)
   - lock cursor/input during the transition
   - then proceed to next stage
+  - when `GIONX_REDUCED_MOTION=1`, skip delay and proceed immediately
 
 ## Visual model
 
@@ -44,6 +45,7 @@ Single-select:
 
 - Selected marker uses `accent`.
 - Non-selected marker uses primary text color.
+- During single-select confirm delay, non-selected rows are dimmed with `text.muted`.
 - Errors/messages use semantic tokens from `docs/spec/concepts/ui-color.md`.
 - No-color terminals must preserve all meaning via markers/text only.
 
@@ -51,4 +53,3 @@ Single-select:
 
 - Selector rendering/runtime must be implemented as shared component(s), not per-command bespoke logic.
 - `ws`, `repo`, and `context` interactive selections must use the same component and contract.
-

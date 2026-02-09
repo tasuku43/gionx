@@ -270,6 +270,7 @@ func TestRenderWorkspaceSelectorLines_MessageIsIndented(t *testing.T) {
 		true,
 		false,
 		false,
+		false,
 		120,
 	)
 	msg := lines[len(lines)-1]
@@ -291,6 +292,7 @@ func TestRenderWorkspaceSelectorLines_ErrorMessageUsesErrorToken(t *testing.T) {
 		"",
 		true,
 		true,
+		false,
 		false,
 		true,
 		120,
@@ -338,6 +340,7 @@ func TestRenderWorkspaceSelectorLinesWithOptions_SingleModeShowsSelectionMarkerA
 		true,
 		true,
 		false,
+		false,
 		120,
 	)
 	joined := strings.Join(lines, "\n")
@@ -370,6 +373,7 @@ func TestRenderWorkspaceSelectorLinesWithOptions_MultiModeUsesCircleSelectionMar
 		true,
 		false,
 		false,
+		false,
 		120,
 	)
 	joined := strings.Join(lines, "\n")
@@ -398,6 +402,7 @@ func TestRenderWorkspaceSelectorLinesWithOptions_RepoModeCompactsHeaderSpacing(t
 		true,
 		false,
 		false,
+		false,
 		120,
 	)
 	joined := strings.Join(lines, "\n")
@@ -424,6 +429,7 @@ func TestRenderWorkspaceSelectorLinesWithOptions_RepoModeSelectedMarkerUsesAccen
 		"",
 		false,
 		true,
+		false,
 		false,
 		true,
 		120,
@@ -508,5 +514,73 @@ func TestWorkspaceSelectorModel_SingleModeLocksInputWhileConfirming(t *testing.T
 	}
 	if next.cursor != 1 {
 		t.Fatalf("cursor should be locked while confirming, got=%d", next.cursor)
+	}
+}
+
+func TestWorkspaceSelectorModel_SingleModeReducedMotionSkipsConfirmDelay(t *testing.T) {
+	t.Setenv("GIONX_REDUCED_MOTION", "1")
+
+	m := newWorkspaceSelectorModelWithOptionsAndMode(
+		[]workspaceSelectorCandidate{
+			{ID: "WS1", Risk: workspacerisk.WorkspaceRiskClean},
+			{ID: "WS2", Risk: workspacerisk.WorkspaceRiskClean},
+		},
+		"active",
+		"go",
+		"",
+		"workspace",
+		true,
+		false,
+		nil,
+	)
+	m.cursor = 1
+
+	updated, _ := m.Update(tea.KeyMsg{Type: tea.KeyEnter})
+	next, ok := updated.(workspaceSelectorModel)
+	if !ok {
+		t.Fatalf("unexpected model type: %T", updated)
+	}
+	if !next.done {
+		t.Fatalf("single mode should complete immediately when reduced motion is enabled")
+	}
+	if next.confirming {
+		t.Fatalf("single mode should not enter confirming state with reduced motion")
+	}
+}
+
+func TestRenderWorkspaceSelectorLinesWithOptions_SingleConfirmingMutesNonSelectedRows(t *testing.T) {
+	lines := renderWorkspaceSelectorLinesWithOptions(
+		"active",
+		"",
+		"go",
+		[]workspaceSelectorCandidate{
+			{ID: "WS1", Title: "alpha", Risk: workspacerisk.WorkspaceRiskClean},
+			{ID: "WS2", Title: "beta", Risk: workspacerisk.WorkspaceRiskClean},
+		},
+		map[int]bool{1: true},
+		1,
+		"",
+		selectorMessageLevelMuted,
+		"",
+		true,
+		true,
+		true,
+		true,
+		true,
+		120,
+	)
+
+	targetLine := ""
+	for _, line := range lines {
+		if strings.Contains(line, "○ WS1") {
+			targetLine = line
+			break
+		}
+	}
+	if targetLine == "" {
+		t.Fatalf("expected unselected line in output, got=%q", strings.Join(lines, "\n"))
+	}
+	if !strings.Contains(targetLine, ansiMuted) {
+		t.Fatalf("unselected line should be muted while confirming, got=%q", targetLine)
 	}
 }
