@@ -90,11 +90,38 @@ func TestCLI_Context_ListShowsRegistryEntries(t *testing.T) {
 	if !strings.Contains(text, "alpha") || !strings.Contains(text, "bravo") {
 		t.Fatalf("context list missing names: %q", text)
 	}
-	if !strings.Contains(text, "path="+rootA) || !strings.Contains(text, "path="+rootB) {
+	if !strings.Contains(text, "path: "+rootA) || !strings.Contains(text, "path: "+rootB) {
 		t.Fatalf("context list missing paths: %q", text)
 	}
 	if strings.Index(text, "bravo") > strings.Index(text, "alpha") {
 		t.Fatalf("context list order should prefer newer last_used_at: %q", text)
+	}
+	if !strings.Contains(text, "last used: 1970-01-01T00:03:20Z") {
+		t.Fatalf("context list missing last used label: %q", text)
+	}
+}
+
+func TestCLI_Context_ListMarksCurrentContext(t *testing.T) {
+	dataHome := filepath.Join(t.TempDir(), "xdg-data")
+	t.Setenv("XDG_DATA_HOME", dataHome)
+
+	root := t.TempDir()
+	if err := stateregistry.SetContextName(root, "current", time.Unix(200, 0)); err != nil {
+		t.Fatalf("SetContextName(root): %v", err)
+	}
+	if err := paths.WriteCurrentContext(root); err != nil {
+		t.Fatalf("WriteCurrentContext() error: %v", err)
+	}
+
+	var out bytes.Buffer
+	var errBuf bytes.Buffer
+	c := New(&out, &errBuf)
+	code := c.Run([]string{"context", "list"})
+	if code != exitOK {
+		t.Fatalf("context list exit code = %d, want %d (stderr=%q)", code, exitOK, errBuf.String())
+	}
+	if !strings.Contains(out.String(), "current [current]") {
+		t.Fatalf("context list missing current marker: %q", out.String())
 	}
 }
 

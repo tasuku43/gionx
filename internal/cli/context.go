@@ -9,6 +9,7 @@ import (
 
 	"github.com/tasuku43/gionx/internal/app/contextcmd"
 	"github.com/tasuku43/gionx/internal/infra/appports"
+	"github.com/tasuku43/gionx/internal/infra/paths"
 )
 
 func (c *CLI) runContext(args []string) int {
@@ -86,14 +87,34 @@ func (c *CLI) runContextList(args []string) int {
 		return exitOK
 	}
 
-	fmt.Fprintln(c.Out, "Contexts:")
+	useColorOut := writerSupportsColor(c.Out)
+	fmt.Fprintln(c.Out, styleBold("Contexts:", useColorOut))
+	fmt.Fprintln(c.Out)
+	currentRoot, _, _ := paths.ReadCurrentContext()
+
 	for _, e := range entries {
+		isCurrent := strings.TrimSpace(e.RootPath) != "" && strings.TrimSpace(e.RootPath) == strings.TrimSpace(currentRoot)
 		last := time.Unix(e.LastUsedAt, 0).UTC().Format(time.RFC3339)
 		name := strings.TrimSpace(e.ContextName)
 		if name == "" {
 			name = "(unnamed)"
 		}
-		fmt.Fprintf(c.Out, "%s%s  path=%s  last_used_at=%s\n", uiIndent, name, e.RootPath, last)
+		prefix := "○"
+		if isCurrent {
+			prefix = styleSuccess("●", useColorOut)
+		}
+		title := name
+		if isCurrent {
+			title = styleAccent(title, useColorOut)
+		}
+		currentLabel := ""
+		if isCurrent {
+			currentLabel = " " + styleSuccess("[current]", useColorOut)
+		}
+		fmt.Fprintf(c.Out, "%s%s %s%s\n", uiIndent, prefix, title, currentLabel)
+		fmt.Fprintf(c.Out, "%s├─ %s%s\n", uiIndent, styleMuted("path: ", useColorOut), e.RootPath)
+		fmt.Fprintf(c.Out, "%s└─ %s%s\n", uiIndent, styleMuted("last used: ", useColorOut), styleMuted(last, useColorOut))
+		fmt.Fprintln(c.Out)
 	}
 	return exitOK
 }
