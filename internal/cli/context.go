@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/tasuku43/gion-core/workspacerisk"
 	"github.com/tasuku43/gionx/internal/app/contextcmd"
 	"github.com/tasuku43/gionx/internal/infra/appports"
 	"github.com/tasuku43/gionx/internal/infra/paths"
@@ -131,8 +132,52 @@ func (c *CLI) runContextList(args []string) int {
 
 func (c *CLI) runContextUse(args []string) int {
 	if len(args) == 0 {
-		c.printContextUsage(c.Err)
-		return exitUsage
+		svc := contextcmd.NewService(appports.NewContextPort(resolveContextUseRoot))
+		entries, err := svc.List()
+		if err != nil {
+			fmt.Fprintf(c.Err, "%v\n", err)
+			return exitError
+		}
+		if len(entries) == 0 {
+			fmt.Fprintln(c.Err, "no contexts available")
+			return exitError
+		}
+		currentRoot, _, _ := paths.ReadCurrentContext()
+		candidates := make([]workspaceSelectorCandidate, 0, len(entries))
+		for _, e := range entries {
+			name := strings.TrimSpace(e.ContextName)
+			if name == "" {
+				continue
+			}
+			title := e.RootPath
+			if strings.TrimSpace(e.RootPath) == strings.TrimSpace(currentRoot) {
+				title += " [current]"
+			}
+			candidates = append(candidates, workspaceSelectorCandidate{
+				ID:    name,
+				Title: title,
+				Risk:  workspacerisk.WorkspaceRiskClean,
+			})
+		}
+		if len(candidates) == 0 {
+			fmt.Fprintln(c.Err, "no named contexts available")
+			return exitError
+		}
+		selected, err := c.promptWorkspaceSelectorWithOptionsAndMode("active", "select", "Contexts:", "context", candidates, true)
+		if err != nil {
+			if err == errSelectorCanceled {
+				fmt.Fprintln(c.Err, "aborted")
+				return exitError
+			}
+			if strings.Contains(err.Error(), "requires a TTY") {
+				fmt.Fprintln(c.Err, "context use without <name> requires a TTY")
+				c.printContextUsage(c.Err)
+				return exitUsage
+			}
+			fmt.Fprintf(c.Err, "run context selector: %v\n", err)
+			return exitError
+		}
+		args = []string{selected[0]}
 	}
 	if len(args) > 1 {
 		fmt.Fprintf(c.Err, "unexpected args for context use: %q\n", strings.Join(args[1:], " "))

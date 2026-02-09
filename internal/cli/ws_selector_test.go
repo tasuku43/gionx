@@ -321,7 +321,7 @@ func TestRenderSelectorFooterLine_DropsHintsDeterministically(t *testing.T) {
 	}
 }
 
-func TestRenderWorkspaceSelectorLinesWithOptions_SingleModeHidesSelectionMarkerAndSelectedSummary(t *testing.T) {
+func TestRenderWorkspaceSelectorLinesWithOptions_SingleModeShowsSelectionMarkerAndHidesSelectedSummary(t *testing.T) {
 	lines := renderWorkspaceSelectorLinesWithOptions(
 		"active",
 		"",
@@ -341,8 +341,8 @@ func TestRenderWorkspaceSelectorLinesWithOptions_SingleModeHidesSelectionMarkerA
 		120,
 	)
 	joined := strings.Join(lines, "\n")
-	if strings.Contains(joined, "○ ") || strings.Contains(joined, "● ") {
-		t.Fatalf("single mode should hide selection markers: %q", joined)
+	if !strings.Contains(joined, "○ WS1") {
+		t.Fatalf("single mode should show circle marker: %q", joined)
 	}
 	if strings.Contains(joined, "selected:") {
 		t.Fatalf("single mode footer should not show selected summary: %q", joined)
@@ -455,11 +455,58 @@ func TestWorkspaceSelectorModel_SingleModeEnterSelectsCurrent(t *testing.T) {
 	if !ok {
 		t.Fatalf("unexpected model type: %T", updated)
 	}
-	if !next.done {
-		t.Fatalf("single mode enter should complete selection")
+	if next.done {
+		t.Fatalf("single mode enter should wait confirm delay before completion")
+	}
+	if !next.confirming {
+		t.Fatalf("single mode should enter confirming state")
 	}
 	ids := next.selectedIDs()
 	if len(ids) != 1 || ids[0] != "WS2" {
 		t.Fatalf("single mode should select focused row, got=%v", ids)
+	}
+
+	updated, _ = next.Update(selectorConfirmDoneMsg{})
+	next, ok = updated.(workspaceSelectorModel)
+	if !ok {
+		t.Fatalf("unexpected model type: %T", updated)
+	}
+	if !next.done {
+		t.Fatalf("single mode should complete after confirm delay")
+	}
+}
+
+func TestWorkspaceSelectorModel_SingleModeLocksInputWhileConfirming(t *testing.T) {
+	m := newWorkspaceSelectorModelWithOptionsAndMode(
+		[]workspaceSelectorCandidate{
+			{ID: "WS1", Risk: workspacerisk.WorkspaceRiskClean},
+			{ID: "WS2", Risk: workspacerisk.WorkspaceRiskClean},
+		},
+		"active",
+		"go",
+		"",
+		"workspace",
+		true,
+		false,
+		nil,
+	)
+	m.cursor = 1
+
+	updated, _ := m.Update(tea.KeyMsg{Type: tea.KeyEnter})
+	next, ok := updated.(workspaceSelectorModel)
+	if !ok {
+		t.Fatalf("unexpected model type: %T", updated)
+	}
+	if !next.confirming {
+		t.Fatalf("single mode should enter confirming state")
+	}
+
+	updated, _ = next.Update(tea.KeyMsg{Type: tea.KeyUp})
+	next, ok = updated.(workspaceSelectorModel)
+	if !ok {
+		t.Fatalf("unexpected model type: %T", updated)
+	}
+	if next.cursor != 1 {
+		t.Fatalf("cursor should be locked while confirming, got=%d", next.cursor)
 	}
 }

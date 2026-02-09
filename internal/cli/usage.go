@@ -32,7 +32,7 @@ Subcommands:
   list              List contexts (name/path) from root registry
   create <name> --path <path> [--use]
                    Create a named context
-  use <name>        Select context by name
+  use [name]        Select context by name (or interactive selector)
   help              Show this help
 `)
 }

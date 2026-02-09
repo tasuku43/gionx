@@ -19,8 +19,10 @@ import (
 var errSelectorCanceled = errors.New("selector canceled")
 
 const selectorCaretBlinkInterval = 500 * time.Millisecond
+const selectorSingleConfirmDelay = 200 * time.Millisecond
 
 type selectorCaretBlinkMsg struct{}
+type selectorConfirmDoneMsg struct{}
 type selectorMessageLevel string
 
 const (
@@ -53,6 +55,7 @@ type workspaceSelectorModel struct {
 	canceled   bool
 	done       bool
 	single     bool
+	confirming bool
 }
 
 func newWorkspaceSelectorModel(candidates []workspaceSelectorCandidate, status string, action string, useColor bool, debugf func(string, ...any)) workspaceSelectorModel {
@@ -108,7 +111,19 @@ func (m workspaceSelectorModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		m.showCaret = !m.showCaret
 		return m, selectorCaretBlinkCmd()
+	case selectorConfirmDoneMsg:
+		if !m.confirming || m.canceled {
+			return m, nil
+		}
+		m.confirming = false
+		m.done = true
+		m.debugf("selector done (single confirm) selected=%v", m.selectedIDs())
+		return m, tea.Quit
 	case tea.KeyMsg:
+		if m.confirming {
+			// Lock input while showing the selected single item before transition.
+			return m, nil
+		}
 		m.debugf("selector key type=%v runes=%q cursor=%d filter=%q", msg.Type, string(msg.Runes), m.cursor, m.filter)
 		switch msg.Type {
 		case tea.KeyCtrlC, tea.KeyEsc:
@@ -133,6 +148,8 @@ func (m workspaceSelectorModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				}
 				idx := visible[m.cursor]
 				m.selected = map[int]bool{idx: true}
+				m.confirming = true
+				return m, selectorSingleConfirmCmd()
 			} else {
 				if m.selectedCount() == 0 {
 					m.setErrorMessage(fmt.Sprintf("at least one %s must be selected", m.itemLabel))
@@ -196,6 +213,12 @@ func (m workspaceSelectorModel) View() string {
 func selectorCaretBlinkCmd() tea.Cmd {
 	return tea.Tick(selectorCaretBlinkInterval, func(time.Time) tea.Msg {
 		return selectorCaretBlinkMsg{}
+	})
+}
+
+func selectorSingleConfirmCmd() tea.Cmd {
+	return tea.Tick(selectorSingleConfirmDelay, func(time.Time) tea.Msg {
+		return selectorConfirmDoneMsg{}
 	})
 }
 
@@ -397,18 +420,16 @@ func renderWorkspaceSelectorLinesWithOptions(status string, title string, action
 			idText = styleBold(idPlain, useColor)
 		}
 		prefix := idText + "  "
-		if !single {
-			mark := "○"
-			if selected[sourceIdx] {
-				mark = "●"
-			}
-			prefixPlain = fmt.Sprintf("%s %s  ", mark, idPlain)
-			markerText := mark
-			if useColor && selected[sourceIdx] {
-				markerText = styleAccent(mark, true)
-			}
-			prefix = fmt.Sprintf("%s %s  ", markerText, idText)
+		mark := "○"
+		if selected[sourceIdx] {
+			mark = "●"
 		}
+		prefixPlain = fmt.Sprintf("%s %s  ", mark, idPlain)
+		markerText := mark
+		if useColor && selected[sourceIdx] {
+			markerText = styleAccent(mark, true)
+		}
+		prefix = fmt.Sprintf("%s %s  ", markerText, idText)
 		bodyRaw := prefix
 		if showDesc {
 			desc := strings.TrimSpace(it.Title)
