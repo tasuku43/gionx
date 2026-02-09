@@ -42,7 +42,7 @@ Commands must use semantic tokens and shared helpers.
   - keep detailed reason text as normal/muted when possible
 - Selector:
   - focus row: `>` marker + subtle background highlight (color-capable terminals only)
-  - selected state: `[x]/[ ]` (must remain textual in no-color mode)
+  - selected state: `●/○` (must remain textual in no-color mode)
 
 ## Capability fallback
 

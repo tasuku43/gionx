@@ -24,7 +24,7 @@ status: planned
   - Depends: UX-WS-003
   - Parallel: yes
 
-- [ ] UX-CORE-003: Selector UX spec (`single`/`multi` shared contract)
+- [x] UX-CORE-003: Selector UX spec (`single`/`multi` shared contract)
   - What: define shared selector rules across commands (same marker, keymap, confirm timing, no-color behavior).
   - Specs:
     - `docs/spec/concepts/ui-selector.md`

@@ -20,9 +20,10 @@ Provide a non-fullscreen interactive selector for frequent workspace operations.
 - `Backspace` / `Delete`: remove one rune from filter query.
 - Filter text must persist after selection toggle; it is cleared only when the user explicitly deletes it.
 - Single-select mode (`ws --act go`) uses cursor + Enter confirmation:
-  - checkbox markers are hidden.
+  - selection markers stay visible (`○/●`) for visual parity with multi-select.
   - `Space` has no effect.
   - footer does not show `selected: n/m`.
+  - `Enter` confirmation locks input briefly (`0.2s`) before stage transition.
 
 ## TTY requirement
 
@@ -91,11 +92,11 @@ Semantic color token policy:
 - Row information order is fixed:
   - focus marker, selection marker, `id`, `title`
 - Canonical row shape:
-  - `> [ ] WS-101      login flow`
-  - `  [x] WS-202      payment hotfix`
+  - `> ○ WS-101      login flow`
+  - `  ● WS-202      payment hotfix`
 - Single-select canonical row shape:
-  - `> WS-101          login flow`
-  - `  WS-202          payment hotfix`
+  - `> ○ WS-101      login flow`
+  - `  ● WS-202      payment hotfix`
 - For repo-pool selectors (`itemLabel=repo`), title column is omitted by default (no `(no title)` filler).
 - `status` is not rendered per row. State context is provided by header `scope`.
 - The title column must be vertically aligned across rows (fixed title start column).
@@ -109,9 +110,9 @@ Semantic color token policy:
 ## Selection visual behavior (task-list style)
 
 - Unselected row:
-  - normal contrast + `[ ]`
+  - normal contrast + `○`
 - Selected row:
-  - normal contrast + `[x]`
+  - normal contrast + `●`
 - Focus row:
   - `>` marker indicates current cursor row
   - On color-capable terminals, apply a subtle low-contrast background highlight to the focused row.
