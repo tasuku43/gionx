@@ -65,9 +65,15 @@ Examples:
 
 func (c *CLI) printInitUsage(w io.Writer) {
 	fmt.Fprint(w, `Usage:
-  gionx init
+  gionx init [--root <path>]
 
-Initialize GIONX_ROOT (current directory by default, or $GIONX_ROOT if set).
+Initialize GIONX_ROOT and set current context.
+
+Root selection order:
+- --root <path> (explicit)
+- $GIONX_ROOT (when set)
+- interactive prompt in TTY (default: ~/gionx)
+- non-TTY without --root/$GIONX_ROOT: fail
 `)
 }
 

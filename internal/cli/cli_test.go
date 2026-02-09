@@ -9,6 +9,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/tasuku43/gionx/internal/paths"
 	"github.com/tasuku43/gionx/internal/testutil"
 )
 
@@ -264,6 +265,13 @@ func TestCLI_Init_CreatesLayoutGitignoreGitRepoAndSettings(t *testing.T) {
 	if strings.TrimSpace(tracked) != ".gitignore\nAGENTS.md" && strings.TrimSpace(tracked) != "AGENTS.md\n.gitignore" {
 		t.Fatalf("tracked files = %q, want only .gitignore and AGENTS.md", strings.TrimSpace(tracked))
 	}
+	contextRoot, ok, contextErr := paths.ReadCurrentContext()
+	if contextErr != nil {
+		t.Fatalf("ReadCurrentContext() error: %v", contextErr)
+	}
+	if !ok || contextRoot != root {
+		t.Fatalf("current-context = %q, ok=%v, want %q", contextRoot, ok, root)
+	}
 
 }
 
@@ -305,6 +313,54 @@ func TestCLI_Init_CreatesMissingGIONXRootDirectory(t *testing.T) {
 	}
 	if _, statErr := os.Stat(filepath.Join(root, "archive")); statErr != nil {
 		t.Fatalf("archive/ not created: %v", statErr)
+	}
+}
+
+func TestCLI_Init_NonTTYWithoutRootOrEnv_Fails(t *testing.T) {
+	t.Setenv("GIONX_ROOT", "")
+	t.Setenv("XDG_DATA_HOME", filepath.Join(t.TempDir(), "xdg-data"))
+	t.Setenv("XDG_CACHE_HOME", filepath.Join(t.TempDir(), "xdg-cache"))
+
+	var out bytes.Buffer
+	var err bytes.Buffer
+	c := New(&out, &err)
+	c.In = strings.NewReader("")
+
+	code := c.Run([]string{"init"})
+	if code != exitError {
+		t.Fatalf("exit code = %d, want %d", code, exitError)
+	}
+	if !strings.Contains(err.String(), "non-interactive init requires --root") {
+		t.Fatalf("stderr missing non-interactive guidance: %q", err.String())
+	}
+}
+
+func TestCLI_Init_WithRootFlag_NonTTY_SucceedsAndUpdatesCurrentContext(t *testing.T) {
+	if _, err := exec.LookPath("git"); err != nil {
+		t.Skip("git not found in PATH")
+	}
+	setGitIdentity(t)
+
+	root := filepath.Join(t.TempDir(), "explicit-root")
+	t.Setenv("GIONX_ROOT", "")
+	t.Setenv("XDG_DATA_HOME", filepath.Join(t.TempDir(), "xdg-data"))
+	t.Setenv("XDG_CACHE_HOME", filepath.Join(t.TempDir(), "xdg-cache"))
+
+	var out bytes.Buffer
+	var err bytes.Buffer
+	c := New(&out, &err)
+	c.In = strings.NewReader("")
+
+	code := c.Run([]string{"init", "--root", root})
+	if code != exitOK {
+		t.Fatalf("exit code = %d, want %d (stderr=%q)", code, exitOK, err.String())
+	}
+	contextRoot, ok, contextErr := paths.ReadCurrentContext()
+	if contextErr != nil {
+		t.Fatalf("ReadCurrentContext() error: %v", contextErr)
+	}
+	if !ok || contextRoot != root {
+		t.Fatalf("current-context = %q, ok=%v, want %q", contextRoot, ok, root)
 	}
 }
 

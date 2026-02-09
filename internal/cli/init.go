@@ -8,8 +8,10 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/mattn/go-isatty"
 	"github.com/tasuku43/gionx/internal/app/initcmd"
 	"github.com/tasuku43/gionx/internal/infra/appports"
+	"github.com/tasuku43/gionx/internal/infra/paths"
 )
 
 const (
@@ -18,19 +20,33 @@ const (
 )
 
 func (c *CLI) runInit(args []string) int {
-	if len(args) > 0 {
+	rootFromFlag := ""
+	for len(args) > 0 {
 		switch args[0] {
 		case "-h", "--help", "help":
 			c.printInitUsage(c.Out)
 			return exitOK
+		case "--root":
+			if len(args) < 2 {
+				fmt.Fprintln(c.Err, "--root requires a value")
+				c.printInitUsage(c.Err)
+				return exitUsage
+			}
+			rootFromFlag = strings.TrimSpace(args[1])
+			args = args[2:]
 		default:
+			if strings.HasPrefix(args[0], "--root=") {
+				rootFromFlag = strings.TrimSpace(strings.TrimPrefix(args[0], "--root="))
+				args = args[1:]
+				continue
+			}
 			fmt.Fprintf(c.Err, "unexpected args for init: %q\n", strings.Join(args, " "))
 			c.printInitUsage(c.Err)
 			return exitUsage
 		}
 	}
 
-	root, err := resolveInitRoot()
+	root, err := c.resolveInitRoot(rootFromFlag)
 	if err != nil {
 		fmt.Fprintf(c.Err, "resolve GIONX_ROOT: %v\n", err)
 		return exitError
@@ -54,6 +70,10 @@ func (c *CLI) runInit(args []string) int {
 		}
 		return exitError
 	}
+	if err := paths.WriteCurrentContext(result.Root); err != nil {
+		fmt.Fprintf(c.Err, "update current context: %v\n", err)
+		return exitError
+	}
 
 	useColorOut := writerSupportsColor(c.Out)
 	printResultSection(c.Out, useColorOut, styleSuccess(fmt.Sprintf("Initialized: %s", result.Root), useColorOut))
@@ -61,24 +81,44 @@ func (c *CLI) runInit(args []string) int {
 	return exitOK
 }
 
-func resolveInitRoot() (string, error) {
-	if envRoot := os.Getenv("GIONX_ROOT"); envRoot != "" {
-		root, err := filepath.Abs(envRoot)
+func (c *CLI) resolveInitRoot(rootFromFlag string) (string, error) {
+	if strings.TrimSpace(rootFromFlag) != "" {
+		return normalizeInitRoot(rootFromFlag)
+	}
+
+	if envRoot := strings.TrimSpace(os.Getenv("GIONX_ROOT")); envRoot != "" {
+		return normalizeInitRoot(envRoot)
+	}
+
+	if inFile, ok := c.In.(*os.File); ok && isatty.IsTerminal(inFile.Fd()) {
+		defaultRoot, err := defaultInitRootSuggestion()
 		if err != nil {
 			return "", err
 		}
-		root = filepath.Clean(root)
-		if err := ensureDir(root); err != nil {
+		line, err := c.promptLine(fmt.Sprintf("root path [%s]: ", defaultRoot))
+		if err != nil {
 			return "", err
 		}
-		return root, nil
+		selected := strings.TrimSpace(line)
+		if selected == "" {
+			selected = defaultRoot
+		}
+		return normalizeInitRoot(selected)
 	}
 
-	wd, err := os.Getwd()
+	return "", fmt.Errorf("non-interactive init requires --root (or set GIONX_ROOT)")
+}
+
+func defaultInitRootSuggestion() (string, error) {
+	home, err := os.UserHomeDir()
 	if err != nil {
 		return "", err
 	}
-	root, err := filepath.Abs(wd)
+	return filepath.Join(home, "gionx"), nil
+}
+
+func normalizeInitRoot(rootRaw string) (string, error) {
+	root, err := filepath.Abs(rootRaw)
 	if err != nil {
 		return "", err
 	}
