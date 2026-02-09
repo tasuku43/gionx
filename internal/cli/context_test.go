@@ -32,12 +32,8 @@ func TestCLI_Context_Help(t *testing.T) {
 func TestCLI_Context_UseAndCurrent(t *testing.T) {
 	dataHome := filepath.Join(t.TempDir(), "xdg-data")
 	t.Setenv("XDG_DATA_HOME", dataHome)
-	t.Setenv("GIONX_ROOT", "")
 
 	root := t.TempDir()
-	if err := paths.WriteCurrentContext(root); err != nil {
-		t.Fatalf("WriteCurrentContext() error: %v", err)
-	}
 	if err := os.MkdirAll(filepath.Join(root, "workspaces"), 0o755); err != nil {
 		t.Fatalf("MkdirAll(workspaces): %v", err)
 	}
@@ -49,12 +45,12 @@ func TestCLI_Context_UseAndCurrent(t *testing.T) {
 		var out bytes.Buffer
 		var err bytes.Buffer
 		c := New(&out, &err)
-		code := c.Run([]string{"context", "use", root})
+		code := c.Run([]string{"context", "create", "work", "--path", root, "--use"})
 		if code != exitOK {
-			t.Fatalf("context use exit code = %d, want %d (stderr=%q)", code, exitOK, err.String())
+			t.Fatalf("context create exit code = %d, want %d (stderr=%q)", code, exitOK, err.String())
 		}
-		if got := out.String(); !strings.Contains(got, "Result:") || !strings.Contains(got, "Context set: "+root) {
-			t.Fatalf("context use stdout missing result section: %q", got)
+		if got := out.String(); !strings.Contains(got, "Result:") || !strings.Contains(got, "Context created and selected: work") {
+			t.Fatalf("context create stdout missing result section: %q", got)
 		}
 	}
 
@@ -65,8 +61,8 @@ func TestCLI_Context_UseAndCurrent(t *testing.T) {
 	if code != exitOK {
 		t.Fatalf("context current exit code = %d, want %d (stderr=%q)", code, exitOK, err.String())
 	}
-	if strings.TrimSpace(out.String()) != root {
-		t.Fatalf("context current stdout = %q, want %q", strings.TrimSpace(out.String()), root)
+	if strings.TrimSpace(out.String()) != "work" {
+		t.Fatalf("context current stdout = %q, want %q", strings.TrimSpace(out.String()), "work")
 	}
 }
 
@@ -76,11 +72,11 @@ func TestCLI_Context_ListShowsRegistryEntries(t *testing.T) {
 
 	rootA := t.TempDir()
 	rootB := t.TempDir()
-	if err := stateregistry.Touch(rootA, time.Unix(100, 0)); err != nil {
-		t.Fatalf("Touch(rootA): %v", err)
+	if err := stateregistry.SetContextName(rootA, "alpha", time.Unix(100, 0)); err != nil {
+		t.Fatalf("SetContextName(rootA): %v", err)
 	}
-	if err := stateregistry.Touch(rootB, time.Unix(200, 0)); err != nil {
-		t.Fatalf("Touch(rootB): %v", err)
+	if err := stateregistry.SetContextName(rootB, "bravo", time.Unix(200, 0)); err != nil {
+		t.Fatalf("SetContextName(rootB): %v", err)
 	}
 
 	var out bytes.Buffer
@@ -91,10 +87,13 @@ func TestCLI_Context_ListShowsRegistryEntries(t *testing.T) {
 		t.Fatalf("context list exit code = %d, want %d (stderr=%q)", code, exitOK, errBuf.String())
 	}
 	text := out.String()
-	if !strings.Contains(text, rootA) || !strings.Contains(text, rootB) {
-		t.Fatalf("context list missing roots: %q", text)
+	if !strings.Contains(text, "alpha") || !strings.Contains(text, "bravo") {
+		t.Fatalf("context list missing names: %q", text)
 	}
-	if strings.Index(text, rootB) > strings.Index(text, rootA) {
+	if !strings.Contains(text, "path="+rootA) || !strings.Contains(text, "path="+rootB) {
+		t.Fatalf("context list missing paths: %q", text)
+	}
+	if strings.Index(text, "bravo") > strings.Index(text, "alpha") {
 		t.Fatalf("context list order should prefer newer last_used_at: %q", text)
 	}
 }
@@ -102,7 +101,6 @@ func TestCLI_Context_ListShowsRegistryEntries(t *testing.T) {
 func TestCLI_Context_CurrentFailsWhenContextMissing(t *testing.T) {
 	dataHome := filepath.Join(t.TempDir(), "xdg-data")
 	t.Setenv("XDG_DATA_HOME", dataHome)
-	t.Setenv("GIONX_ROOT", "")
 
 	missing := filepath.Join(t.TempDir(), "missing-root")
 	if err := paths.WriteCurrentContext(missing); err != nil {

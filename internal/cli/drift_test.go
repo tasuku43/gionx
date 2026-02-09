@@ -93,7 +93,7 @@ func TestCLI_Init_UsesDifferentRootsWithoutStateDBDependency(t *testing.T) {
 	var err1 bytes.Buffer
 	c1 := New(&out1, &err1)
 
-	code := c1.Run([]string{"init", "--root", env.Root})
+	code := c1.Run([]string{"init", "--root", env.Root, "--context", "root-a"})
 	if code != exitOK {
 		t.Fatalf("first init exit code = %d, want %d (stderr=%q)", code, exitOK, err1.String())
 	}
@@ -104,7 +104,7 @@ func TestCLI_Init_UsesDifferentRootsWithoutStateDBDependency(t *testing.T) {
 	var err2 bytes.Buffer
 	c2 := New(&out2, &err2)
 
-	code = c2.Run([]string{"init", "--root", otherRoot})
+	code = c2.Run([]string{"init", "--root", otherRoot, "--context", "root-b"})
 	if code != exitOK {
 		t.Fatalf("second init exit code = %d, want %d (stderr=%q)", code, exitOK, err2.String())
 	}
@@ -130,7 +130,7 @@ func TestCLI_Init_IgnoresLegacyRepoPoolDrift(t *testing.T) {
 	var err1 bytes.Buffer
 	c1 := New(&out1, &err1)
 
-	code := c1.Run([]string{"init", "--root", root})
+	code := c1.Run([]string{"init", "--root", root, "--context", "drift"})
 	if code != exitOK {
 		t.Fatalf("first init exit code = %d, want %d (stderr=%q)", code, exitOK, err1.String())
 	}
@@ -142,7 +142,7 @@ func TestCLI_Init_IgnoresLegacyRepoPoolDrift(t *testing.T) {
 	var err2 bytes.Buffer
 	c2 := New(&out2, &err2)
 
-	code = c2.Run([]string{"init", "--root", root})
+	code = c2.Run([]string{"init", "--root", root, "--context", "drift"})
 	if code != exitOK {
 		t.Fatalf("second init exit code = %d, want %d (stderr=%q)", code, exitOK, err2.String())
 	}

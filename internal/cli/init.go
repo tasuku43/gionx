@@ -21,6 +21,7 @@ const (
 
 func (c *CLI) runInit(args []string) int {
 	rootFromFlag := ""
+	contextFromFlag := ""
 	for len(args) > 0 {
 		switch args[0] {
 		case "-h", "--help", "help":
@@ -34,9 +35,22 @@ func (c *CLI) runInit(args []string) int {
 			}
 			rootFromFlag = strings.TrimSpace(args[1])
 			args = args[2:]
+		case "--context":
+			if len(args) < 2 {
+				fmt.Fprintln(c.Err, "--context requires a value")
+				c.printInitUsage(c.Err)
+				return exitUsage
+			}
+			contextFromFlag = strings.TrimSpace(args[1])
+			args = args[2:]
 		default:
 			if strings.HasPrefix(args[0], "--root=") {
 				rootFromFlag = strings.TrimSpace(strings.TrimPrefix(args[0], "--root="))
+				args = args[1:]
+				continue
+			}
+			if strings.HasPrefix(args[0], "--context=") {
+				contextFromFlag = strings.TrimSpace(strings.TrimPrefix(args[0], "--context="))
 				args = args[1:]
 				continue
 			}
@@ -46,9 +60,9 @@ func (c *CLI) runInit(args []string) int {
 		}
 	}
 
-	root, err := c.resolveInitRoot(rootFromFlag)
+	root, contextName, err := c.resolveInitInputs(rootFromFlag, contextFromFlag)
 	if err != nil {
-		fmt.Fprintf(c.Err, "resolve GIONX_ROOT: %v\n", err)
+		fmt.Fprintf(c.Err, "resolve init inputs: %v\n", err)
 		return exitError
 	}
 	if err := c.ensureDebugLog(root, "init"); err != nil {
@@ -58,12 +72,14 @@ func (c *CLI) runInit(args []string) int {
 
 	ctx := context.Background()
 	svc := initcmd.NewService(appports.NewInitPort(ensureInitLayout, c.touchStateRegistry))
-	result, err := svc.Run(ctx, initcmd.Request{Root: root})
+	result, err := svc.Run(ctx, initcmd.Request{Root: root, ContextName: contextName})
 	if err != nil {
 		switch {
 		case strings.HasPrefix(err.Error(), "init layout:"):
 			fmt.Fprintf(c.Err, "%v\n", err)
 		case strings.HasPrefix(err.Error(), "update root registry:"):
+			fmt.Fprintf(c.Err, "%v\n", err)
+		case strings.HasPrefix(err.Error(), "update context registry:"):
 			fmt.Fprintf(c.Err, "%v\n", err)
 		default:
 			fmt.Fprintf(c.Err, "run init usecase: %v\n", err)
@@ -76,33 +92,67 @@ func (c *CLI) runInit(args []string) int {
 	}
 
 	useColorOut := writerSupportsColor(c.Out)
-	printResultSection(c.Out, useColorOut, styleSuccess(fmt.Sprintf("Initialized: %s", result.Root), useColorOut))
+	printResultSection(
+		c.Out,
+		useColorOut,
+		styleSuccess(fmt.Sprintf("Initialized: %s", result.Root), useColorOut),
+		styleSuccess(fmt.Sprintf("Context selected: %s", contextName), useColorOut),
+	)
 	c.debugf("init completed root=%s", result.Root)
 	return exitOK
 }
 
-func (c *CLI) resolveInitRoot(rootFromFlag string) (string, error) {
-	if strings.TrimSpace(rootFromFlag) != "" {
-		return normalizeInitRoot(rootFromFlag)
+func (c *CLI) resolveInitInputs(rootFromFlag string, contextFromFlag string) (root string, contextName string, err error) {
+	isTTY := false
+	if inFile, ok := c.In.(*os.File); ok && isatty.IsTerminal(inFile.Fd()) {
+		isTTY = true
 	}
 
-	if inFile, ok := c.In.(*os.File); ok && isatty.IsTerminal(inFile.Fd()) {
+	if strings.TrimSpace(rootFromFlag) == "" {
+		if !isTTY {
+			return "", "", fmt.Errorf("non-interactive init requires --root")
+		}
 		defaultRootAbs, defaultRootLabel, err := defaultInitRootSuggestion()
 		if err != nil {
-			return "", err
+			return "", "", err
 		}
 		line, err := c.promptLine(fmt.Sprintf("root path [%s]: ", defaultRootLabel))
 		if err != nil {
-			return "", err
+			return "", "", err
 		}
 		selected := strings.TrimSpace(line)
 		if selected == "" {
 			selected = defaultRootAbs
 		}
-		return normalizeInitRoot(selected)
+		rootFromFlag = selected
+	}
+	root, err = normalizeInitRoot(rootFromFlag)
+	if err != nil {
+		return "", "", err
 	}
 
-	return "", fmt.Errorf("non-interactive init requires --root")
+	contextFromFlag = strings.TrimSpace(contextFromFlag)
+	if contextFromFlag == "" {
+		if !isTTY {
+			return "", "", fmt.Errorf("non-interactive init requires --context")
+		}
+		defaultName, err := defaultContextNameSuggestion()
+		if err != nil {
+			return "", "", err
+		}
+		line, err := c.promptLine(fmt.Sprintf("context name [%s]: ", defaultName))
+		if err != nil {
+			return "", "", err
+		}
+		contextFromFlag = strings.TrimSpace(line)
+		if contextFromFlag == "" {
+			contextFromFlag = defaultName
+		}
+	}
+	if strings.TrimSpace(contextFromFlag) == "" {
+		return "", "", fmt.Errorf("context name is required")
+	}
+	return root, contextFromFlag, nil
 }
 
 func defaultInitRootSuggestion() (abs string, label string, err error) {
@@ -111,6 +161,18 @@ func defaultInitRootSuggestion() (abs string, label string, err error) {
 		return "", "", err
 	}
 	return filepath.Join(home, "gionx"), "~/gionx", nil
+}
+
+func defaultContextNameSuggestion() (string, error) {
+	wd, err := os.Getwd()
+	if err != nil {
+		return "", err
+	}
+	base := strings.TrimSpace(filepath.Base(filepath.Clean(wd)))
+	if base == "" || base == "." || base == string(filepath.Separator) {
+		return "default", nil
+	}
+	return base, nil
 }
 
 func normalizeInitRoot(rootRaw string) (string, error) {

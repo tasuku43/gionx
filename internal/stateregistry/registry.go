@@ -14,6 +14,7 @@ import (
 )
 
 type Entry struct {
+	ContextName string `json:"context_name,omitempty"`
 	RootPath    string `json:"root_path"`
 	FirstSeenAt int64  `json:"first_seen_at"`
 	LastUsedAt  int64  `json:"last_used_at"`
@@ -24,6 +25,7 @@ type filePayload struct {
 }
 
 type fileEntryPayload struct {
+	ContextName string `json:"context_name,omitempty"`
 	RootPath    string `json:"root_path"`
 	StateDBPath string `json:"state_db_path,omitempty"` // legacy compatibility (read-only)
 	FirstSeenAt int64  `json:"first_seen_at"`
@@ -58,6 +60,7 @@ func Load(path string) ([]Entry, error) {
 	out := make([]Entry, 0, len(p.Entries))
 	for _, e := range p.Entries {
 		out = append(out, Entry{
+			ContextName: strings.TrimSpace(e.ContextName),
 			RootPath:    e.RootPath,
 			FirstSeenAt: e.FirstSeenAt,
 			LastUsedAt:  e.LastUsedAt,
@@ -123,6 +126,7 @@ func writeAtomic(path string, entries []Entry) error {
 	entryPayloads := make([]fileEntryPayload, 0, len(entries))
 	for _, e := range entries {
 		entryPayloads = append(entryPayloads, fileEntryPayload{
+			ContextName: strings.TrimSpace(e.ContextName),
 			RootPath:    e.RootPath,
 			FirstSeenAt: e.FirstSeenAt,
 			LastUsedAt:  e.LastUsedAt,
@@ -175,4 +179,113 @@ func cleanAbs(path string) (string, error) {
 		return "", err
 	}
 	return filepath.Clean(abs), nil
+}
+
+func SetContextName(rootPath string, contextName string, now time.Time) error {
+	rootAbs, err := cleanAbs(rootPath)
+	if err != nil {
+		return fmt.Errorf("resolve root_path: %w", err)
+	}
+	contextName = strings.TrimSpace(contextName)
+	if contextName == "" {
+		return fmt.Errorf("context name is required")
+	}
+
+	registryPath, err := Path()
+	if err != nil {
+		return fmt.Errorf("resolve root registry path: %w", err)
+	}
+	entries, err := Load(registryPath)
+	if err != nil {
+		return err
+	}
+
+	nowUnix := now.Unix()
+	if nowUnix <= 0 {
+		nowUnix = time.Now().Unix()
+	}
+
+	rootIdx := -1
+	for i := range entries {
+		if entries[i].RootPath == rootAbs {
+			rootIdx = i
+			break
+		}
+	}
+	for i := range entries {
+		if strings.TrimSpace(entries[i].ContextName) != contextName {
+			continue
+		}
+		if i != rootIdx {
+			return fmt.Errorf("context name already exists: %s", contextName)
+		}
+	}
+
+	if rootIdx >= 0 {
+		entries[rootIdx].ContextName = contextName
+		if entries[rootIdx].FirstSeenAt <= 0 {
+			entries[rootIdx].FirstSeenAt = nowUnix
+		}
+		if entries[rootIdx].LastUsedAt < nowUnix {
+			entries[rootIdx].LastUsedAt = nowUnix
+		}
+	} else {
+		entries = append(entries, Entry{
+			ContextName: contextName,
+			RootPath:    rootAbs,
+			FirstSeenAt: nowUnix,
+			LastUsedAt:  nowUnix,
+		})
+	}
+
+	slices.SortFunc(entries, func(a, b Entry) int {
+		return strings.Compare(a.RootPath, b.RootPath)
+	})
+	return writeAtomic(registryPath, entries)
+}
+
+func ResolveRootByContextName(contextName string) (string, bool, error) {
+	contextName = strings.TrimSpace(contextName)
+	if contextName == "" {
+		return "", false, fmt.Errorf("context name is required")
+	}
+	registryPath, err := Path()
+	if err != nil {
+		return "", false, fmt.Errorf("resolve root registry path: %w", err)
+	}
+	entries, err := Load(registryPath)
+	if err != nil {
+		return "", false, err
+	}
+	for _, e := range entries {
+		if strings.TrimSpace(e.ContextName) == contextName {
+			return e.RootPath, true, nil
+		}
+	}
+	return "", false, nil
+}
+
+func ResolveContextNameByRoot(rootPath string) (string, bool, error) {
+	rootAbs, err := cleanAbs(rootPath)
+	if err != nil {
+		return "", false, fmt.Errorf("resolve root_path: %w", err)
+	}
+	registryPath, err := Path()
+	if err != nil {
+		return "", false, fmt.Errorf("resolve root registry path: %w", err)
+	}
+	entries, err := Load(registryPath)
+	if err != nil {
+		return "", false, err
+	}
+	for _, e := range entries {
+		if e.RootPath == rootAbs {
+			name := strings.TrimSpace(e.ContextName)
+			if name == "" {
+				return "", false, nil
+			}
+			return name, true, nil
+		}
+	}
+	return "", false, nil
 }

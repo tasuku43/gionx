@@ -6,14 +6,17 @@ import (
 )
 
 type Entry struct {
-	RootPath   string
-	LastUsedAt int64
+	ContextName string
+	RootPath    string
+	LastUsedAt  int64
 }
 
 type Port interface {
 	ResolveCurrentRoot(cwd string) (string, error)
+	ResolveCurrentName(root string) (string, bool, error)
 	ListEntries() ([]Entry, error)
-	ResolveUseRoot(raw string) (string, error)
+	ResolveUseRootByName(name string) (string, bool, error)
+	CreateContext(name string, rawPath string) (string, error)
 	WriteCurrent(root string) error
 }
 
@@ -26,7 +29,14 @@ func NewService(port Port) *Service {
 }
 
 func (s *Service) Current(cwd string) (string, error) {
-	return s.port.ResolveCurrentRoot(cwd)
+	root, err := s.port.ResolveCurrentRoot(cwd)
+	if err != nil {
+		return "", err
+	}
+	if name, ok, err := s.port.ResolveCurrentName(root); err == nil && ok {
+		return name, nil
+	}
+	return root, nil
 }
 
 func (s *Service) List() ([]Entry, error) {
@@ -46,13 +56,41 @@ func (s *Service) List() ([]Entry, error) {
 	return entries, nil
 }
 
-func (s *Service) Use(raw string) (string, error) {
-	root, err := s.port.ResolveUseRoot(raw)
+func (s *Service) Use(name string) (string, error) {
+	root, ok, err := s.port.ResolveUseRootByName(name)
 	if err != nil {
 		return "", err
+	}
+	if !ok {
+		return "", errContextNotFound(name)
 	}
 	if err := s.port.WriteCurrent(root); err != nil {
 		return "", err
 	}
 	return root, nil
+}
+
+func (s *Service) Create(name string, rawPath string, useNow bool) (string, error) {
+	root, err := s.port.CreateContext(name, rawPath)
+	if err != nil {
+		return "", err
+	}
+	if useNow {
+		if err := s.port.WriteCurrent(root); err != nil {
+			return "", err
+		}
+	}
+	return root, nil
+}
+
+func errContextNotFound(name string) error {
+	return &contextNotFoundError{Name: strings.TrimSpace(name)}
+}
+
+type contextNotFoundError struct {
+	Name string
+}
+
+func (e *contextNotFoundError) Error() string {
+	return "context not found: " + e.Name
 }

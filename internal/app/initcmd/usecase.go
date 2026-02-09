@@ -3,7 +3,8 @@ package initcmd
 import "context"
 
 type Request struct {
-	Root string
+	Root        string
+	ContextName string
 }
 
 type Result struct {
@@ -13,6 +14,7 @@ type Result struct {
 type Port interface {
 	EnsureLayout(root string) error
 	TouchRegistry(root string) error
+	SetContextName(root string, contextName string) error
 }
 
 type Service struct {
@@ -28,6 +30,9 @@ func (s *Service) Run(ctx context.Context, req Request) (Result, error) {
 		return Result{}, err
 	}
 	if err := s.port.TouchRegistry(req.Root); err != nil {
+		return Result{}, err
+	}
+	if err := s.port.SetContextName(req.Root, req.ContextName); err != nil {
 		return Result{}, err
 	}
 	return Result{Root: req.Root}, nil

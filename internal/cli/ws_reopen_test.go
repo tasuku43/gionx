@@ -51,7 +51,7 @@ func TestCLI_WS_Reopen_RestoresWorkspaceRecreatesWorktreesCommitsAndUpdatesDB(t 
 		var out bytes.Buffer
 		var err bytes.Buffer
 		c := New(&out, &err)
-		code := c.Run([]string{"init", "--root", env.Root})
+		code := c.Run([]string{"init", "--root", env.Root, "--context", "ws-reopen"})
 		if code != exitOK {
 			t.Fatalf("init exit code = %d, want %d (stderr=%q)", code, exitOK, err.String())
 		}
@@ -161,7 +161,7 @@ func TestCLI_WS_Reopen_RecreatesWorktreesWithoutWorkspaceRepoBindings(t *testing
 		var out bytes.Buffer
 		var err bytes.Buffer
 		c := New(&out, &err)
-		code := c.Run([]string{"init", "--root", env.Root})
+		code := c.Run([]string{"init", "--root", env.Root, "--context", "ws-reopen"})
 		if code != exitOK {
 			t.Fatalf("init exit code = %d, want %d (stderr=%q)", code, exitOK, err.String())
 		}
@@ -258,7 +258,7 @@ func TestCLI_WS_Reopen_ErrorsWhenBranchCheckedOutElsewhere(t *testing.T) {
 		var out bytes.Buffer
 		var err bytes.Buffer
 		c := New(&out, &err)
-		code := c.Run([]string{"init", "--root", env.Root})
+		code := c.Run([]string{"init", "--root", env.Root, "--context", "ws-reopen"})
 		if code != exitOK {
 			t.Fatalf("init exit code = %d, want %d (stderr=%q)", code, exitOK, err.String())
 		}

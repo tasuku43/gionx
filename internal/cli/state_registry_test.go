@@ -21,7 +21,7 @@ func TestCLI_StateRegistry_InitCreatesEntry(t *testing.T) {
 	var out bytes.Buffer
 	var err bytes.Buffer
 	c := New(&out, &err)
-	if code := c.Run([]string{"init", "--root", root}); code != exitOK {
+	if code := c.Run([]string{"init", "--root", root, "--context", "reg"}); code != exitOK {
 		t.Fatalf("init exit code = %d, want %d (stderr=%q)", code, exitOK, err.String())
 	}
 
@@ -56,7 +56,7 @@ func TestCLI_StateRegistry_WSCreateUpdatesLastUsed(t *testing.T) {
 		var out bytes.Buffer
 		var err bytes.Buffer
 		c := New(&out, &err)
-		if code := c.Run([]string{"init", "--root", root}); code != exitOK {
+		if code := c.Run([]string{"init", "--root", root, "--context", "reg"}); code != exitOK {
 			t.Fatalf("init exit code = %d, want %d (stderr=%q)", code, exitOK, err.String())
 		}
 	}
@@ -105,7 +105,7 @@ func TestCLI_StateRegistry_WSMalformedRegistryFails(t *testing.T) {
 		var out bytes.Buffer
 		var err bytes.Buffer
 		c := New(&out, &err)
-		if code := c.Run([]string{"init", "--root", root}); code != exitOK {
+		if code := c.Run([]string{"init", "--root", root, "--context", "reg"}); code != exitOK {
 			t.Fatalf("init exit code = %d, want %d (stderr=%q)", code, exitOK, err.String())
 		}
 	}

@@ -2,6 +2,7 @@ package appports
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/tasuku43/gionx/internal/app/contextcmd"
 	"github.com/tasuku43/gionx/internal/paths"
@@ -20,6 +21,10 @@ func (p *ContextPort) ResolveCurrentRoot(cwd string) (string, error) {
 	return paths.ResolveExistingRoot(cwd)
 }
 
+func (p *ContextPort) ResolveCurrentName(root string) (string, bool, error) {
+	return stateregistry.ResolveContextNameByRoot(root)
+}
+
 func (p *ContextPort) ListEntries() ([]contextcmd.Entry, error) {
 	registryPath, err := stateregistry.Path()
 	if err != nil {
@@ -32,20 +37,32 @@ func (p *ContextPort) ListEntries() ([]contextcmd.Entry, error) {
 	out := make([]contextcmd.Entry, 0, len(entries))
 	for _, e := range entries {
 		out = append(out, contextcmd.Entry{
-			RootPath:   e.RootPath,
-			LastUsedAt: e.LastUsedAt,
+			ContextName: e.ContextName,
+			RootPath:    e.RootPath,
+			LastUsedAt:  e.LastUsedAt,
 		})
 	}
 	return out, nil
 }
 
-func (p *ContextPort) ResolveUseRoot(raw string) (string, error) {
+func (p *ContextPort) ResolveUseRootByName(name string) (string, bool, error) {
+	root, ok, err := stateregistry.ResolveRootByContextName(name)
+	if err != nil {
+		return "", false, fmt.Errorf("resolve context by name: %w", err)
+	}
+	return root, ok, nil
+}
+
+func (p *ContextPort) CreateContext(name string, rawPath string) (string, error) {
 	if p.ResolveUseRootFn == nil {
 		return "", fmt.Errorf("validate root: resolver callback is required")
 	}
-	root, err := p.ResolveUseRootFn(raw)
+	root, err := p.ResolveUseRootFn(rawPath)
 	if err != nil {
 		return "", fmt.Errorf("validate root: %w", err)
+	}
+	if err := stateregistry.SetContextName(root, name, time.Now()); err != nil {
+		return "", fmt.Errorf("write context registry: %w", err)
 	}
 	return root, nil
 }

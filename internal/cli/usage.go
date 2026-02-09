@@ -28,9 +28,11 @@ func (c *CLI) printContextUsage(w io.Writer) {
   gionx context <subcommand> [args]
 
 Subcommands:
-  current           Print current root
-  list              List known roots from root registry
-  use <root>        Set current root context
+  current           Print current context name (or path fallback)
+  list              List contexts (name/path) from root registry
+  create <name> --path <path> [--use]
+                   Create a named context
+  use <name>        Select context by name
   help              Show this help
 `)
 }
@@ -65,7 +67,7 @@ Examples:
 
 func (c *CLI) printInitUsage(w io.Writer) {
 	fmt.Fprint(w, `Usage:
-  gionx init [--root <path>]
+  gionx init [--root <path>] [--context <name>]
 
 Initialize GIONX_ROOT and set current context.
 
@@ -73,6 +75,11 @@ Root selection order:
 - --root <path> (explicit)
 - interactive prompt in TTY (default: ~/gionx)
 - non-TTY without --root: fail
+
+Context name:
+- --context <name> (explicit)
+- interactive prompt in TTY (default: cwd basename)
+- non-TTY without --context: fail
 `)
 }
 

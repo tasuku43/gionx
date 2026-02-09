@@ -8,8 +8,9 @@ import (
 )
 
 type InitPort struct {
-	EnsureLayoutFn  func(root string) error
-	TouchRegistryFn func(root string) error
+	EnsureLayoutFn   func(root string) error
+	TouchRegistryFn  func(root string) error
+	SetContextNameFn func(root string, contextName string) error
 }
 
 func NewInitPort(ensureLayoutFn func(root string) error, touchRegistryFn func(root string) error) *InitPort {
@@ -38,6 +39,19 @@ func (p *InitPort) TouchRegistry(root string) error {
 	}
 	if err := stateregistry.Touch(root, time.Now()); err != nil {
 		return fmt.Errorf("update root registry: %w", err)
+	}
+	return nil
+}
+
+func (p *InitPort) SetContextName(root string, contextName string) error {
+	if p.SetContextNameFn != nil {
+		if err := p.SetContextNameFn(root, contextName); err != nil {
+			return fmt.Errorf("update context registry: %w", err)
+		}
+		return nil
+	}
+	if err := stateregistry.SetContextName(root, contextName, time.Now()); err != nil {
+		return fmt.Errorf("update context registry: %w", err)
 	}
 	return nil
 }

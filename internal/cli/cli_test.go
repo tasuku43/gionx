@@ -69,7 +69,6 @@ func TestCLI_WS_NoArgs_ShowsWSUsage(t *testing.T) {
 	var err bytes.Buffer
 	c := New(&out, &err)
 	t.Setenv("XDG_DATA_HOME", filepath.Join(t.TempDir(), "xdg-data"))
-	t.Setenv("GIONX_ROOT", "")
 
 	code := c.Run([]string{"ws"})
 	if code != exitError {
@@ -231,7 +230,7 @@ func TestCLI_Init_CreatesLayoutGitignoreGitRepoAndSettings(t *testing.T) {
 	var err bytes.Buffer
 	c := New(&out, &err)
 
-	code := c.Run([]string{"init", "--root", root})
+	code := c.Run([]string{"init", "--root", root, "--context", "test"})
 	if code != exitOK {
 		t.Fatalf("exit code = %d, want %d (stderr=%q)", code, exitOK, err.String())
 	}
@@ -297,7 +296,7 @@ func TestCLI_Init_CreatesMissingGIONXRootDirectory(t *testing.T) {
 	var err bytes.Buffer
 	c := New(&out, &err)
 
-	code := c.Run([]string{"init", "--root", root})
+	code := c.Run([]string{"init", "--root", root, "--context", "test"})
 	if code != exitOK {
 		t.Fatalf("exit code = %d, want %d (stderr=%q)", code, exitOK, err.String())
 	}
@@ -352,7 +351,7 @@ func TestCLI_Init_WithRootFlag_NonTTY_SucceedsAndUpdatesCurrentContext(t *testin
 	c := New(&out, &err)
 	c.In = strings.NewReader("")
 
-	code := c.Run([]string{"init", "--root", root})
+	code := c.Run([]string{"init", "--root", root, "--context", "explicit"})
 	if code != exitOK {
 		t.Fatalf("exit code = %d, want %d (stderr=%q)", code, exitOK, err.String())
 	}
