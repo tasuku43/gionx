@@ -517,6 +517,69 @@ func TestWorkspaceSelectorModel_SingleModeLocksInputWhileConfirming(t *testing.T
 	}
 }
 
+func TestWorkspaceSelectorModel_MultiModeEnterWaitsConfirmDelay(t *testing.T) {
+	m := newWorkspaceSelectorModel(
+		[]workspaceSelectorCandidate{
+			{ID: "WS1", Risk: workspacerisk.WorkspaceRiskClean},
+			{ID: "WS2", Risk: workspacerisk.WorkspaceRiskClean},
+		},
+		"active",
+		"close",
+		false,
+		nil,
+	)
+	m.selected[1] = true
+
+	updated, _ := m.Update(tea.KeyMsg{Type: tea.KeyEnter})
+	next, ok := updated.(workspaceSelectorModel)
+	if !ok {
+		t.Fatalf("unexpected model type: %T", updated)
+	}
+	if next.done {
+		t.Fatalf("multi mode enter should wait confirm delay before completion")
+	}
+	if !next.confirming {
+		t.Fatalf("multi mode should enter confirming state")
+	}
+
+	updated, _ = next.Update(selectorConfirmDoneMsg{})
+	next, ok = updated.(workspaceSelectorModel)
+	if !ok {
+		t.Fatalf("unexpected model type: %T", updated)
+	}
+	if !next.done {
+		t.Fatalf("multi mode should complete after confirm delay")
+	}
+}
+
+func TestWorkspaceSelectorModel_MultiModeReducedMotionSkipsConfirmDelay(t *testing.T) {
+	t.Setenv("GIONX_REDUCED_MOTION", "1")
+
+	m := newWorkspaceSelectorModel(
+		[]workspaceSelectorCandidate{
+			{ID: "WS1", Risk: workspacerisk.WorkspaceRiskClean},
+			{ID: "WS2", Risk: workspacerisk.WorkspaceRiskClean},
+		},
+		"active",
+		"close",
+		false,
+		nil,
+	)
+	m.selected[0] = true
+
+	updated, _ := m.Update(tea.KeyMsg{Type: tea.KeyEnter})
+	next, ok := updated.(workspaceSelectorModel)
+	if !ok {
+		t.Fatalf("unexpected model type: %T", updated)
+	}
+	if !next.done {
+		t.Fatalf("multi mode should complete immediately when reduced motion is enabled")
+	}
+	if next.confirming {
+		t.Fatalf("multi mode should not enter confirming state with reduced motion")
+	}
+}
+
 func TestWorkspaceSelectorModel_SingleModeReducedMotionSkipsConfirmDelay(t *testing.T) {
 	t.Setenv("GIONX_REDUCED_MOTION", "1")
 
@@ -582,5 +645,42 @@ func TestRenderWorkspaceSelectorLinesWithOptions_SingleConfirmingMutesNonSelecte
 	}
 	if !strings.Contains(targetLine, ansiMuted) {
 		t.Fatalf("unselected line should be muted while confirming, got=%q", targetLine)
+	}
+}
+
+func TestRenderWorkspaceSelectorLinesWithOptions_MultiConfirmingMutesNonSelectedRows(t *testing.T) {
+	lines := renderWorkspaceSelectorLinesWithOptions(
+		"active",
+		"Repos(pool):",
+		"add",
+		[]workspaceSelectorCandidate{
+			{ID: "example-org/helmfiles", Risk: workspacerisk.WorkspaceRiskClean},
+			{ID: "example-org/sre-apps", Risk: workspacerisk.WorkspaceRiskClean},
+		},
+		map[int]bool{1: true},
+		1,
+		"",
+		selectorMessageLevelMuted,
+		"",
+		false,
+		true,
+		false,
+		true,
+		true,
+		120,
+	)
+
+	targetLine := ""
+	for _, line := range lines {
+		if strings.Contains(line, "example-org/helmfiles") {
+			targetLine = line
+			break
+		}
+	}
+	if targetLine == "" {
+		t.Fatalf("expected unselected line in output, got=%q", strings.Join(lines, "\n"))
+	}
+	if !strings.Contains(targetLine, ansiMuted) {
+		t.Fatalf("unselected line should be muted while multi confirming, got=%q", targetLine)
 	}
 }

@@ -118,7 +118,7 @@ func (m workspaceSelectorModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, nil
 		}
 		m.done = true
-		m.debugf("selector done (single confirm) selected=%v", m.selectedIDs())
+		m.debugf("selector done (confirm) selected=%v", m.selectedIDs())
 		return m, tea.Quit
 	case tea.KeyMsg:
 		if m.confirming {
@@ -162,10 +162,14 @@ func (m workspaceSelectorModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					m.debugf("selector enter rejected: no selection")
 					return m, nil
 				}
+				if m.reducedMotion {
+					m.done = true
+					m.debugf("selector done (multi reduced motion) selected=%v", m.selectedIDs())
+					return m, tea.Quit
+				}
+				m.confirming = true
+				return m, selectorSingleConfirmCmd()
 			}
-			m.done = true
-			m.debugf("selector done selected=%v", m.selectedIDs())
-			return m, tea.Quit
 		case tea.KeyUp:
 			if m.cursor > 0 {
 				m.cursor--
@@ -455,7 +459,7 @@ func renderWorkspaceSelectorLinesWithOptions(status string, title string, action
 		line := lineRaw
 		if useColor {
 			bodyStyled := bodyRaw
-			if single && confirming && !selected[sourceIdx] {
+			if confirming && !selected[sourceIdx] {
 				bodyStyled = styleMuted(bodyRaw, true)
 			}
 			if !single && selected[sourceIdx] {
