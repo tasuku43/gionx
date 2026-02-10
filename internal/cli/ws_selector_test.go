@@ -140,6 +140,46 @@ func TestWorkspaceSelectorModel_FilterClearsByDeleteOneRuneAtATime(t *testing.T)
 	}
 }
 
+func TestWorkspaceSelectorModel_BackspaceDeletesRuneBeforeFilterCursor(t *testing.T) {
+	m := newWorkspaceSelectorModel([]workspaceSelectorCandidate{{ID: "WS1", Risk: workspacerisk.WorkspaceRiskClean}}, "active", "proceed", false, nil)
+	next := m
+	for _, r := range []rune("abde") {
+		updated, _ := next.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{r}})
+		var ok bool
+		next, ok = updated.(workspaceSelectorModel)
+		if !ok {
+			t.Fatalf("unexpected model type: %T", updated)
+		}
+	}
+
+	updated, _ := next.Update(tea.KeyMsg{Type: tea.KeyLeft})
+	var ok bool
+	next, ok = updated.(workspaceSelectorModel)
+	if !ok {
+		t.Fatalf("unexpected model type: %T", updated)
+	}
+	updated, _ = next.Update(tea.KeyMsg{Type: tea.KeyLeft})
+	next, ok = updated.(workspaceSelectorModel)
+	if !ok {
+		t.Fatalf("unexpected model type: %T", updated)
+	}
+	if pos := next.filterInput.Position(); pos != 2 {
+		t.Fatalf("cursor position = %d, want 2", pos)
+	}
+
+	updated, _ = next.Update(tea.KeyMsg{Type: tea.KeyBackspace})
+	next, ok = updated.(workspaceSelectorModel)
+	if !ok {
+		t.Fatalf("unexpected model type: %T", updated)
+	}
+	if next.filter != "ade" {
+		t.Fatalf("backspace should delete rune before cursor, got %q", next.filter)
+	}
+	if pos := next.filterInput.Position(); pos != 1 {
+		t.Fatalf("cursor position after backspace = %d, want 1", pos)
+	}
+}
+
 func TestWorkspaceSelectorModel_LetterAIsFilterInput(t *testing.T) {
 	m := newWorkspaceSelectorModel([]workspaceSelectorCandidate{
 		{ID: "WS1", Title: "alpha", Risk: workspacerisk.WorkspaceRiskClean},

@@ -126,11 +126,9 @@ func (m workspaceSelectorModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.debugf("selector canceled")
 			return m, tea.Quit
 		case tea.KeyBackspace, tea.KeyDelete:
-			if m.filter != "" {
-				m.setFilter(trimLastRune(m.filter))
+			if m.deleteFilterRuneBeforeCursor() {
 				m.ensureCursorInFilteredRange()
 				m.clearMessage()
-				return m, nil
 			}
 			return m, nil
 		case tea.KeyEnter:
@@ -285,6 +283,25 @@ func (m *workspaceSelectorModel) setFilter(filter string) {
 	m.filter = filter
 	m.filterInput.SetValue(filter)
 	m.filterInput.CursorEnd()
+}
+
+func (m *workspaceSelectorModel) deleteFilterRuneBeforeCursor() bool {
+	filterRunes := []rune(m.filterInput.Value())
+	if len(filterRunes) == 0 {
+		return false
+	}
+	pos := m.filterInput.Position()
+	if pos <= 0 {
+		return false
+	}
+	if pos > len(filterRunes) {
+		pos = len(filterRunes)
+	}
+	next := append(filterRunes[:pos-1], filterRunes[pos:]...)
+	m.filter = string(next)
+	m.filterInput.SetValue(m.filter)
+	m.filterInput.SetCursor(pos - 1)
+	return true
 }
 
 func (m *workspaceSelectorModel) ensureCursorInFilteredRange() {
@@ -651,14 +668,6 @@ func isFilterAppendableRune(r rune) bool {
 		return false
 	}
 	return true
-}
-
-func trimLastRune(s string) string {
-	if s == "" {
-		return ""
-	}
-	runes := []rune(s)
-	return string(runes[:len(runes)-1])
 }
 
 func runeDisplayWidth(r rune) int {
