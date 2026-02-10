@@ -448,6 +448,9 @@ func TestWorkspaceSelectorModel_SingleModeEnterSelectsCurrent(t *testing.T) {
 	if !next.confirming {
 		t.Fatalf("single mode should enter confirming state")
 	}
+	if next.filterInput.Focused() {
+		t.Fatalf("single mode confirm should hide filter cursor before transition")
+	}
 	ids := next.selectedIDs()
 	if len(ids) != 1 || ids[0] != "WS2" {
 		t.Fatalf("single mode should select focused row, got=%v", ids)
@@ -522,6 +525,9 @@ func TestWorkspaceSelectorModel_MultiModeEnterWaitsConfirmDelay(t *testing.T) {
 	if !next.confirming {
 		t.Fatalf("multi mode should enter confirming state")
 	}
+	if next.filterInput.Focused() {
+		t.Fatalf("multi mode confirm should hide filter cursor before transition")
+	}
 
 	updated, _ = next.Update(selectorConfirmDoneMsg{})
 	next, ok = updated.(workspaceSelectorModel)
@@ -559,6 +565,9 @@ func TestWorkspaceSelectorModel_MultiModeReducedMotionSkipsConfirmDelay(t *testi
 	if next.confirming {
 		t.Fatalf("multi mode should not enter confirming state with reduced motion")
 	}
+	if next.filterInput.Focused() {
+		t.Fatalf("multi mode reduced motion should hide filter cursor before transition")
+	}
 }
 
 func TestWorkspaceSelectorModel_SingleModeReducedMotionSkipsConfirmDelay(t *testing.T) {
@@ -589,6 +598,9 @@ func TestWorkspaceSelectorModel_SingleModeReducedMotionSkipsConfirmDelay(t *test
 	}
 	if next.confirming {
 		t.Fatalf("single mode should not enter confirming state with reduced motion")
+	}
+	if next.filterInput.Focused() {
+		t.Fatalf("single mode reduced motion should hide filter cursor before transition")
 	}
 }
 

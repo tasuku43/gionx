@@ -143,6 +143,7 @@ func (m workspaceSelectorModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				}
 				idx := visible[m.cursor]
 				m.selected = map[int]bool{idx: true}
+				m.filterInput.Blur()
 				if m.reducedMotion {
 					m.done = true
 					m.debugf("selector done (single reduced motion) selected=%v", m.selectedIDs())
@@ -156,6 +157,7 @@ func (m workspaceSelectorModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					m.debugf("selector enter rejected: no selection")
 					return m, nil
 				}
+				m.filterInput.Blur()
 				if m.reducedMotion {
 					m.done = true
 					m.debugf("selector done (multi reduced motion) selected=%v", m.selectedIDs())
