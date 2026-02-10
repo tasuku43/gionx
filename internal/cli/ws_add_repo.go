@@ -1284,9 +1284,7 @@ func renderAddRepoInputsProgress(out io.Writer, workspaceID string, rows []addRe
 	lines := buildAddRepoInputsLines(workspaceID, rows, activeIndex, useColor)
 	if writerIsTTY(out) && prevLines > 0 {
 		moveUp := prevLines
-		if afterPrompt {
-			moveUp++
-		}
+		_ = afterPrompt
 		fmt.Fprintf(out, "\x1b[%dA", moveUp)
 	}
 	for _, line := range lines {
