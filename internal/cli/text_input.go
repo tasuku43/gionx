@@ -22,14 +22,25 @@ func newCLITextInput() textinput.Model {
 type inlineTextInputModel struct {
 	prompt   string
 	input    textinput.Model
+	initial  string
 	value    string
+	edited   bool
 	canceled bool
 }
 
 func newInlineTextInputModel(prompt string) inlineTextInputModel {
+	return newInlineTextInputModelWithInitial(prompt, "")
+}
+
+func newInlineTextInputModelWithInitial(prompt string, initialValue string) inlineTextInputModel {
+	initial := strings.TrimSpace(initialValue)
+	input := newCLITextInput()
+	input.SetValue(initial)
+	input.CursorEnd()
 	return inlineTextInputModel{
-		prompt: prompt,
-		input:  newCLITextInput(),
+		prompt:  prompt,
+		input:   input,
+		initial: initial,
 	}
 }
 
@@ -42,7 +53,12 @@ func (m inlineTextInputModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.KeyMsg:
 		switch msg.Type {
 		case tea.KeyEnter:
-			m.value = strings.TrimSpace(m.input.Value())
+			value := strings.TrimSpace(m.input.Value())
+			if value == "" && m.initial != "" {
+				value = m.initial
+			}
+			m.value = value
+			m.edited = value != m.initial
 			return m, tea.Quit
 		case tea.KeyCtrlC, tea.KeyEsc:
 			m.canceled = true
@@ -59,7 +75,12 @@ func (m inlineTextInputModel) View() string {
 }
 
 func runInlineTextInput(in io.Reader, out io.Writer, prompt string) (string, error) {
-	model := newInlineTextInputModel(prompt)
+	value, _, err := runInlineTextInputWithInitial(in, out, prompt, "")
+	return value, err
+}
+
+func runInlineTextInputWithInitial(in io.Reader, out io.Writer, prompt string, initialValue string) (string, bool, error) {
+	model := newInlineTextInputModelWithInitial(prompt, initialValue)
 	program := tea.NewProgram(
 		model,
 		tea.WithInput(in),
@@ -68,15 +89,15 @@ func runInlineTextInput(in io.Reader, out io.Writer, prompt string) (string, err
 	)
 	finalModel, err := program.Run()
 	if err != nil {
-		return "", err
+		return "", false, err
 	}
 	_, _ = fmt.Fprintln(out)
 	next, ok := finalModel.(inlineTextInputModel)
 	if !ok {
-		return "", fmt.Errorf("unexpected inline input model type")
+		return "", false, fmt.Errorf("unexpected inline input model type")
 	}
 	if next.canceled {
-		return "", errInputCanceled
+		return "", false, errInputCanceled
 	}
-	return next.value, nil
+	return next.value, next.edited, nil
 }

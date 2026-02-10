@@ -8,7 +8,6 @@ require (
 	github.com/charmbracelet/lipgloss v1.1.0
 	github.com/mattn/go-isatty v0.0.20
 	github.com/tasuku43/gion-core v0.1.0
-	golang.org/x/term v0.39.0
 )
 
 require (

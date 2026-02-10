@@ -44,3 +44,19 @@ func TestInlineTextInputModel_EscapeCancelsInput(t *testing.T) {
 		t.Fatalf("escape should cancel input")
 	}
 }
+
+func TestInlineTextInputModelWithInitial_EnterUsesInitialWhenEmpty(t *testing.T) {
+	m := newInlineTextInputModelWithInitial("prompt: ", "origin/main")
+
+	updated, _ := m.Update(tea.KeyMsg{Type: tea.KeyEnter})
+	next, ok := updated.(inlineTextInputModel)
+	if !ok {
+		t.Fatalf("unexpected model type: %T", updated)
+	}
+	if next.value != "origin/main" {
+		t.Fatalf("value = %q, want %q", next.value, "origin/main")
+	}
+	if next.edited {
+		t.Fatalf("edited should be false when value remains initial")
+	}
+}

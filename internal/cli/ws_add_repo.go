@@ -21,7 +21,6 @@ import (
 	"github.com/tasuku43/gionx/internal/infra/gitutil"
 	"github.com/tasuku43/gionx/internal/infra/paths"
 	"github.com/tasuku43/gionx/internal/infra/statestore"
-	"golang.org/x/term"
 )
 
 type addRepoPoolCandidate struct {
@@ -1378,64 +1377,14 @@ func (c *CLI) promptAddRepoEditableInput(prefix string, label string, initialVal
 		return line, true, nil
 	}
 
-	fd := int(inFile.Fd())
-	oldState, err := term.MakeRaw(fd)
+	value, edited, err := runInlineTextInputWithInitial(inFile, c.Err, prompt, initial)
 	if err != nil {
-		line, fallbackErr := c.promptLine(prompt + initial)
-		if fallbackErr != nil {
-			return "", false, fallbackErr
-		}
-		line = strings.TrimSpace(line)
-		if line == "" {
-			return initial, false, nil
-		}
-		return line, true, nil
-	}
-	defer func() { _ = term.Restore(fd, oldState) }()
-
-	buf := []rune(initial)
-	edited := false
-	render := func() {
-		fmt.Fprintf(c.Err, "\r\x1b[2K%s%s", prompt, string(buf))
-	}
-
-	render()
-	for {
-		var b [1]byte
-		n, readErr := inFile.Read(b[:])
-		if readErr != nil {
-			fmt.Fprint(c.Err, "\r\n")
-			return "", false, readErr
-		}
-		if n == 0 {
-			continue
-		}
-
-		switch b[0] {
-		case '\r', '\n':
-			fmt.Fprint(c.Err, "\r\n")
-			return strings.TrimSpace(string(buf)), edited, nil
-		case 0x03:
-			fmt.Fprint(c.Err, "\r\n")
+		if errors.Is(err, errInputCanceled) {
 			return "", false, fmt.Errorf("interrupted")
-		case 0x7f, 0x08:
-			if len(buf) > 0 {
-				buf = buf[:len(buf)-1]
-				edited = true
-				render()
-			}
-		case 0x1b:
-			// Ignore escape sequences (arrow keys etc.).
-			continue
-		default:
-			if b[0] < 0x20 {
-				continue
-			}
-			buf = append(buf, rune(b[0]))
-			edited = true
-			render()
 		}
+		return "", false, err
 	}
+	return value, edited, nil
 }
 
 func addRepoInputDetailPromptPrefix(useColor bool) string {
