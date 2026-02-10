@@ -126,3 +126,28 @@ func TestRenderAddRepoApplyPrompt_UsesBulletedPlanAlignment(t *testing.T) {
 		t.Fatalf("renderAddRepoApplyPrompt() = %q, want %q", got, want)
 	}
 }
+
+func TestPrintAddRepoResult_NoLeadingBlankLine(t *testing.T) {
+	var out bytes.Buffer
+	applied := []addRepoAppliedItem{
+		{Plan: addRepoPlanItem{Candidate: addRepoPoolCandidate{RepoKey: "tasuku43/gionx"}}},
+		{Plan: addRepoPlanItem{Candidate: addRepoPoolCandidate{RepoKey: "tasuku43/gion-core"}}},
+	}
+
+	printAddRepoResult(&out, applied, false)
+	got := out.String()
+
+	if strings.HasPrefix(got, "\n") {
+		t.Fatalf("result should not start with blank line:\n%q", got)
+	}
+	for _, want := range []string{
+		"Result:",
+		"  • Added 2 / 2",
+		"  • ✔ tasuku43/gionx",
+		"  • ✔ tasuku43/gion-core",
+	} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("missing %q in result output:\n%s", want, got)
+		}
+	}
+}

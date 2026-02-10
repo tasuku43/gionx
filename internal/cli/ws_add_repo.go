@@ -1516,12 +1516,16 @@ func rollbackAddRepoApplied(ctx context.Context, db *sql.DB, workspaceID string,
 
 func printAddRepoResult(out io.Writer, applied []addRepoAppliedItem, useColor bool) {
 	bullet := styleMuted("•", useColor)
-	fmt.Fprintln(out)
-	fmt.Fprintln(out, renderResultTitle(useColor))
-	fmt.Fprintf(out, "%s%s Added %d / %d\n", uiIndent, bullet, len(applied), len(applied))
-	for _, it := range applied {
-		fmt.Fprintf(out, "%s%s ✔ %s\n", uiIndent, bullet, it.Plan.Candidate.RepoKey)
+	body := []string{
+		fmt.Sprintf("%s%s Added %d / %d", uiIndent, bullet, len(applied), len(applied)),
 	}
+	for _, it := range applied {
+		body = append(body, fmt.Sprintf("%s%s ✔ %s", uiIndent, bullet, it.Plan.Candidate.RepoKey))
+	}
+	printSection(out, renderResultTitle(useColor), body, sectionRenderOptions{
+		blankAfterHeading: false,
+		trailingBlank:     true,
+	})
 }
 
 func buildWorkspaceMetaReposRestore(applied []addRepoAppliedItem) []workspaceMetaRepoRestore {
