@@ -293,6 +293,53 @@ func TestRenderWorkspaceSelectorLines_UsesActionLabelInFooter(t *testing.T) {
 	}
 }
 
+func TestRenderWorkspaceSelectorLines_UsesColonBetweenIDAndTitle(t *testing.T) {
+	lines := renderWorkspaceSelectorLines(
+		"active",
+		"go",
+		[]workspaceSelectorCandidate{{ID: "TEST-100", Title: "Kwsの申請", Risk: workspacerisk.WorkspaceRiskClean}},
+		map[int]bool{},
+		0,
+		"",
+		"",
+		true,
+		false,
+		120,
+	)
+	joined := strings.Join(lines, "\n")
+	if !strings.Contains(joined, "○ TEST-100 : Kwsの申請") {
+		t.Fatalf("workspace row should render as '<id> : <title>', got %q", joined)
+	}
+}
+
+func TestRenderWorkspaceSelectorLines_ColorizedColonAndNoTitle(t *testing.T) {
+	lines := renderWorkspaceSelectorLines(
+		"active",
+		"go",
+		[]workspaceSelectorCandidate{
+			{ID: "TEST-002", Title: "", Risk: workspacerisk.WorkspaceRiskClean},
+			{ID: "TEST-003", Title: "has title", Risk: workspacerisk.WorkspaceRiskClean},
+		},
+		map[int]bool{},
+		1,
+		"",
+		"",
+		true,
+		true,
+		120,
+	)
+	joined := strings.Join(lines, "\n")
+	if !strings.Contains(joined, ansiBold+"TEST-002"+ansiReset) {
+		t.Fatalf("workspace id should be bold in selector row, got %q", joined)
+	}
+	if !strings.Contains(joined, ansiMuted+" : "+ansiReset) {
+		t.Fatalf("separator should use muted token, got %q", joined)
+	}
+	if !strings.Contains(joined, ansiMuted+"(no title)"+ansiReset) {
+		t.Fatalf("empty title should use muted token, got %q", joined)
+	}
+}
+
 func TestRenderWorkspaceSelectorLines_MessageIsIndented(t *testing.T) {
 	lines := renderWorkspaceSelectorLinesWithOptions(
 		"active",
@@ -685,7 +732,7 @@ func TestRenderWorkspaceSelectorLinesWithOptions_SingleConfirmingMutesNonSelecte
 
 	targetLine := ""
 	for _, line := range lines {
-		if strings.Contains(line, "○ WS1") {
+		if strings.Contains(line, "WS1") {
 			targetLine = line
 			break
 		}
@@ -732,5 +779,13 @@ func TestRenderWorkspaceSelectorLinesWithOptions_MultiConfirmingMutesNonSelected
 	}
 	if !strings.Contains(targetLine, ansiMuted) {
 		t.Fatalf("unselected line should be muted while multi confirming, got=%q", targetLine)
+	}
+}
+
+func TestStripANSISequences_RemovesEscapeCodes(t *testing.T) {
+	input := ansiBold + "TEST-100" + ansiReset + ansiMuted + " : " + ansiReset + "title"
+	got := stripANSISequences(input)
+	if got != "TEST-100 : title" {
+		t.Fatalf("stripANSISequences() = %q, want %q", got, "TEST-100 : title")
 	}
 }

@@ -16,8 +16,8 @@ func TestGolden_WSActionSelectorSingle(t *testing.T) {
 		"Action:",
 		"run",
 		[]workspaceSelectorCandidate{
-			{ID: "add-repo", Title: "(no title)", Risk: workspacerisk.WorkspaceRiskClean},
-			{ID: "close", Title: "(no title)", Risk: workspacerisk.WorkspaceRiskClean},
+			{ID: "add-repo", Description: "add repositories", Risk: workspacerisk.WorkspaceRiskClean},
+			{ID: "close", Description: "archive this workspace", Risk: workspacerisk.WorkspaceRiskClean},
 		},
 		map[int]bool{},
 		0,

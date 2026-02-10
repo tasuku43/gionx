@@ -1,7 +1,7 @@
 Action:
 
-> ○ add-repo    (no title)
-  ○ close       (no title)
+> ○ add-repo    (add repositories)
+  ○ close       (archive this workspace)
 
   filter: 
   ↑↓ move  enter run  type filter  esc cancel

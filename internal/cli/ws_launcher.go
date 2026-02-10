@@ -402,20 +402,20 @@ func (c *CLI) promptLauncherAction(target workspaceContextSelection, fromContext
 	case "active":
 		if fromContext {
 			actions = append(actions,
-				workspaceSelectorCandidate{ID: "add-repo"},
-				workspaceSelectorCandidate{ID: "close"},
+				workspaceSelectorCandidate{ID: "add-repo", Description: "add repositories"},
+				workspaceSelectorCandidate{ID: "close", Description: "archive this workspace"},
 			)
 		} else {
 			actions = append(actions,
-				workspaceSelectorCandidate{ID: "go"},
-				workspaceSelectorCandidate{ID: "add-repo"},
-				workspaceSelectorCandidate{ID: "close"},
+				workspaceSelectorCandidate{ID: "go", Description: "switch to workspace"},
+				workspaceSelectorCandidate{ID: "add-repo", Description: "add repositories"},
+				workspaceSelectorCandidate{ID: "close", Description: "archive this workspace"},
 			)
 		}
 	case "archived":
 		actions = append(actions,
-			workspaceSelectorCandidate{ID: "reopen"},
-			workspaceSelectorCandidate{ID: "purge"},
+			workspaceSelectorCandidate{ID: "reopen", Description: "restore workspace"},
+			workspaceSelectorCandidate{ID: "purge", Description: "delete permanently"},
 		)
 	default:
 		return "", fmt.Errorf("unsupported workspace status: %s", target.Status)

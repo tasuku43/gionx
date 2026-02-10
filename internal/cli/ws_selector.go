@@ -30,9 +30,18 @@ const (
 )
 
 type workspaceSelectorCandidate struct {
-	ID    string
-	Title string
-	Risk  workspacerisk.WorkspaceRisk
+	ID          string
+	Title       string
+	Description string
+	Risk        workspacerisk.WorkspaceRisk
+}
+
+func (c workspaceSelectorCandidate) secondaryText() string {
+	desc := strings.TrimSpace(c.Description)
+	if desc != "" {
+		return desc
+	}
+	return strings.TrimSpace(c.Title)
 }
 
 type workspaceSelectorModel struct {
@@ -230,6 +239,7 @@ func (m workspaceSelectorModel) View() string {
 	filterInput := m.filterInput
 	filterInput.Width = selectorFilterWidth(m.width)
 	lines := renderWorkspaceSelectorLinesWithFilterView(
+		m.itemLabel,
 		m.status,
 		m.title,
 		m.action,
@@ -417,10 +427,10 @@ func renderWorkspaceSelectorLines(status string, action string, candidates []wor
 }
 
 func renderWorkspaceSelectorLinesWithOptions(status string, title string, action string, candidates []workspaceSelectorCandidate, selected map[int]bool, cursor int, message string, msgLevel selectorMessageLevel, filter string, showDesc bool, showCaret bool, single bool, confirming bool, useColor bool, termWidth int) []string {
-	return renderWorkspaceSelectorLinesWithFilterView(status, title, action, candidates, selected, cursor, message, msgLevel, filter, filter, showDesc, showCaret, single, confirming, useColor, termWidth)
+	return renderWorkspaceSelectorLinesWithFilterView("", status, title, action, candidates, selected, cursor, message, msgLevel, filter, filter, showDesc, showCaret, single, confirming, useColor, termWidth)
 }
 
-func renderWorkspaceSelectorLinesWithFilterView(status string, title string, action string, candidates []workspaceSelectorCandidate, selected map[int]bool, cursor int, message string, msgLevel selectorMessageLevel, filter string, filterView string, showDesc bool, showCaret bool, single bool, confirming bool, useColor bool, termWidth int) []string {
+func renderWorkspaceSelectorLinesWithFilterView(itemLabel string, status string, title string, action string, candidates []workspaceSelectorCandidate, selected map[int]bool, cursor int, message string, msgLevel selectorMessageLevel, filter string, filterView string, showDesc bool, showCaret bool, single bool, confirming bool, useColor bool, termWidth int) []string {
 	idWidth := len("workspace")
 	for _, it := range candidates {
 		if n := len(it.ID); n > idWidth {
@@ -429,9 +439,6 @@ func renderWorkspaceSelectorLinesWithFilterView(status string, title string, act
 	}
 	if idWidth < 10 {
 		idWidth = 10
-	}
-	if idWidth > 24 {
-		idWidth = 24
 	}
 	if strings.TrimSpace(action) == "" {
 		action = "proceed"
@@ -458,6 +465,22 @@ func renderWorkspaceSelectorLinesWithFilterView(status string, title string, act
 	footer := styleMuted(footerRaw, useColor)
 	compactTitle := !showDesc
 
+	// Keep workspace/action rows stable, but let compact rows (repo/context etc.)
+	// use terminal width so truncation happens only when the row truly overflows.
+	if compactTitle {
+		maxIDWidth := maxCols - displayWidth("○ ") - 2
+		if maxIDWidth < 1 {
+			maxIDWidth = 1
+		}
+		if idWidth > maxIDWidth {
+			idWidth = maxIDWidth
+		}
+	} else if idWidth > 24 {
+		idWidth = 24
+	}
+
+	rowStyle := selectorRowStyleFromContext(itemLabel, title, showDesc)
+
 	bodyLines := make([]string, 0, len(candidates))
 	if totalVisible == 0 {
 		empty := uiIndent + "(no matches)"
@@ -473,7 +496,8 @@ func renderWorkspaceSelectorLinesWithFilterView(status string, title string, act
 			focus = ">"
 		}
 
-		idPlain := fmt.Sprintf("%-*s", idWidth, truncateDisplay(it.ID, idWidth))
+		idRaw := truncateDisplay(it.ID, idWidth)
+		idPlain := fmt.Sprintf("%-*s", idWidth, idRaw)
 		prefixPlain := idPlain + "  "
 
 		idText := colorizeRiskID(idPlain, it.Risk, useColor)
@@ -494,15 +518,22 @@ func renderWorkspaceSelectorLinesWithFilterView(status string, title string, act
 		prefix = fmt.Sprintf("%s %s  ", markerText, idText)
 		bodyRaw := prefix
 		if showDesc {
-			desc := strings.TrimSpace(it.Title)
-			if desc == "" {
-				desc = "(no title)"
+			switch rowStyle {
+			case selectorRowStyleWorkspace:
+				bodyRaw, prefixPlain = renderWorkspaceSelectorRow(markerText, mark, idRaw, it, maxCols, useColor)
+			case selectorRowStyleAction:
+				bodyRaw, prefixPlain = renderActionSelectorRow(markerText, mark, idRaw, it, idWidth, maxCols, useColor)
+			default:
+				desc := it.secondaryText()
+				if desc == "" {
+					desc = "(no title)"
+				}
+				availableDescCols := maxCols - displayWidth(prefixPlain) - 2 // include focus + space
+				if availableDescCols < 8 {
+					availableDescCols = 8
+				}
+				bodyRaw = prefix + truncateDisplay(desc, availableDescCols)
 			}
-			availableDescCols := maxCols - displayWidth(prefixPlain) - 2 // include focus + space
-			if availableDescCols < 8 {
-				availableDescCols = 8
-			}
-			bodyRaw = prefix + truncateDisplay(desc, availableDescCols)
 		}
 
 		lineRaw := focus + " " + bodyRaw
@@ -519,6 +550,11 @@ func renderWorkspaceSelectorLinesWithFilterView(status string, title string, act
 			}
 			if visiblePos == cursor {
 				// Keep cursor emphasis visible but subtle across light/dark terminal themes.
+				// Strip inline ANSI first so background highlight spans the full row text,
+				// including title segments that might otherwise reset attributes.
+				if rowStyle == selectorRowStyleWorkspace {
+					bodyStyled = stripANSISequences(bodyStyled)
+				}
 				bodyStyled = lipgloss.NewStyle().
 					Background(lipgloss.AdaptiveColor{Light: "252", Dark: "236"}).
 					Render(bodyStyled)
@@ -569,6 +605,81 @@ func renderWorkspaceSelectorLinesWithFilterView(status string, title string, act
 	}
 
 	return lines
+}
+
+type selectorRowStyle string
+
+const (
+	selectorRowStyleDefault   selectorRowStyle = "default"
+	selectorRowStyleWorkspace selectorRowStyle = "workspace"
+	selectorRowStyleAction    selectorRowStyle = "action"
+)
+
+func selectorRowStyleFromContext(itemLabel string, title string, showDesc bool) selectorRowStyle {
+	if !showDesc {
+		return selectorRowStyleDefault
+	}
+	label := strings.ToLower(strings.TrimSpace(itemLabel))
+	switch label {
+	case "workspace":
+		return selectorRowStyleWorkspace
+	case "action":
+		return selectorRowStyleAction
+	}
+	if strings.HasPrefix(strings.ToLower(strings.TrimSpace(title)), "action:") {
+		return selectorRowStyleAction
+	}
+	if strings.TrimSpace(title) == "" {
+		return selectorRowStyleWorkspace
+	}
+	return selectorRowStyleDefault
+}
+
+func renderWorkspaceSelectorRow(markerText string, mark string, idRaw string, it workspaceSelectorCandidate, maxCols int, useColor bool) (string, string) {
+	desc := it.secondaryText()
+	emptyTitle := false
+	if desc == "" {
+		desc = "(no title)"
+		emptyTitle = true
+	}
+	separatorPlain := " : "
+	prefixPlain := fmt.Sprintf("%s %s%s", mark, idRaw, separatorPlain)
+	availableDescCols := maxCols - displayWidth(prefixPlain) - 2 // include focus + space
+	if availableDescCols < 8 {
+		availableDescCols = 8
+	}
+	descText := truncateDisplay(desc, availableDescCols)
+	descStyled := descText
+	separatorStyled := separatorPlain
+	idStyled := styleBold(colorizeRiskID(idRaw, it.Risk, useColor), useColor)
+	if useColor {
+		separatorStyled = styleMuted(separatorPlain, true)
+		if emptyTitle {
+			descStyled = styleMuted(descText, true)
+		}
+	}
+	return fmt.Sprintf("%s %s%s%s", markerText, idStyled, separatorStyled, descStyled), prefixPlain
+}
+
+func renderActionSelectorRow(markerText string, mark string, actionRaw string, it workspaceSelectorCandidate, idWidth int, maxCols int, useColor bool) (string, string) {
+	actionPadded := fmt.Sprintf("%-*s", idWidth, actionRaw)
+	prefixPlain := fmt.Sprintf("%s %s  ", mark, actionPadded)
+	desc := it.secondaryText()
+	if desc == "" {
+		desc = "no description"
+	}
+	suffixPlain := fmt.Sprintf("(%s)", desc)
+	availableSuffixCols := maxCols - displayWidth(prefixPlain) - 2 // include focus + space
+	if availableSuffixCols < 6 {
+		availableSuffixCols = 6
+	}
+	suffixText := truncateDisplay(suffixPlain, availableSuffixCols)
+	suffixStyled := suffixText
+	if useColor {
+		suffixStyled = styleMuted(suffixText, true)
+	}
+	actionStyled := colorizeRiskID(actionPadded, it.Risk, useColor)
+	return fmt.Sprintf("%s %s  %s", markerText, actionStyled, suffixStyled), prefixPlain
 }
 
 func isReducedMotionEnabled() bool {
@@ -653,7 +764,7 @@ func renderSelectorFooterLine(selectedCount int, total int, action string, singl
 func filteredCandidateIndices(candidates []workspaceSelectorCandidate, filter string) []int {
 	out := make([]int, 0, len(candidates))
 	for i, c := range candidates {
-		if fuzzyFilterMatch(c.ID, filter) || fuzzyFilterMatch(c.Title, filter) {
+		if fuzzyFilterMatch(c.ID, filter) || fuzzyFilterMatch(c.secondaryText(), filter) {
 			out = append(out, i)
 		}
 	}
@@ -728,4 +839,26 @@ func colorizeRiskID(id string, risk workspacerisk.WorkspaceRisk, useColor bool) 
 	default:
 		return id
 	}
+}
+
+func stripANSISequences(s string) string {
+	var b strings.Builder
+	b.Grow(len(s))
+	inEscape := false
+	for i := 0; i < len(s); i++ {
+		ch := s[i]
+		if !inEscape {
+			if ch == 0x1b && i+1 < len(s) && s[i+1] == '[' {
+				inEscape = true
+				i++
+				continue
+			}
+			b.WriteByte(ch)
+			continue
+		}
+		if (ch >= 'A' && ch <= 'Z') || (ch >= 'a' && ch <= 'z') {
+			inEscape = false
+		}
+	}
+	return b.String()
 }
