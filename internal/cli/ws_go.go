@@ -281,7 +281,7 @@ func listWorkspaceCandidatesByStatus(ctx context.Context, root string, status st
 	for _, row := range rows {
 		out = append(out, workspaceSelectorCandidate{
 			ID:    row.ID,
-			Title: formatWorkspaceTitleWithLogicalState("", row.Title),
+			Title: formatWorkspaceTitle(row.Title),
 		})
 	}
 	return out, nil

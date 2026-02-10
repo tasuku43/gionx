@@ -114,7 +114,7 @@ Semantic color token policy:
   - clean: default
   - warning (`unpushed`/`diverged`): warn color
   - danger (`dirty`/`unknown`): error color
-- `ws list` summary rows also follow color-only risk hints (no textual risk tags).
+- `ws list` summary rows do not render risk hints; they use bullet-list `id: title` only.
 
 ## Selection visual behavior (task-list style)
 

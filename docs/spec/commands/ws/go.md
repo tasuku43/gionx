@@ -62,9 +62,7 @@ Jump to a workspace directory as a "start work" action.
   - `error.code` and `error.message` (failure only)
 - Failure keeps non-zero exit code (usage/internal/business failure mapping is preserved).
 
-## Logical work-state behavior
+## Candidate title behavior
 
 - Candidate discovery for `ws go` should align with FS-first workspace discovery and `.gionx.meta.json`.
-- `active` scope candidate rows should expose the same logical work-state semantics as `ws list`
-  (`todo` / `in-progress`, runtime-derived).
-- No logical work-state persistence is allowed.
+- Candidate titles must use metadata `title` only (no runtime-derived work-state labels).

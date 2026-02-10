@@ -7,7 +7,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/tasuku43/gion-core/workspacerisk"
 	"github.com/tasuku43/gionx/internal/paths"
 	"github.com/tasuku43/gionx/internal/testutil"
 )
@@ -289,30 +288,15 @@ func TestCLI_WS_List_SummaryDoesNotShowTextualRiskTags(t *testing.T) {
 	}
 }
 
-func TestRenderWSListSummaryRow_AlignsTitleColumn(t *testing.T) {
+func TestRenderWSListSummaryRow_BulletPrefix(t *testing.T) {
 	rowA := wsListRow{
 		ID:        "WS_A",
 		RepoCount: 1,
-		Risk:      workspacerisk.WorkspaceRiskClean,
 		Title:     "first title",
 	}
-	rowB := wsListRow{
-		ID:        "WORKSPACE-B-LONG",
-		RepoCount: 12,
-		Risk:      workspacerisk.WorkspaceRiskDiverged,
-		Title:     "second title",
-	}
-
-	lineA := renderWSListSummaryRow(rowA, 16, 10, 8, 120, false)
-	lineB := renderWSListSummaryRow(rowB, 16, 10, 8, 120, false)
-
-	colA := strings.Index(lineA, "first title")
-	colB := strings.Index(lineB, "second title")
-	if colA <= 0 || colB <= 0 {
-		t.Fatalf("title columns not found: lineA=%q lineB=%q", lineA, lineB)
-	}
-	if colA != colB {
-		t.Fatalf("title start columns differ: got %d and %d", colA, colB)
+	lineA := renderWSListSummaryRow(rowA, 120, false)
+	if !strings.HasPrefix(lineA, "  • WS_A: ") {
+		t.Fatalf("summary row should be bullet list item: %q", lineA)
 	}
 }
 
@@ -320,96 +304,36 @@ func TestRenderWSListSummaryRow_TruncatesTitleWithEllipsis(t *testing.T) {
 	row := wsListRow{
 		ID:        "WS1",
 		RepoCount: 1,
-		Risk:      workspacerisk.WorkspaceRiskClean,
 		Title:     "abcdefghijklmnopqrstuvwxyz",
 	}
 
-	line := renderWSListSummaryRow(row, 10, 10, 8, 44, false)
+	line := renderWSListSummaryRow(row, 20, false)
 	if !strings.Contains(line, "…") {
 		t.Fatalf("line should contain ellipsis when truncated: %q", line)
 	}
-	if w := displayWidth(line); w > 44 {
-		t.Fatalf("line width = %d, want <= 44: %q", w, line)
+	if w := displayWidth(line); w > 20 {
+		t.Fatalf("line width = %d, want <= 20: %q", w, line)
 	}
 }
 
-func TestRenderWSListSummaryRow_FixedColumnOrderContract(t *testing.T) {
+func TestRenderWSListSummaryRow_ShowsIDAndTitleOnly(t *testing.T) {
 	row := wsListRow{
 		ID:        "WS1",
 		RepoCount: 7,
-		Risk:      workspacerisk.WorkspaceRiskClean,
 		Title:     "desc",
 	}
-	line := renderWSListSummaryRow(row, 10, 1, 8, 120, false)
+	line := renderWSListSummaryRow(row, 120, false)
 	idIdx := strings.Index(line, "WS1")
-	riskIdx := strings.Index(line, "*")
-	repoIdx := strings.Index(line, "repos:7")
-	descIdx := strings.Index(line, "desc")
-	if idIdx < 0 || riskIdx < 0 || repoIdx < 0 || descIdx < 0 {
+	descIdx := strings.Index(line, "WS1: desc")
+	if idIdx < 0 || descIdx < 0 {
 		t.Fatalf("summary row missing required tokens: %q", line)
 	}
-	if !(idIdx < riskIdx && riskIdx < repoIdx && repoIdx < descIdx) {
-		t.Fatalf("summary row must keep ID|risk|repos|title order: %q", line)
+	if strings.Contains(line, "repos:7") {
+		t.Fatalf("summary row should not include repos: %q", line)
 	}
 }
 
-func TestCLI_WS_List_ShowsLogicalWorkStateTodoAndInProgress(t *testing.T) {
-	root := t.TempDir()
-	dataHome := filepath.Join(t.TempDir(), "xdg-data")
-	cacheHome := filepath.Join(t.TempDir(), "xdg-cache")
-
-	if err := os.MkdirAll(filepath.Join(root, "workspaces"), 0o755); err != nil {
-		t.Fatalf("create workspaces/: %v", err)
-	}
-	if err := os.MkdirAll(filepath.Join(root, "archive"), 0o755); err != nil {
-		t.Fatalf("create archive/: %v", err)
-	}
-	if err := os.MkdirAll(filepath.Join(root, "workspaces", "WIP", "repos", "r"), 0o755); err != nil {
-		t.Fatalf("create WIP repo dir: %v", err)
-	}
-
-	t.Setenv("XDG_DATA_HOME", dataHome)
-	t.Setenv("XDG_CACHE_HOME", cacheHome)
-	if err := paths.WriteCurrentContext(root); err != nil {
-		t.Fatalf("WriteCurrentContext() error: %v", err)
-	}
-
-	if err := os.MkdirAll(filepath.Join(root, "workspaces", "TODO"), 0o755); err != nil {
-		t.Fatalf("create TODO workspace dir: %v", err)
-	}
-	if err := writeWorkspaceMetaFile(filepath.Join(root, "workspaces", "TODO"), newWorkspaceMetaFileForCreate("TODO", "", "", 100)); err != nil {
-		t.Fatalf("write TODO workspace meta: %v", err)
-	}
-	wipMeta := newWorkspaceMetaFileForCreate("WIP", "", "", 101)
-	wipMeta.ReposRestore = []workspaceMetaRepoRestore{{
-		RepoUID:   "github.com/o/r",
-		RepoKey:   "o/r",
-		RemoteURL: "https://example.com/o/r.git",
-		Alias:     "r",
-		Branch:    "main",
-		BaseRef:   "origin/main",
-	}}
-	if err := writeWorkspaceMetaFile(filepath.Join(root, "workspaces", "WIP"), wipMeta); err != nil {
-		t.Fatalf("write WIP workspace meta: %v", err)
-	}
-
-	var out bytes.Buffer
-	var err bytes.Buffer
-	c := New(&out, &err)
-	code := c.Run([]string{"ws", "list"})
-	if code != exitOK {
-		t.Fatalf("ws list exit code = %d, want %d (stderr=%q)", code, exitOK, err.String())
-	}
-	got := out.String()
-	if !strings.Contains(got, "TODO") || !strings.Contains(got, "todo") {
-		t.Fatalf("stdout should include todo workspace state: %q", got)
-	}
-	if !strings.Contains(got, "WIP") || !strings.Contains(got, "in-progress") {
-		t.Fatalf("stdout should include in-progress workspace state: %q", got)
-	}
-}
-
-func TestCLI_WS_List_TSVIncludesWorkStateColumn(t *testing.T) {
+func TestCLI_WS_List_TSVUsesCompactColumns(t *testing.T) {
 	env := testutil.NewEnv(t)
 	initAndConfigureRootRepo(t, env.Root)
 
@@ -431,11 +355,11 @@ func TestCLI_WS_List_TSVIncludesWorkStateColumn(t *testing.T) {
 		t.Fatalf("ws list --format tsv exit code = %d, want %d (stderr=%q)", code, exitOK, err.String())
 	}
 	got := out.String()
-	if !strings.HasPrefix(got, "id\tstatus\tupdated_at\trepo_count\trisk\twork_state\ttitle\n") {
-		t.Fatalf("tsv header missing work_state: %q", got)
+	if !strings.HasPrefix(got, "id\tstatus\tupdated_at\trepo_count\ttitle\n") {
+		t.Fatalf("tsv header mismatch: %q", got)
 	}
-	if !strings.Contains(got, "\ttodo\t") {
-		t.Fatalf("tsv should include logical work_state token: %q", got)
+	if strings.Contains(got, "\trisk\t") || strings.Contains(got, "\twork_state\t") {
+		t.Fatalf("tsv should not include risk/work_state columns: %q", got)
 	}
 }
 

@@ -698,7 +698,7 @@ func renderWorkspaceSelectorRow(markerText string, mark string, idRaw string, it
 		desc = "(no title)"
 		emptyTitle = true
 	}
-	separatorPlain := " : "
+	separatorPlain := ": "
 	prefixPlain := fmt.Sprintf("%s %s%s", mark, idRaw, separatorPlain)
 	availableDescCols := maxCols - displayWidth(prefixPlain) - 2 // include focus + space
 	if availableDescCols < 8 {

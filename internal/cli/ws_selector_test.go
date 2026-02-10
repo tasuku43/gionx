@@ -307,8 +307,8 @@ func TestRenderWorkspaceSelectorLines_UsesColonBetweenIDAndTitle(t *testing.T) {
 		120,
 	)
 	joined := strings.Join(lines, "\n")
-	if !strings.Contains(joined, "○ TEST-100 : Kwsの申請") {
-		t.Fatalf("workspace row should render as '<id> : <title>', got %q", joined)
+	if !strings.Contains(joined, "○ TEST-100: Kwsの申請") {
+		t.Fatalf("workspace row should render as '<id>: <title>', got %q", joined)
 	}
 }
 
@@ -332,7 +332,7 @@ func TestRenderWorkspaceSelectorLines_ColorizedColonAndNoTitle(t *testing.T) {
 	if !strings.Contains(joined, ansiBold+"TEST-002"+ansiReset) {
 		t.Fatalf("workspace id should be bold in selector row, got %q", joined)
 	}
-	if !strings.Contains(joined, ansiMuted+" : "+ansiReset) {
+	if !strings.Contains(joined, ansiMuted+": "+ansiReset) {
 		t.Fatalf("separator should use muted token, got %q", joined)
 	}
 	if !strings.Contains(joined, ansiMuted+"(no title)"+ansiReset) {
@@ -783,10 +783,10 @@ func TestRenderWorkspaceSelectorLinesWithOptions_MultiConfirmingMutesNonSelected
 }
 
 func TestStripANSISequences_RemovesEscapeCodes(t *testing.T) {
-	input := ansiBold + "TEST-100" + ansiReset + ansiMuted + " : " + ansiReset + "title"
+	input := ansiBold + "TEST-100" + ansiReset + ansiMuted + ": " + ansiReset + "title"
 	got := stripANSISequences(input)
-	if got != "TEST-100 : title" {
-		t.Fatalf("stripANSISequences() = %q, want %q", got, "TEST-100 : title")
+	if got != "TEST-100: title" {
+		t.Fatalf("stripANSISequences() = %q, want %q", got, "TEST-100: title")
 	}
 }
 

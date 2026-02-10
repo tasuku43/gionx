@@ -12,7 +12,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/tasuku43/gion-core/workspacerisk"
 	"github.com/tasuku43/gionx/internal/infra/gitutil"
 	"github.com/tasuku43/gionx/internal/infra/paths"
 	"github.com/tasuku43/gionx/internal/infra/statestore"
@@ -29,8 +28,6 @@ type wsListRow struct {
 	Status    string
 	UpdatedAt int64
 	RepoCount int
-	Risk      workspacerisk.WorkspaceRisk
-	WorkState string
 	Title     string
 	Repos     []statestore.WorkspaceRepo
 }
@@ -140,8 +137,6 @@ func listRowsFromFilesystem(ctx context.Context, root string, scope string) ([]w
 			Status:    scope,
 			UpdatedAt: updatedAt,
 			RepoCount: len(repos),
-			Risk:      computeWorkspaceRisk(ctx, root, id, scope, repos),
-			WorkState: deriveLogicalWorkState(ctx, root, id, scope, repos),
 			Title:     title,
 			Repos:     repos,
 		})
@@ -272,17 +267,15 @@ func parseWSListOptions(args []string) (wsListOptions, error) {
 }
 
 func printWSListTSV(out io.Writer, rows []wsListRow) {
-	fmt.Fprintln(out, "id\tstatus\tupdated_at\trepo_count\trisk\twork_state\ttitle")
+	fmt.Fprintln(out, "id\tstatus\tupdated_at\trepo_count\ttitle")
 	for _, row := range rows {
 		fmt.Fprintf(
 			out,
-			"%s\t%s\t%s\t%d\t%s\t%s\t%s\n",
+			"%s\t%s\t%s\t%d\t%s\n",
 			row.ID,
 			row.Status,
 			time.Unix(row.UpdatedAt, 0).UTC().Format(time.RFC3339),
 			row.RepoCount,
-			formatWorkspaceRisk(row.Risk),
-			row.WorkState,
 			row.Title,
 		)
 	}
@@ -297,32 +290,9 @@ func printWSListHuman(out io.Writer, rows []wsListRow, scope string, tree bool, 
 		return
 	}
 
-	idWidth := len("workspace")
-	for _, row := range rows {
-		if n := displayWidth(row.ID); n > idWidth {
-			idWidth = n
-		}
-	}
-	if idWidth < 10 {
-		idWidth = 10
-	}
-	if idWidth > 24 {
-		idWidth = 24
-	}
-
-	repoWidth := len("repos:99")
-	for _, row := range rows {
-		repoToken := fmt.Sprintf("repos:%d", row.RepoCount)
-		if n := displayWidth(repoToken); n > repoWidth {
-			repoWidth = n
-		}
-	}
-
-	riskWidth := 1
-
 	maxCols := listTerminalWidth()
 	for _, row := range rows {
-		fmt.Fprintln(out, renderWSListSummaryRow(row, idWidth, riskWidth, repoWidth, maxCols, useColor))
+		fmt.Fprintln(out, renderWSListSummaryRow(row, maxCols, useColor))
 
 		if !tree {
 			continue
@@ -331,23 +301,28 @@ func printWSListHuman(out io.Writer, rows []wsListRow, scope string, tree bool, 
 	}
 }
 
-func renderWSListSummaryRow(row wsListRow, idWidth int, riskWidth int, repoWidth int, maxCols int, useColor bool) string {
-	idPlain := fmt.Sprintf("%-*s", idWidth, truncateDisplay(row.ID, idWidth))
-	riskPlain := fmt.Sprintf("%-*s", riskWidth, renderWorkspaceRiskIndicator(row.Risk, false))
-	repoPlain := fmt.Sprintf("%-*s", repoWidth, fmt.Sprintf("repos:%d", row.RepoCount))
-	desc := formatWorkspaceTitleWithLogicalState(row.WorkState, row.Title)
+func renderWSListSummaryRow(row wsListRow, maxCols int, useColor bool) string {
+	idPlain := strings.TrimSpace(row.ID)
+	if idPlain == "" {
+		idPlain = "(unknown)"
+	}
+	desc := formatWorkspaceTitle(row.Title)
 
-	prefixPlain := fmt.Sprintf("%s%s  %s  %s  ", uiIndent, idPlain, riskPlain, repoPlain)
+	separatorPlain := ": "
+	prefixPlain := fmt.Sprintf("%s• %s%s", uiIndent, idPlain, separatorPlain)
 	availableDescCols := maxCols - displayWidth(prefixPlain)
 	if availableDescCols < 8 {
 		availableDescCols = 8
 	}
 	desc = truncateDisplay(desc, availableDescCols)
 
-	idText := colorizeRiskID(idPlain, row.Risk, useColor)
-	riskText := fmt.Sprintf("%-*s", riskWidth, renderWorkspaceRiskIndicator(row.Risk, useColor))
-
-	line := fmt.Sprintf("%s%s  %s  %s  %s", uiIndent, idText, riskText, repoPlain, desc)
+	bullet := "•"
+	separator := separatorPlain
+	if useColor {
+		bullet = styleMuted(bullet, true)
+		separator = styleMuted(separatorPlain, true)
+	}
+	line := fmt.Sprintf("%s%s %s%s", uiIndent, bullet, idPlain, separator) + desc
 	return truncateDisplay(line, maxCols)
 }
 
@@ -375,116 +350,12 @@ func printWSListTreeLines(out io.Writer, repos []statestore.WorkspaceRepo, maxCo
 	}
 }
 
-func computeWorkspaceRisk(ctx context.Context, root string, workspaceID string, status string, repos []statestore.WorkspaceRepo) workspacerisk.WorkspaceRisk {
-	if status != "active" {
-		return workspacerisk.WorkspaceRiskClean
-	}
-	risk, _ := inspectWorkspaceRepoRisk(ctx, root, workspaceID, repos)
-	return risk
-}
-
-func deriveLogicalWorkState(ctx context.Context, root string, workspaceID string, status string, repos []statestore.WorkspaceRepo) string {
-	if status != "active" {
-		return ""
-	}
-	if len(repos) == 0 {
-		return "todo"
-	}
-	for _, repo := range repos {
-		if repo.MissingAt.Valid {
-			return "in-progress"
-		}
-		worktreePath := filepath.Join(root, "workspaces", workspaceID, "repos", repo.Alias)
-		repoStatus := inspectGitRepoStatus(ctx, worktreePath)
-		if workspacerisk.ClassifyRepoStatus(repoStatus) != workspacerisk.RepoStateClean {
-			return "in-progress"
-		}
-		started, known := hasCommitsSinceBaseRef(ctx, worktreePath, repo.BaseRef)
-		if !known || started {
-			return "in-progress"
-		}
-	}
-	return "todo"
-}
-
-func hasCommitsSinceBaseRef(ctx context.Context, worktreePath string, baseRef string) (started bool, known bool) {
-	baseRef = strings.TrimSpace(baseRef)
-	if baseRef == "" {
-		baseRef = detectOriginHeadBaseRef(ctx, worktreePath)
-	}
-	if baseRef == "" {
-		return false, false
-	}
-	out, err := gitutil.Run(ctx, worktreePath, "rev-list", "--count", baseRef+"..HEAD")
-	if err != nil {
-		return false, false
-	}
-	n, err := strconv.Atoi(strings.TrimSpace(out))
-	if err != nil {
-		return false, false
-	}
-	return n > 0, true
-}
-
-func detectOriginHeadBaseRef(ctx context.Context, worktreePath string) string {
-	out, err := gitutil.Run(ctx, worktreePath, "symbolic-ref", "--quiet", "refs/remotes/origin/HEAD")
-	if err != nil {
-		return ""
-	}
-	ref := strings.TrimSpace(out)
-	const pfx = "refs/remotes/origin/"
-	if !strings.HasPrefix(ref, pfx) {
-		return ""
-	}
-	branch := strings.TrimSpace(strings.TrimPrefix(ref, pfx))
-	if branch == "" {
-		return ""
-	}
-	return "origin/" + branch
-}
-
-func formatWorkspaceTitleWithLogicalState(workState string, title string) string {
+func formatWorkspaceTitle(title string) string {
 	desc := strings.TrimSpace(title)
-	if workState == "" {
-		if desc == "" {
-			return "(no title)"
-		}
-		return desc
-	}
 	if desc == "" {
-		return workState
+		return "(no title)"
 	}
-	return workState + " | " + desc
-}
-
-func renderWorkspaceRiskIndicator(risk workspacerisk.WorkspaceRisk, useColor bool) string {
-	text := "*"
-	if !useColor {
-		return text
-	}
-	switch risk {
-	case workspacerisk.WorkspaceRiskDirty, workspacerisk.WorkspaceRiskUnknown:
-		return styleError(text, true)
-	case workspacerisk.WorkspaceRiskDiverged, workspacerisk.WorkspaceRiskUnpushed:
-		return styleWarn(text, true)
-	default:
-		return styleMuted(text, true)
-	}
-}
-
-func formatWorkspaceRisk(risk workspacerisk.WorkspaceRisk) string {
-	switch risk {
-	case workspacerisk.WorkspaceRiskDirty:
-		return "dirty"
-	case workspacerisk.WorkspaceRiskDiverged:
-		return "diverged"
-	case workspacerisk.WorkspaceRiskUnpushed:
-		return "unpushed"
-	case workspacerisk.WorkspaceRiskUnknown:
-		return "unknown"
-	default:
-		return "clean"
-	}
+	return desc
 }
 
 func firstNonEmpty(values ...string) string {
