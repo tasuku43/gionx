@@ -421,10 +421,19 @@ func (c *CLI) promptLauncherAction(target workspaceContextSelection, fromContext
 		return "", fmt.Errorf("unsupported workspace status: %s", target.Status)
 	}
 
-	title := fmt.Sprintf("Action:\n%sworkspace: %s", uiIndent, target.ID)
+	useColor := writerSupportsColor(c.Err)
+	title := renderActionSelectorTitle(target.ID, useColor)
 	ids, err := c.promptWorkspaceSelectorWithOptionsAndMode(target.Status, "run", title, "action", actions, true)
 	if err != nil {
 		return "", err
 	}
 	return ids[0], nil
+}
+
+func renderActionSelectorTitle(workspaceID string, useColor bool) string {
+	label := "workspace"
+	if useColor {
+		label = styleAccent(label, true)
+	}
+	return fmt.Sprintf("Action:\n%s%s: %s", uiIndent, label, workspaceID)
 }

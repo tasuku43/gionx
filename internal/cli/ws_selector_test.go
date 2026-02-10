@@ -789,3 +789,17 @@ func TestStripANSISequences_RemovesEscapeCodes(t *testing.T) {
 		t.Fatalf("stripANSISequences() = %q, want %q", got, "TEST-100 : title")
 	}
 }
+
+func TestSelectorViewportRange_CentersAroundCursor(t *testing.T) {
+	start, end := selectorViewportRange(20, 10, 7)
+	if start != 7 || end != 14 {
+		t.Fatalf("selectorViewportRange() = (%d,%d), want (7,14)", start, end)
+	}
+}
+
+func TestSelectorBodyRowsLimit_ReservesChromeRows(t *testing.T) {
+	got := selectorBodyRowsLimit(12, true)
+	if got != 7 {
+		t.Fatalf("selectorBodyRowsLimit() = %d, want 7", got)
+	}
+}

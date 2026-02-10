@@ -49,6 +49,7 @@ type workspaceSelectorModel struct {
 	selected      map[int]bool
 	cursor        int // cursor position within filtered indices
 	width         int
+	height        int
 	status        string
 	title         string
 	itemLabel     string
@@ -91,6 +92,7 @@ func newWorkspaceSelectorModelWithOptionsAndMode(candidates []workspaceSelectorC
 		selected:      make(map[int]bool, len(candidates)),
 		cursor:        0,
 		width:         80,
+		height:        24,
 		status:        status,
 		title:         title,
 		itemLabel:     itemLabel,
@@ -114,6 +116,9 @@ func (m workspaceSelectorModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.WindowSizeMsg:
 		if msg.Width > 0 {
 			m.width = msg.Width
+		}
+		if msg.Height > 0 {
+			m.height = msg.Height
 		}
 		return m, nil
 	case selectorConfirmDoneMsg:
@@ -256,6 +261,7 @@ func (m workspaceSelectorModel) View() string {
 		m.confirming,
 		m.useColor,
 		m.width,
+		m.height,
 	)
 	return strings.Join(lines, "\n")
 }
@@ -427,10 +433,10 @@ func renderWorkspaceSelectorLines(status string, action string, candidates []wor
 }
 
 func renderWorkspaceSelectorLinesWithOptions(status string, title string, action string, candidates []workspaceSelectorCandidate, selected map[int]bool, cursor int, message string, msgLevel selectorMessageLevel, filter string, showDesc bool, showCaret bool, single bool, confirming bool, useColor bool, termWidth int) []string {
-	return renderWorkspaceSelectorLinesWithFilterView("", status, title, action, candidates, selected, cursor, message, msgLevel, filter, filter, showDesc, showCaret, single, confirming, useColor, termWidth)
+	return renderWorkspaceSelectorLinesWithFilterView("", status, title, action, candidates, selected, cursor, message, msgLevel, filter, filter, showDesc, showCaret, single, confirming, useColor, termWidth, 0)
 }
 
-func renderWorkspaceSelectorLinesWithFilterView(itemLabel string, status string, title string, action string, candidates []workspaceSelectorCandidate, selected map[int]bool, cursor int, message string, msgLevel selectorMessageLevel, filter string, filterView string, showDesc bool, showCaret bool, single bool, confirming bool, useColor bool, termWidth int) []string {
+func renderWorkspaceSelectorLinesWithFilterView(itemLabel string, status string, title string, action string, candidates []workspaceSelectorCandidate, selected map[int]bool, cursor int, message string, msgLevel selectorMessageLevel, filter string, filterView string, showDesc bool, showCaret bool, single bool, confirming bool, useColor bool, termWidth int, termHeight int) []string {
 	idWidth := len("workspace")
 	for _, it := range candidates {
 		if n := len(it.ID); n > idWidth {
@@ -480,6 +486,8 @@ func renderWorkspaceSelectorLinesWithFilterView(itemLabel string, status string,
 	}
 
 	rowStyle := selectorRowStyleFromContext(itemLabel, title, showDesc)
+	bodyRows := selectorBodyRowsLimit(termHeight, compactTitle)
+	start, end := selectorViewportRange(totalVisible, cursor, bodyRows)
 
 	bodyLines := make([]string, 0, len(candidates))
 	if totalVisible == 0 {
@@ -489,7 +497,8 @@ func renderWorkspaceSelectorLinesWithFilterView(itemLabel string, status string,
 		}
 		bodyLines = append(bodyLines, empty)
 	}
-	for visiblePos, sourceIdx := range visible {
+	for visiblePos := start; visiblePos < end; visiblePos++ {
+		sourceIdx := visible[visiblePos]
 		it := candidates[sourceIdx]
 		focus := " "
 		if visiblePos == cursor {
@@ -605,6 +614,53 @@ func renderWorkspaceSelectorLinesWithFilterView(itemLabel string, status string,
 	}
 
 	return lines
+}
+
+func selectorBodyRowsLimit(termHeight int, compactTitle bool) int {
+	if termHeight <= 0 {
+		return 0
+	}
+	chromeRows := 1 // title
+	if !compactTitle {
+		chromeRows++ // blank after title
+	}
+	chromeRows += 1 // blank before filter
+	chromeRows += 1 // filter line
+	chromeRows += 1 // footer line
+	chromeRows += 1 // message/blank line
+	bodyRows := termHeight - chromeRows
+	if bodyRows < 1 {
+		return 1
+	}
+	return bodyRows
+}
+
+func selectorViewportRange(total int, cursor int, bodyRows int) (int, int) {
+	if total <= 0 {
+		return 0, 0
+	}
+	if bodyRows <= 0 || total <= bodyRows {
+		return 0, total
+	}
+	if cursor < 0 {
+		cursor = 0
+	}
+	if cursor >= total {
+		cursor = total - 1
+	}
+	start := cursor - bodyRows/2
+	if start < 0 {
+		start = 0
+	}
+	end := start + bodyRows
+	if end > total {
+		end = total
+		start = end - bodyRows
+		if start < 0 {
+			start = 0
+		}
+	}
+	return start, end
 }
 
 type selectorRowStyle string
