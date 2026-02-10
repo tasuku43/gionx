@@ -197,7 +197,7 @@ func TestRenderAddRepoInputsProgress_NonTTY_NoEscapeAndStableLineCount(t *testin
 		{RepoKey: "tasuku43/gionx", BaseRef: "origin/main"},
 	}
 	var out bytes.Buffer
-	rendered := renderAddRepoInputsProgress(&out, "TEST-010", rows, 0, false, 99, true)
+	rendered := renderAddRepoInputsProgress(&out, "TEST-010", rows, 0, false, 99, false)
 	if rendered == 0 {
 		t.Fatal("expected rendered line count > 0")
 	}
@@ -206,6 +206,21 @@ func TestRenderAddRepoInputsProgress_NonTTY_NoEscapeAndStableLineCount(t *testin
 		t.Fatalf("non-TTY render should not emit escape sequences, got %q", got)
 	}
 	if !strings.Contains(got, "Inputs:") || !strings.Contains(got, "branch: TEST-010") {
+		t.Fatalf("unexpected render output:\n%s", got)
+	}
+}
+
+func TestRenderAddRepoInputsProgress_NonTTY_AfterPrompt_HidesPendingBranch(t *testing.T) {
+	rows := []addRepoInputProgress{
+		{RepoKey: "tasuku43/gionx", BaseRef: "origin/main"},
+	}
+	var out bytes.Buffer
+	_ = renderAddRepoInputsProgress(&out, "TEST-010", rows, 0, false, 99, true)
+	got := out.String()
+	if strings.Contains(got, "branch: TEST-010") {
+		t.Fatalf("after prompt render should not duplicate pending branch line:\n%s", got)
+	}
+	if !strings.Contains(got, "base_ref: origin/main") {
 		t.Fatalf("unexpected render output:\n%s", got)
 	}
 }

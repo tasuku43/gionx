@@ -300,11 +300,13 @@ func (c *CLI) runWSAddRepo(args []string) int {
 		progress[i] = addRepoInputProgress{RepoKey: cand.RepoKey}
 	}
 	fmt.Fprintln(c.Err)
+	c.debugf("add-repo inputs render stage=initial active_index=%d prev_lines=%d after_prompt=%t", 0, 0, false)
 	renderedInputLines := renderAddRepoInputsProgress(c.Err, workspaceID, progress, 0, useColorErr, 0, false)
 
 	plan := make([]addRepoPlanItem, 0, len(selected))
 	for i, cand := range selected {
 		if i > 0 {
+			c.debugf("add-repo inputs render stage=next-repo active_index=%d prev_lines=%d after_prompt=%t", i, renderedInputLines, false)
 			renderedInputLines = renderAddRepoInputsProgress(c.Err, workspaceID, progress, i, useColorErr, renderedInputLines, false)
 		}
 		defaultBaseRef, err := detectDefaultBaseRefFromBare(ctx, cand.BarePath)
@@ -317,6 +319,7 @@ func (c *CLI) runWSAddRepo(args []string) int {
 			fmt.Fprintf(c.Err, "read base_ref: %v\n", err)
 			return exitError
 		}
+		c.debugf("add-repo base_ref input repo=%s raw=%q edited=%t", cand.RepoKey, baseRefInput, baseRefEdited)
 		baseRefUsed, err := resolveBaseRefInput(baseRefInput, defaultBaseRef)
 		if err != nil {
 			fmt.Fprintf(c.Err, "invalid base_ref (must be origin/<branch>): %q\n", baseRefInput)
@@ -327,6 +330,7 @@ func (c *CLI) runWSAddRepo(args []string) int {
 			baseRefRecord = baseRefUsed
 		}
 		progress[i].BaseRef = baseRefUsed
+		c.debugf("add-repo inputs render stage=after-base-ref active_index=%d prev_lines=%d after_prompt=%t", i, renderedInputLines, true)
 		renderedInputLines = renderAddRepoInputsProgress(c.Err, workspaceID, progress, i, useColorErr, renderedInputLines, true)
 
 		branchDisplayDefault := workspaceID
@@ -335,12 +339,14 @@ func (c *CLI) runWSAddRepo(args []string) int {
 			fmt.Fprintf(c.Err, "read branch: %v\n", err)
 			return exitError
 		}
+		c.debugf("add-repo branch input repo=%s raw=%q", cand.RepoKey, branchInput)
 		branch := resolveBranchInput(branchInput, workspaceID)
 		if err := gitutil.CheckRefFormat(ctx, "refs/heads/"+branch); err != nil {
 			fmt.Fprintf(c.Err, "invalid branch name for %s: %v\n", cand.RepoKey, err)
 			return exitError
 		}
 		progress[i].Branch = branch
+		c.debugf("add-repo inputs render stage=after-branch active_index=%d prev_lines=%d after_prompt=%t", i, renderedInputLines, true)
 		renderedInputLines = renderAddRepoInputsProgress(c.Err, workspaceID, progress, i, useColorErr, renderedInputLines, true)
 
 		plan = append(plan, addRepoPlanItem{
@@ -1281,10 +1287,9 @@ func renderAddRepoApplyPrompt(useColor bool) string {
 }
 
 func renderAddRepoInputsProgress(out io.Writer, workspaceID string, rows []addRepoInputProgress, activeIndex int, useColor bool, prevLines int, afterPrompt bool) int {
-	lines := buildAddRepoInputsLines(workspaceID, rows, activeIndex, useColor)
+	lines := buildAddRepoInputsLinesWithPendingOption(workspaceID, rows, activeIndex, useColor, !afterPrompt)
 	if writerIsTTY(out) && prevLines > 0 {
 		moveUp := prevLines
-		_ = afterPrompt
 		fmt.Fprintf(out, "\x1b[%dA", moveUp)
 	}
 	for _, line := range lines {
@@ -1298,6 +1303,10 @@ func renderAddRepoInputsProgress(out io.Writer, workspaceID string, rows []addRe
 }
 
 func buildAddRepoInputsLines(workspaceID string, rows []addRepoInputProgress, activeIndex int, useColor bool) []string {
+	return buildAddRepoInputsLinesWithPendingOption(workspaceID, rows, activeIndex, useColor, true)
+}
+
+func buildAddRepoInputsLinesWithPendingOption(workspaceID string, rows []addRepoInputProgress, activeIndex int, useColor bool, showPendingBranch bool) []string {
 	bullet := styleMuted("•", useColor)
 	labelWorkspace := styleAccent("workspace", useColor)
 	labelRepos := styleAccent("repos", useColor)
@@ -1333,7 +1342,7 @@ func buildAddRepoInputsLines(workspaceID string, rows []addRepoInputProgress, ac
 		if !hasBase && !hasBranch {
 			continue
 		}
-		branchPending := i == activeIndex && hasBase && !hasBranch
+		branchPending := showPendingBranch && i == activeIndex && hasBase && !hasBranch
 		stem := "│  "
 		if i == displayCount-1 {
 			stem = "   "
