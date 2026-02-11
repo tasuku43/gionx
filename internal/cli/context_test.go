@@ -172,6 +172,29 @@ func TestCLI_Context_UseWithoutNameRequiresTTY(t *testing.T) {
 	}
 }
 
+func TestCLI_Context_RemoveWithoutNameRequiresTTY(t *testing.T) {
+	setGionxHomeForTest(t)
+
+	root := t.TempDir()
+	if err := stateregistry.SetContextName(root, "sre", time.Unix(100, 0)); err != nil {
+		t.Fatalf("SetContextName(root): %v", err)
+	}
+
+	var out bytes.Buffer
+	var err bytes.Buffer
+	c := New(&out, &err)
+	code := c.Run([]string{"context", "rm"})
+	if code != exitUsage {
+		t.Fatalf("context rm exit code = %d, want %d", code, exitUsage)
+	}
+	if !strings.Contains(err.String(), "context rm without <name> requires a TTY") {
+		t.Fatalf("stderr missing tty guidance: %q", err.String())
+	}
+	if !strings.Contains(err.String(), "gionx context <subcommand>") {
+		t.Fatalf("stderr should include context usage: %q", err.String())
+	}
+}
+
 func TestCLI_Context_Rename(t *testing.T) {
 	setGionxHomeForTest(t)
 

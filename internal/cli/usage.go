@@ -36,7 +36,7 @@ Subcommands:
   use [name]        Select context by name (or interactive selector)
   rename <old> <new>
                    Rename context
-  rm <name>         Remove context (cannot remove current context)
+  rm [name]         Remove context (or interactive selector; cannot remove current context)
   help              Show this help
 `)
 }

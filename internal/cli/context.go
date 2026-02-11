@@ -311,7 +311,55 @@ func (c *CLI) runContextRename(args []string) int {
 }
 
 func (c *CLI) runContextRemove(args []string) int {
-	if len(args) == 0 || args[0] == "-h" || args[0] == "--help" || args[0] == "help" {
+	if len(args) == 0 {
+		svc := contextcmd.NewService(appports.NewContextPort(resolveContextUseRoot))
+		entries, err := svc.List()
+		if err != nil {
+			fmt.Fprintf(c.Err, "%v\n", err)
+			return exitError
+		}
+		if len(entries) == 0 {
+			fmt.Fprintln(c.Err, "no contexts available")
+			return exitError
+		}
+		currentRoot, _, _ := paths.ReadCurrentContext()
+		candidates := make([]workspaceSelectorCandidate, 0, len(entries))
+		for _, e := range entries {
+			name := strings.TrimSpace(e.ContextName)
+			if name == "" {
+				continue
+			}
+			title := e.RootPath
+			if strings.TrimSpace(e.RootPath) == strings.TrimSpace(currentRoot) {
+				title += " [current]"
+			}
+			candidates = append(candidates, workspaceSelectorCandidate{
+				ID:    name,
+				Title: title,
+				Risk:  workspacerisk.WorkspaceRiskClean,
+			})
+		}
+		if len(candidates) == 0 {
+			fmt.Fprintln(c.Err, "no named contexts available")
+			return exitError
+		}
+		selected, err := c.promptWorkspaceSelectorWithOptionsAndMode("active", "remove", "Contexts:", "context", candidates, true)
+		if err != nil {
+			if err == errSelectorCanceled {
+				fmt.Fprintln(c.Err, "aborted")
+				return exitError
+			}
+			if strings.Contains(err.Error(), "requires a TTY") {
+				fmt.Fprintln(c.Err, "context rm without <name> requires a TTY")
+				c.printContextUsage(c.Err)
+				return exitUsage
+			}
+			fmt.Fprintf(c.Err, "run context selector: %v\n", err)
+			return exitError
+		}
+		args = []string{selected[0]}
+	}
+	if args[0] == "-h" || args[0] == "--help" || args[0] == "help" {
 		c.printContextUsage(c.Out)
 		return exitOK
 	}

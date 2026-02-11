@@ -42,8 +42,12 @@ Notes:
 - `gionx context rename <old> <new>`
   - rename context name in registry
   - fail when destination name already exists
-- `gionx context rm <name>`
-  - remove context name from registry
+- `gionx context rm [name]`
+  - when `<name>` is provided:
+    - remove context name from registry
+  - when `<name>` is omitted in TTY:
+    - open shared single-select UI and choose context interactively
+  - non-TTY without `<name>` must fail fast with usage guidance.
   - fail when target is current context (safety guard)
 
 ## Error handling
