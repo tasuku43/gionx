@@ -15,6 +15,9 @@ frequently used command options.
 - Global config (optional):
   - `~/.gionx/config.yaml`
   - if missing, treat as empty config
+  - bootstrap policy:
+    - first run of a state-changing command creates a commented scaffold file
+      (read-only commands do not create it)
 - Root-local config:
   - `<GIONX_ROOT>/.gionx/config.yaml`
   - lifecycle/bootstrap is defined by `docs/spec/commands/init.md`
@@ -65,3 +68,10 @@ Notes:
 
 - Parse errors should include the config file path.
 - Validation errors should include concrete key names (for quick fix).
+
+## Scaffold comments
+
+Generated root/global config files should include a short header comment that explains:
+
+- precedence order (`CLI > root > global > default`)
+- empty-string handling ("unset")

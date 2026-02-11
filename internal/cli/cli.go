@@ -46,6 +46,12 @@ func (c *CLI) Run(args []string) int {
 		c.printRootUsage(c.Err)
 		return exitUsage
 	}
+	if shouldBootstrapGlobalConfig(args) {
+		if err := ensureGlobalConfigScaffold(); err != nil {
+			fmt.Fprintf(c.Err, "initialize global config: %v\n", err)
+			return exitError
+		}
+	}
 
 	switch args[0] {
 	case "-h", "--help", "help":

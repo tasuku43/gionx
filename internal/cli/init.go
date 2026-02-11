@@ -440,7 +440,24 @@ func ensureRootConfig(root string) error {
 }
 
 func defaultRootConfigContent() string {
-	return "workspace:\n  default_template: default\n"
+	return `# gionx root config
+# Precedence (high -> low):
+#   1) CLI flags
+#   2) this file: <GIONX_ROOT>/.gionx/config.yaml
+#   3) global: ~/.gionx/config.yaml
+#   4) built-in defaults
+#
+# Empty string values are treated as unset.
+
+workspace:
+  default_template: default
+
+integration:
+  jira:
+    # default_space: SRE
+    # default_project: APP
+    # default_type: sprint # sprint | jql
+`
 }
 
 func ensureDefaultWorkspaceTemplate(root string) error {

@@ -52,3 +52,12 @@ status: planned
     - `docs/spec/concepts/config.md`
   - Depends: CONFIG-002, CONFIG-003
   - Serial: yes
+
+- [x] CONFIG-006: global config scaffold bootstrap + config header comments
+  - What: create `~/.gionx/config.yaml` scaffold on first state-changing command
+    and include precedence/order comments in global/root generated configs.
+  - Specs:
+    - `docs/spec/concepts/config.md`
+    - `docs/spec/commands/init.md`
+  - Depends: CONFIG-002, CONFIG-003
+  - Serial: yes
