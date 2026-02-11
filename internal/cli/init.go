@@ -176,7 +176,11 @@ func defaultContextNameSuggestion() (string, error) {
 }
 
 func normalizeInitRoot(rootRaw string) (string, error) {
-	root, err := filepath.Abs(rootRaw)
+	expanded, err := expandInitRootHome(rootRaw)
+	if err != nil {
+		return "", err
+	}
+	root, err := filepath.Abs(expanded)
 	if err != nil {
 		return "", err
 	}
@@ -185,6 +189,22 @@ func normalizeInitRoot(rootRaw string) (string, error) {
 		return "", err
 	}
 	return root, nil
+}
+
+func expandInitRootHome(raw string) (string, error) {
+	trimmed := strings.TrimSpace(raw)
+	if trimmed == "~" || strings.HasPrefix(trimmed, "~/") || strings.HasPrefix(trimmed, `~\`) {
+		home, err := os.UserHomeDir()
+		if err != nil {
+			return "", fmt.Errorf("resolve home dir for ~ expansion: %w", err)
+		}
+		if trimmed == "~" {
+			return home, nil
+		}
+		suffix := trimmed[2:]
+		return filepath.Join(home, suffix), nil
+	}
+	return raw, nil
 }
 
 func ensureInitLayout(root string) error {
