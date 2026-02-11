@@ -35,7 +35,9 @@ Backlog is managed by epic/prefix under `docs/backlog/*.md`.
 - `docs/backlog/UX-CORE.md`: core UX polish
 - `docs/backlog/ARCH.md`: architecture refactor
 - `docs/backlog/INT-JIRA.md`: external integration (Jira)
-- `docs/backlog/POST-MVP.md`: post-MVP follow-up items
+- `docs/backlog/CTX-ROOT.md`: context and root management
+- `docs/backlog/DOC-QUALITY.md`: documentation and quality hardening
+- `docs/backlog/AGENT.md`: agent execution visibility
 
 ## File Status
 
@@ -46,7 +48,9 @@ Backlog is managed by epic/prefix under `docs/backlog/*.md`.
 - [x] `docs/backlog/UX-CORE.md` (`11/11` done)
 - [x] `docs/backlog/ARCH.md` (`10/10` done)
 - [x] `docs/backlog/INT-JIRA.md` (`7/7` done)
-- [x] `docs/backlog/POST-MVP.md` (`8/8` done)
+- [x] `docs/backlog/CTX-ROOT.md` (`4/4` done)
+- [x] `docs/backlog/DOC-QUALITY.md` (`5/5` done)
+- [ ] `docs/backlog/AGENT.md` (`0/1` done)
 
 Update this section whenever any ticket checkbox changes.
 
