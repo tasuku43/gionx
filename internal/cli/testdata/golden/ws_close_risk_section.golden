@@ -1,0 +1,10 @@
+Risk:
+
+  • WS1 [dirty]
+    - repo-a [dirty]
+    - repo-b [unpushed]
+  • WS2 [clean]
+
+  summary: clean=1 warning=0 danger=1
+  policy: all-or-nothing close
+

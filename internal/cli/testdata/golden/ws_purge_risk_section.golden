@@ -1,0 +1,8 @@
+Risk:
+
+  purge is permanent and cannot be undone.
+  selected: 1
+  active workspace risk detected:
+  - WS1 [dirty]
+    - repo1 [dirty]
+

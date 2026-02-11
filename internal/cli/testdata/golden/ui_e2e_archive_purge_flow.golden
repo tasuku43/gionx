@@ -1,0 +1,67 @@
+$ gionx init --root <ROOT> --context ui-e2e
+exit: 0
+stdout:
+
+Result:
+  Initialized: <ROOT>
+  Context selected: ui-e2e
+
+
+$ gionx ws create --no-prompt UI-200
+exit: 0
+stdout:
+
+Result:
+  Created 1 / 1
+  ✔ UI-200
+  path: <ROOT>/workspaces/UI-200
+
+
+$ gionx ws --act close UI-200
+exit: 0
+stdout:
+Result:
+  Closed 1 / 1
+  ✔ UI-200
+
+
+$ gionx ws --act reopen UI-200
+exit: 0
+stdout:
+Result:
+  Reopened 1 / 1
+  ✔ UI-200
+
+
+$ gionx ws --act close UI-200
+exit: 0
+stdout:
+Result:
+  Closed 1 / 1
+  ✔ UI-200
+
+
+$ gionx ws --act purge --no-prompt --force UI-200
+exit: 0
+stdout:
+Result:
+  Purged 1 / 1
+  ✔ UI-200
+
+
+$ gionx ws list --archived
+exit: 0
+stdout:
+Workspaces(archived):
+
+  (none)
+
+
+$ gionx ws list
+exit: 0
+stdout:
+Workspaces(active):
+
+  (none)
+
+

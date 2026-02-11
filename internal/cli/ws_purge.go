@@ -248,11 +248,10 @@ func collectPurgeWorkspaceMeta(ctx context.Context, db *sql.DB, root string, wor
 }
 
 func printPurgeRiskSection(out io.Writer, selectedIDs []string, riskMeta map[string]purgeWorkspaceMeta, useColor bool) {
-	fmt.Fprintln(out)
-	fmt.Fprintln(out, renderRiskTitle(useColor))
-	fmt.Fprintln(out)
-	fmt.Fprintf(out, "%spurge is permanent and cannot be undone.\n", uiIndent)
-	fmt.Fprintf(out, "%s%s %d\n", uiIndent, styleAccent("selected:", useColor), len(selectedIDs))
+	body := []string{
+		fmt.Sprintf("%spurge is permanent and cannot be undone.", uiIndent),
+		fmt.Sprintf("%s%s %d", uiIndent, styleAccent("selected:", useColor), len(selectedIDs)),
+	}
 
 	hasRepoRisk := false
 	for _, id := range selectedIDs {
@@ -262,21 +261,23 @@ func printPurgeRiskSection(out io.Writer, selectedIDs []string, riskMeta map[str
 			break
 		}
 	}
-	if !hasRepoRisk {
-		return
-	}
-
-	fmt.Fprintf(out, "%s%s\n", uiIndent, styleAccent("active workspace risk detected:", useColor))
-	for _, id := range selectedIDs {
-		meta := riskMeta[id]
-		if meta.status != "active" || meta.risk == workspacerisk.WorkspaceRiskClean {
-			continue
-		}
-		fmt.Fprintf(out, "%s- %s %s\n", uiIndent, id, renderWorkspaceRiskBadge(meta.risk, useColor))
-		for _, repo := range meta.perRepo {
-			fmt.Fprintf(out, "%s  - %s %s\n", uiIndent, repo.alias, renderRepoRiskState(repo.state, useColor))
+	if hasRepoRisk {
+		body = append(body, fmt.Sprintf("%s%s", uiIndent, styleAccent("active workspace risk detected:", useColor)))
+		for _, id := range selectedIDs {
+			meta := riskMeta[id]
+			if meta.status != "active" || meta.risk == workspacerisk.WorkspaceRiskClean {
+				continue
+			}
+			body = append(body, fmt.Sprintf("%s- %s %s", uiIndent, id, renderWorkspaceRiskBadge(meta.risk, useColor)))
+			for _, repo := range meta.perRepo {
+				body = append(body, fmt.Sprintf("%s  - %s %s", uiIndent, repo.alias, renderRepoRiskState(repo.state, useColor)))
+			}
 		}
 	}
+	printSection(out, renderRiskTitle(useColor), body, sectionRenderOptions{
+		blankAfterHeading: true,
+		trailingBlank:     true,
+	})
 }
 
 func (c *CLI) purgeWorkspace(ctx context.Context, db *sql.DB, root string, repoPoolPath string, workspaceID string) error {

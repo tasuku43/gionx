@@ -583,9 +583,7 @@ func hasNonCleanRisk(items []workspaceRiskDetail) bool {
 }
 
 func printRiskSection(w io.Writer, items []workspaceRiskDetail, useColor bool) {
-	fmt.Fprintln(w, renderRiskTitle(useColor))
-	fmt.Fprintln(w)
-
+	body := make([]string, 0, len(items)*2+4)
 	cleanCount := 0
 	warningCount := 0
 	dangerCount := 0
@@ -600,7 +598,7 @@ func printRiskSection(w io.Writer, items []workspaceRiskDetail, useColor bool) {
 			dangerCount++
 		}
 
-		fmt.Fprintf(w, "%s• %s %s\n", uiIndent, it.id, renderWorkspaceRiskBadge(it.risk, useColor))
+		body = append(body, fmt.Sprintf("%s• %s %s", uiIndent, it.id, renderWorkspaceRiskBadge(it.risk, useColor)))
 		if it.risk == workspacerisk.WorkspaceRiskClean {
 			continue
 		}
@@ -608,12 +606,17 @@ func printRiskSection(w io.Writer, items []workspaceRiskDetail, useColor bool) {
 			if repo.state == workspacerisk.RepoStateClean {
 				continue
 			}
-			fmt.Fprintf(w, "%s- %s %s\n", uiIndent+uiIndent, repo.alias, renderRepoRiskState(repo.state, useColor))
+			body = append(body, fmt.Sprintf("%s- %s %s", uiIndent+uiIndent, repo.alias, renderRepoRiskState(repo.state, useColor)))
 		}
 	}
-	fmt.Fprintln(w)
-	fmt.Fprintf(w, "%s%s clean=%d warning=%d danger=%d\n", uiIndent, styleAccent("summary:", useColor), cleanCount, warningCount, dangerCount)
-	fmt.Fprintf(w, "%s%s all-or-nothing close\n", uiIndent, styleAccent("policy:", useColor))
+	body = append(body, "")
+	body = append(body, fmt.Sprintf("%s%s clean=%d warning=%d danger=%d", uiIndent, styleAccent("summary:", useColor), cleanCount, warningCount, dangerCount))
+	body = append(body, fmt.Sprintf("%s%s all-or-nothing close", uiIndent, styleAccent("policy:", useColor)))
+
+	printSection(w, renderRiskTitle(useColor), body, sectionRenderOptions{
+		blankAfterHeading: true,
+		trailingBlank:     true,
+	})
 }
 
 func inspectWorkspaceRepoRisk(ctx context.Context, root string, workspaceID string, repos []statestore.WorkspaceRepo) (workspacerisk.WorkspaceRisk, []repoRiskItem) {

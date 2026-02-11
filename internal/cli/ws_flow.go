@@ -101,9 +101,11 @@ func workspaceFlowSelectionIDs(items []workspaceFlowSelection) []string {
 }
 
 func (c *CLI) printWorkspaceFlowAbortedResult(reason string, useColor bool) {
-	fmt.Fprintln(c.Out)
-	fmt.Fprintln(c.Out, renderResultTitle(useColor))
-	fmt.Fprintf(c.Out, "%saborted: %s\n", uiIndent, reason)
+	body := []string{fmt.Sprintf("%saborted: %s", uiIndent, reason)}
+	printSection(c.Out, renderResultTitle(useColor), body, sectionRenderOptions{
+		blankAfterHeading: false,
+		trailingBlank:     true,
+	})
 }
 
 func (c *CLI) printWorkspaceFlowResult(verb string, mark string, done []string, total int, useColor bool) {
@@ -114,10 +116,13 @@ func (c *CLI) printWorkspaceFlowResult(verb string, mark string, done []string, 
 		mark = "✔"
 	}
 
-	fmt.Fprintln(c.Out)
-	fmt.Fprintln(c.Out, renderResultTitle(useColor))
-	fmt.Fprintf(c.Out, "%s%s %d / %d\n", uiIndent, verb, len(done), total)
+	body := make([]string, 0, len(done)+1)
+	body = append(body, fmt.Sprintf("%s%s %d / %d", uiIndent, verb, len(done), total))
 	for _, id := range done {
-		fmt.Fprintf(c.Out, "%s%s %s\n", uiIndent, mark, id)
+		body = append(body, fmt.Sprintf("%s%s %s", uiIndent, mark, id))
 	}
+	printSection(c.Out, renderResultTitle(useColor), body, sectionRenderOptions{
+		blankAfterHeading: false,
+		trailingBlank:     true,
+	})
 }
