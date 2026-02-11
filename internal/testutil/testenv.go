@@ -17,8 +17,14 @@ func NewEnv(t *testing.T) Env {
 	t.Helper()
 
 	root := t.TempDir()
-	gionxHome := filepath.Join(t.TempDir(), ".gionx")
+	base := t.TempDir()
+	home := filepath.Join(base, "home")
+	if err := os.MkdirAll(home, 0o755); err != nil {
+		t.Fatalf("MkdirAll(%q): %v", home, err)
+	}
+	gionxHome := filepath.Join(base, ".gionx")
 
+	t.Setenv("HOME", home)
 	t.Setenv("GIONX_HOME", gionxHome)
 	if err := paths.WriteCurrentContext(root); err != nil {
 		t.Fatalf("WriteCurrentContext(%q): %v", root, err)

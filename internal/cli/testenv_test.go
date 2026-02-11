@@ -10,7 +10,13 @@ import (
 
 func setGionxHomeForTest(t *testing.T) string {
 	t.Helper()
-	gionxHome := filepath.Join(t.TempDir(), ".gionx")
+	base := t.TempDir()
+	home := filepath.Join(base, "home")
+	if err := os.MkdirAll(home, 0o755); err != nil {
+		t.Fatalf("mkdir test HOME dir: %v", err)
+	}
+	t.Setenv("HOME", home)
+	gionxHome := filepath.Join(base, ".gionx")
 	t.Setenv("GIONX_HOME", gionxHome)
 	return gionxHome
 }
