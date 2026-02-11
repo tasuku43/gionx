@@ -30,6 +30,7 @@ Implementation should reference these specs. When behavior changes, update the s
 - Concepts
   - `concepts/layout.md`: GIONX_ROOT layout and Git tracking policy
   - `concepts/state-store.md`: Optional/rebuildable root index and registry
+  - `concepts/config.md`: Global/root user config model and precedence
   - `concepts/fs-source-of-truth.md`: FS=SoT and index-store downgrade policy (planned)
   - `concepts/workspace-meta-json.md`: `.gionx.meta.json` schema and atomic update rules (planned)
   - `concepts/workspace-template.md`: root-local workspace template model and validation

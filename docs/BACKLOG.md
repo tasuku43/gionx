@@ -16,3 +16,4 @@ Backlog has moved to `docs/backlog/` and is now split by epic/prefix.
   - `docs/backlog/UX-CORE.md`
   - `docs/backlog/ARCH.md`
   - `docs/backlog/INT-JIRA.md`
+  - `docs/backlog/CONFIG.md`

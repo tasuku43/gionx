@@ -52,6 +52,21 @@ func TestCurrentContextPath_UsesGionxHomeDefault(t *testing.T) {
 	}
 }
 
+func TestConfigPath_UsesGionxHomeDefault(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	t.Setenv("GIONX_HOME", "")
+
+	got, err := ConfigPath()
+	if err != nil {
+		t.Fatalf("ConfigPath() err = %v", err)
+	}
+	want := filepath.Join(home, ".gionx", "config.yaml")
+	if got != want {
+		t.Fatalf("ConfigPath() = %q, want %q", got, want)
+	}
+}
+
 func TestPaths_UsesGionxHomeOverride(t *testing.T) {
 	gionxHome := filepath.Join(t.TempDir(), ".gionx")
 	t.Setenv("GIONX_HOME", gionxHome)
@@ -70,6 +85,23 @@ func TestPaths_UsesGionxHomeOverride(t *testing.T) {
 	}
 	if gotRegistry != filepath.Join(gionxHome, "state", "root-registry.json") {
 		t.Fatalf("registry path = %q", gotRegistry)
+	}
+
+	gotConfig, err := ConfigPath()
+	if err != nil {
+		t.Fatalf("ConfigPath() err = %v", err)
+	}
+	if gotConfig != filepath.Join(gionxHome, "config.yaml") {
+		t.Fatalf("config path = %q", gotConfig)
+	}
+}
+
+func TestRootConfigPath(t *testing.T) {
+	root := filepath.Join(string(filepath.Separator), "tmp", "gionx-root")
+	got := RootConfigPath(root)
+	want := filepath.Join(root, ".gionx", "config.yaml")
+	if got != want {
+		t.Fatalf("RootConfigPath() = %q, want %q", got, want)
 	}
 }
 

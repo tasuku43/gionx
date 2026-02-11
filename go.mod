@@ -29,4 +29,5 @@ require (
 	golang.org/x/exp v0.0.0-20230315142452-642cacee5cc0 // indirect
 	golang.org/x/sys v0.40.0 // indirect
 	golang.org/x/text v0.3.8 // indirect
+	gopkg.in/yaml.v3 v3.0.1 // indirect
 )

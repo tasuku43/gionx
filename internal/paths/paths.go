@@ -46,6 +46,11 @@ func ConfigPath() (string, error) {
 	return filepath.Join(home, "config.yaml"), nil
 }
 
+// RootConfigPath returns the root-local config path.
+func RootConfigPath(root string) string {
+	return filepath.Join(root, ".gionx", "config.yaml")
+}
+
 // GionxHomeDir resolves $GIONX_HOME or falls back to ~/.gionx.
 func GionxHomeDir() (string, error) {
 	if v := strings.TrimSpace(os.Getenv(gionxHomeEnv)); v != "" {

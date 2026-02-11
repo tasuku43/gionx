@@ -4,5 +4,7 @@ import base "github.com/tasuku43/gionx/internal/paths"
 
 func ResolveExistingRoot(cwd string) (string, error) { return base.ResolveExistingRoot(cwd) }
 func DefaultRepoPoolPath() (string, error)           { return base.DefaultRepoPoolPath() }
+func ConfigPath() (string, error)                    { return base.ConfigPath() }
+func RootConfigPath(root string) string              { return base.RootConfigPath(root) }
 func WriteCurrentContext(root string) error          { return base.WriteCurrentContext(root) }
 func ReadCurrentContext() (string, bool, error)      { return base.ReadCurrentContext() }
