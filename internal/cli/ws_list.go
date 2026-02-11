@@ -282,23 +282,29 @@ func printWSListTSV(out io.Writer, rows []wsListRow) {
 }
 
 func printWSListHuman(out io.Writer, rows []wsListRow, scope string, tree bool, useColor bool) {
-	fmt.Fprintln(out, renderWorkspacesTitle(scope, useColor))
-	fmt.Fprintln(out)
-
+	body := make([]string, 0, len(rows)*2+1)
 	if len(rows) == 0 {
-		fmt.Fprintf(out, "%s(none)\n", uiIndent)
+		body = append(body, fmt.Sprintf("%s(none)", uiIndent))
+		printSection(out, renderWorkspacesTitle(scope, useColor), body, sectionRenderOptions{
+			blankAfterHeading: true,
+			trailingBlank:     true,
+		})
 		return
 	}
 
 	maxCols := listTerminalWidth()
 	for _, row := range rows {
-		fmt.Fprintln(out, renderWSListSummaryRow(row, maxCols, useColor))
+		body = append(body, renderWSListSummaryRow(row, maxCols, useColor))
 
 		if !tree {
 			continue
 		}
-		printWSListTreeLines(out, row.Repos, maxCols, useColor)
+		body = append(body, renderWSListTreeLines(row.Repos, maxCols, useColor)...)
 	}
+	printSection(out, renderWorkspacesTitle(scope, useColor), body, sectionRenderOptions{
+		blankAfterHeading: true,
+		trailingBlank:     true,
+	})
 }
 
 func renderWSListSummaryRow(row wsListRow, maxCols int, useColor bool) string {
@@ -319,23 +325,23 @@ func renderWSListSummaryRow(row wsListRow, maxCols int, useColor bool) string {
 	bullet := "•"
 	separator := separatorPlain
 	if useColor {
-		bullet = styleMuted(bullet, true)
-		separator = styleMuted(separatorPlain, true)
+		bullet = styleMuted(bullet, useColor)
+		separator = styleMuted(separatorPlain, useColor)
 	}
 	line := fmt.Sprintf("%s%s %s%s", uiIndent, bullet, idPlain, separator) + desc
 	return truncateDisplay(line, maxCols)
 }
 
-func printWSListTreeLines(out io.Writer, repos []statestore.WorkspaceRepo, maxCols int, useColor bool) {
+func renderWSListTreeLines(repos []statestore.WorkspaceRepo, maxCols int, useColor bool) []string {
 	repoIndent := uiIndent + uiIndent
 	if len(repos) == 0 {
 		line := repoIndent + "(no repos)"
 		if useColor {
-			line = styleMuted(line, true)
+			line = styleMuted(line, useColor)
 		}
-		fmt.Fprintln(out, line)
-		return
+		return []string{line}
 	}
+	lines := make([]string, 0, len(repos))
 	for _, repo := range repos {
 		state := "tracked"
 		if repo.MissingAt.Valid {
@@ -344,10 +350,11 @@ func printWSListTreeLines(out io.Writer, repos []statestore.WorkspaceRepo, maxCo
 		line := fmt.Sprintf("%s- %s  branch:%s  state:%s", repoIndent, repo.Alias, repo.Branch, state)
 		line = truncateDisplay(line, maxCols)
 		if useColor {
-			line = styleMuted(line, true)
+			line = styleMuted(line, useColor)
 		}
-		fmt.Fprintln(out, line)
+		lines = append(lines, line)
 	}
+	return lines
 }
 
 func formatWorkspaceTitle(title string) string {

@@ -612,8 +612,8 @@ func printRiskSection(w io.Writer, items []workspaceRiskDetail, useColor bool) {
 		}
 	}
 	fmt.Fprintln(w)
-	fmt.Fprintf(w, "%ssummary: clean=%d warning=%d danger=%d\n", uiIndent, cleanCount, warningCount, dangerCount)
-	fmt.Fprintf(w, "%spolicy: all-or-nothing close\n", uiIndent)
+	fmt.Fprintf(w, "%s%s clean=%d warning=%d danger=%d\n", uiIndent, styleAccent("summary:", useColor), cleanCount, warningCount, dangerCount)
+	fmt.Fprintf(w, "%s%s all-or-nothing close\n", uiIndent, styleAccent("policy:", useColor))
 }
 
 func inspectWorkspaceRepoRisk(ctx context.Context, root string, workspaceID string, repos []statestore.WorkspaceRepo) (workspacerisk.WorkspaceRisk, []repoRiskItem) {

@@ -433,7 +433,7 @@ func (c *CLI) promptLauncherAction(target workspaceContextSelection, fromContext
 func renderActionSelectorTitle(workspaceID string, useColor bool) string {
 	label := "workspace"
 	if useColor {
-		label = styleAccent(label, true)
+		label = styleAccent(label, useColor)
 	}
 	return fmt.Sprintf("Action:\n%s%s: %s", uiIndent, label, workspaceID)
 }

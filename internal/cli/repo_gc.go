@@ -121,11 +121,12 @@ func (c *CLI) runRepoGC(args []string) int {
 		return exitError
 	}
 
-	printRepoGCSelection(c.Out, eligibleSelected)
+	useColorOut := writerSupportsColor(c.Out)
+	printRepoGCSelection(c.Out, eligibleSelected, useColorOut)
 	fmt.Fprintln(c.Out)
-	fmt.Fprintln(c.Out, renderRiskTitle(writerSupportsColor(c.Out)))
+	fmt.Fprintln(c.Out, renderRiskTitle(useColorOut))
 	fmt.Fprintf(c.Out, "%srepo gc permanently deletes bare repos from pool.\n", uiIndent)
-	fmt.Fprintf(c.Out, "%sselected: %d\n", uiIndent, len(eligibleSelected))
+	fmt.Fprintf(c.Out, "%s%s %d\n", uiIndent, styleAccent("selected:", useColorOut), len(eligibleSelected))
 
 	line, err := c.promptLine(fmt.Sprintf("%sremove selected bare repos from pool? this is permanent (y/N): ", uiIndent))
 	if err != nil {
@@ -140,32 +141,32 @@ func (c *CLI) runRepoGC(args []string) int {
 	}
 
 	removed, failed := applyRepoGC(eligibleSelected)
-	useColor := writerSupportsColor(c.Out)
+	useColor := useColorOut
 	fmt.Fprintln(c.Out)
 	fmt.Fprintln(c.Out, renderResultTitle(useColor))
 	summary := fmt.Sprintf("Removed %d / %d", len(removed), len(eligibleSelected))
 	if useColor {
 		switch {
 		case len(removed) == len(eligibleSelected):
-			summary = styleSuccess(summary, true)
+			summary = styleSuccess(summary, useColor)
 		case len(removed) == 0:
-			summary = styleError(summary, true)
+			summary = styleError(summary, useColor)
 		default:
-			summary = styleWarn(summary, true)
+			summary = styleWarn(summary, useColor)
 		}
 	}
 	fmt.Fprintf(c.Out, "%s%s\n", uiIndent, summary)
 	for _, it := range removed {
 		prefix := "✔"
 		if useColor {
-			prefix = styleSuccess(prefix, true)
+			prefix = styleSuccess(prefix, useColor)
 		}
 		fmt.Fprintf(c.Out, "%s%s %s\n", uiIndent, prefix, it.RepoKey)
 	}
 	for _, it := range failed {
 		prefix := "!"
 		if useColor {
-			prefix = styleError(prefix, true)
+			prefix = styleError(prefix, useColor)
 		}
 		fmt.Fprintf(c.Out, "%s%s %s (%s)\n", uiIndent, prefix, it.RepoKey, it.SkipReason)
 	}
@@ -547,8 +548,8 @@ func selectRepoGCCandidates(c *CLI, candidates []repoGCCandidate, args []string)
 	return selected, nil
 }
 
-func printRepoGCSelection(out io.Writer, selected []repoGCCandidate) {
-	fmt.Fprintln(out, "Repo pool:")
+func printRepoGCSelection(out io.Writer, selected []repoGCCandidate, useColor bool) {
+	fmt.Fprintln(out, styleBold("Repo pool:", useColor))
 	fmt.Fprintln(out)
 	for _, it := range selected {
 		fmt.Fprintf(out, "%s- %s\n", uiIndent, it.RepoKey)

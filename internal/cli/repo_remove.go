@@ -88,7 +88,8 @@ func (c *CLI) runRepoRemove(args []string) int {
 		return exitError
 	}
 
-	printRepoRemoveSelection(c.Out, selected)
+	useColorOut := writerSupportsColor(c.Out)
+	printRepoRemoveSelection(c.Out, selected, useColorOut)
 	for _, repoUID := range repoUIDs {
 		barePath := strings.TrimSpace(bareByRepo[repoUID])
 		if barePath == "" {
@@ -100,7 +101,6 @@ func (c *CLI) runRepoRemove(args []string) int {
 		}
 	}
 
-	useColorOut := writerSupportsColor(c.Out)
 	printRepoRemoveResult(c.Out, selected, useColorOut)
 	return exitOK
 }
@@ -221,8 +221,8 @@ func selectReposForRemove(c *CLI, repos []statestore.RootRepoCandidate, args []s
 	return selected, nil
 }
 
-func printRepoRemoveSelection(out io.Writer, selected []statestore.RootRepoCandidate) {
-	fmt.Fprintln(out, "Repo pool:")
+func printRepoRemoveSelection(out io.Writer, selected []statestore.RootRepoCandidate, useColor bool) {
+	fmt.Fprintln(out, styleBold("Repo pool:", useColor))
 	fmt.Fprintln(out)
 	for _, it := range selected {
 		fmt.Fprintf(out, "%s- %s\n", uiIndent, it.RepoKey)
@@ -234,7 +234,7 @@ func printRepoRemoveResult(out io.Writer, removed []statestore.RootRepoCandidate
 	fmt.Fprintln(out, renderResultTitle(useColor))
 	summary := fmt.Sprintf("Removed %d / %d", len(removed), len(removed))
 	if useColor {
-		summary = styleSuccess(summary, true)
+		summary = styleSuccess(summary, useColor)
 	}
 	fmt.Fprintf(out, "%s%s\n", uiIndent, summary)
 	for _, it := range removed {

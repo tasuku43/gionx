@@ -48,7 +48,7 @@ func (c *CLI) runRepoAdd(args []string) int {
 	}
 
 	useColorOut := writerSupportsColor(c.Out)
-	printRepoPoolSection(c.Out, requests)
+	printRepoPoolSection(c.Out, requests, useColorOut)
 	outcomes := applyRepoPoolAddsWithProgress(ctx, session.RepoPoolPath, requests, repoPoolAddDefaultWorkers, c.debugf, c.Out, useColorOut)
 	printRepoPoolAddResult(c.Out, outcomes, useColorOut)
 	if repoPoolAddHadFailure(outcomes) {

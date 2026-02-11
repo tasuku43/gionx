@@ -214,21 +214,21 @@ func printRepoPoolProgressPlain(out io.Writer, useColor bool, events <-chan repo
 		case repoPoolAddProgressStart:
 			prefix := "…"
 			if useColor {
-				prefix = styleInfo(prefix, true)
+				prefix = styleInfo(prefix, useColor)
 			}
 			fmt.Fprintf(out, "%s%s %s\n", uiIndent, prefix, ev.RepoKey)
 		case repoPoolAddProgressDone:
 			if ev.Success {
 				prefix := "✔"
 				if useColor {
-					prefix = styleSuccess(prefix, true)
+					prefix = styleSuccess(prefix, useColor)
 				}
 				fmt.Fprintf(out, "%s%s %s\n", uiIndent, prefix, ev.RepoKey)
 				continue
 			}
 			prefix := "!"
 			if useColor {
-				prefix = styleError(prefix, true)
+				prefix = styleError(prefix, useColor)
 			}
 			fmt.Fprintf(out, "%s%s %s (%s)\n", uiIndent, prefix, ev.RepoKey, ev.Reason)
 		}
@@ -322,13 +322,13 @@ func renderRepoPoolProgressLines(useColor bool, rows []repoPoolProgressRow, spin
 		if useColor {
 			switch row.status {
 			case repoPoolProgressRunning:
-				prefix = styleInfo(prefix, true)
+				prefix = styleInfo(prefix, useColor)
 			case repoPoolProgressDone:
-				prefix = styleSuccess(prefix, true)
+				prefix = styleSuccess(prefix, useColor)
 			case repoPoolProgressFailed:
-				prefix = styleError(prefix, true)
+				prefix = styleError(prefix, useColor)
 			default:
-				prefix = styleMuted(prefix, true)
+				prefix = styleMuted(prefix, useColor)
 			}
 		}
 		line := fmt.Sprintf("%s%s %s", uiIndent, prefix, row.name)
@@ -340,8 +340,8 @@ func renderRepoPoolProgressLines(useColor bool, rows []repoPoolProgressRow, spin
 	return lines
 }
 
-func printRepoPoolSection(out io.Writer, requests []repoPoolAddRequest) {
-	fmt.Fprintln(out, "Repo pool:")
+func printRepoPoolSection(out io.Writer, requests []repoPoolAddRequest, useColor bool) {
+	fmt.Fprintln(out, styleBold("Repo pool:", useColor))
 	fmt.Fprintln(out)
 	if len(requests) == 0 {
 		fmt.Fprintf(out, "%s(none)\n", uiIndent)
@@ -367,11 +367,11 @@ func printRepoPoolAddResult(out io.Writer, outcomes []repoPoolAddOutcome, useCol
 	if useColor {
 		switch {
 		case total > 0 && success == total:
-			summary = styleSuccess(summary, true)
+			summary = styleSuccess(summary, useColor)
 		case success == 0:
-			summary = styleError(summary, true)
+			summary = styleError(summary, useColor)
 		default:
-			summary = styleWarn(summary, true)
+			summary = styleWarn(summary, useColor)
 		}
 	}
 	fmt.Fprintf(out, "%s%s\n", uiIndent, summary)
@@ -379,7 +379,7 @@ func printRepoPoolAddResult(out io.Writer, outcomes []repoPoolAddOutcome, useCol
 		if !r.Success {
 			prefix := "!"
 			if useColor {
-				prefix = styleError(prefix, true)
+				prefix = styleError(prefix, useColor)
 			}
 			fmt.Fprintf(out, "%s%s %s (reason: %s)\n", uiIndent, prefix, r.RepoKey, r.Reason)
 		}

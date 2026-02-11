@@ -56,3 +56,5 @@ Commands must use semantic tokens and shared helpers.
   - raw ANSI color literals outside `internal/cli/ws_ui_common.go`
   - direct `lipgloss.Color(...)` usage in CLI code
   - direct foreground/background concrete color assignment outside approved shared renderer paths
+- Use `./scripts/lint-ui-color-coverage.sh` as an audit to detect plain heading literals
+  that bypass shared styled heading renderers.

@@ -1037,10 +1037,11 @@ func (c *CLI) promptAddRepoPoolSelectionFallback(candidates []addRepoPoolCandida
 		return nil, errSelectorCanceled
 	}
 
+	useColorErr := writerSupportsColor(c.Err)
 	filter := ""
 	for {
 		visible := filterAddRepoPoolCandidates(candidates, filter)
-		fmt.Fprintln(c.Err, "Repos(pool):")
+		fmt.Fprintln(c.Err, styleBold("Repos(pool):", useColorErr))
 		fmt.Fprintln(c.Err)
 		if len(visible) == 0 {
 			fmt.Fprintf(c.Err, "%s(none)\n", uiIndent)
@@ -1050,7 +1051,7 @@ func (c *CLI) promptAddRepoPoolSelectionFallback(candidates []addRepoPoolCandida
 			}
 		}
 		fmt.Fprintln(c.Err)
-		fmt.Fprintf(c.Err, "%sfilter: %s\n", uiIndent, filter)
+		fmt.Fprintf(c.Err, "%s%s %s\n", uiIndent, styleMuted("filter:", useColorErr), filter)
 
 		line, err := c.promptLine(fmt.Sprintf("%sselect repos (comma numbers, /filter, empty=cancel): ", uiIndent))
 		if err != nil {

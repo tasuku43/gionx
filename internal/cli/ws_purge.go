@@ -252,7 +252,7 @@ func printPurgeRiskSection(out io.Writer, selectedIDs []string, riskMeta map[str
 	fmt.Fprintln(out, renderRiskTitle(useColor))
 	fmt.Fprintln(out)
 	fmt.Fprintf(out, "%spurge is permanent and cannot be undone.\n", uiIndent)
-	fmt.Fprintf(out, "%sselected: %d\n", uiIndent, len(selectedIDs))
+	fmt.Fprintf(out, "%s%s %d\n", uiIndent, styleAccent("selected:", useColor), len(selectedIDs))
 
 	hasRepoRisk := false
 	for _, id := range selectedIDs {
@@ -266,15 +266,15 @@ func printPurgeRiskSection(out io.Writer, selectedIDs []string, riskMeta map[str
 		return
 	}
 
-	fmt.Fprintf(out, "%sactive workspace risk detected:\n", uiIndent)
+	fmt.Fprintf(out, "%s%s\n", uiIndent, styleAccent("active workspace risk detected:", useColor))
 	for _, id := range selectedIDs {
 		meta := riskMeta[id]
 		if meta.status != "active" || meta.risk == workspacerisk.WorkspaceRiskClean {
 			continue
 		}
-		fmt.Fprintf(out, "%s- %s [%s]\n", uiIndent, id, meta.risk)
+		fmt.Fprintf(out, "%s- %s %s\n", uiIndent, id, renderWorkspaceRiskBadge(meta.risk, useColor))
 		for _, repo := range meta.perRepo {
-			fmt.Fprintf(out, "%s  - %s\t%s\n", uiIndent, repo.alias, repo.state)
+			fmt.Fprintf(out, "%s  - %s %s\n", uiIndent, repo.alias, renderRepoRiskState(repo.state, useColor))
 		}
 	}
 }
