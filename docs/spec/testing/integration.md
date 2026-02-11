@@ -63,6 +63,33 @@ This section maps the spec scenarios to concrete CLI integration tests.
 - Jira strict flag conflict (`--jira` with `--id/--title`) usage error:
   - `internal/cli/ws_create_jira_test.go`: `TestCLI_WS_Create_Jira_ConflictWithIDOrTitle_FailsUsage`
 
+### `ws import jira`
+
+- plan-only with skip/fail classification:
+  - `internal/cli/ws_import_jira_test.go`: `TestCLI_WS_Import_Jira_NoPromptWithoutApply_PrintsPlanWithSkipAndFail`
+- JSON plan-only contract (`stdout` JSON only + reason/action classification):
+  - `internal/cli/ws_import_jira_test.go`: `TestCLI_WS_Import_Jira_JSON_NoPromptWithoutApply_Contract`
+- apply mode creates workspace from Jira issue list:
+  - `internal/cli/ws_import_jira_test.go`: `TestCLI_WS_Import_Jira_NoPromptApply_CreatesWorkspace`
+- JSON apply mode create failure classification:
+  - `internal/cli/ws_import_jira_test.go`: `TestCLI_WS_Import_Jira_JSON_NoPromptApply_CreateFailureReason`
+- prompt decline still respects exit-code contract (`failed > 0` => non-zero):
+  - `internal/cli/ws_import_jira_test.go`: `TestCLI_WS_Import_Jira_PromptDecline_WithFailedPlan_ReturnsError`
+- JSON prompt contract (prompts on `stderr`, JSON on `stdout`):
+  - `internal/cli/ws_import_jira_test.go`: `TestCLI_WS_Import_Jira_JSON_Prompt_PrintsPromptToStderr`
+- human plan layout contract (bulleted sections/tree rows):
+  - `internal/cli/ws_import_jira_test.go`: `TestCLI_WS_Import_Jira_NoPromptWithoutApply_UsesBulletedPlanLayout`
+- apply prompt phrasing contract:
+  - `internal/cli/ws_import_jira_test.go`: `TestRenderWSImportJiraApplyPrompt_UsesBulletedPlanAlignment`
+- prompt apply result contract (result summary + completion message):
+  - `internal/cli/ws_import_jira_test.go`: `TestCLI_WS_Import_Jira_PromptAccept_PrintsResultSummary`
+- `--sprint` without value interactive selection:
+  - `internal/cli/ws_import_jira_test.go`: `TestCLI_WS_Import_Jira_SprintNoValue_PromptSelectsFromSpaceSprintList`
+- sprint selector candidate filtering (`active`/`future` only):
+  - `internal/cli/ws_import_jira_test.go`: `TestCLI_WS_Import_Jira_SprintNoValue_ShowsOnlyActiveFuture`
+- numeric sprint ID resolution via JQL direct mode:
+  - `internal/cli/ws_import_jira_test.go`: `TestCLI_WS_Import_Jira_SprintNumericID_UsesJQLDirect`
+
 ### `ws list`
 
 - import workspace dir drift into index:
