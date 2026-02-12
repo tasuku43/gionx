@@ -600,30 +600,38 @@ func printRemoveRepoPlan(out io.Writer, workspaceID string, selected []removeRep
 		d, ok := lookupRemoveRepoPlanDetail(details, p)
 		branchSuffix := ""
 		if ok && strings.TrimSpace(d.branch) != "" {
-			branchSuffix = fmt.Sprintf(" (branch: %s)", d.branch)
+			branchSuffix = fmt.Sprintf(" (%s%s)", styleMuted("branch: ", useColor), d.branch)
 		}
 		body = append(body, fmt.Sprintf("%s%s%s%s", uiIndent+uiIndent, styleMuted(connector, useColor), p.RepoKey, branchSuffix))
 		if !ok {
 			continue
 		}
-		riskLine := fmt.Sprintf("%s%srisk: %s", uiIndent+uiIndent, styleMuted("│  ", useColor), renderPlanRiskLabel(d, useColor))
+		riskLine := fmt.Sprintf("%s%s%s %s", uiIndent+uiIndent, styleMuted("│  ", useColor), styleMuted("risk:", useColor), renderPlanRiskLabel(d, useColor))
 		if i == len(selected)-1 {
-			riskLine = fmt.Sprintf("%s%srisk: %s", uiIndent+uiIndent, "   ", renderPlanRiskLabel(d, useColor))
+			riskLine = fmt.Sprintf("%s%s%s %s", uiIndent+uiIndent, "   ", styleMuted("risk:", useColor), renderPlanRiskLabel(d, useColor))
 		}
 		body = append(body, riskLine)
-		syncLine := fmt.Sprintf("%s%ssync: upstream=%s ahead=%s behind=%s",
+		syncLine := fmt.Sprintf("%s%s%s %s%s %s%s %s%s",
 			uiIndent+uiIndent,
 			styleMuted("│  ", useColor),
+			styleMuted("sync:", useColor),
+			styleMuted("upstream=", useColor),
 			renderPlanUpstreamLabel(d.upstream, useColor),
+			styleMuted("ahead=", useColor),
 			renderPlanAheadBehindValue(d.ahead, useColor),
+			styleMuted("behind=", useColor),
 			renderPlanAheadBehindValue(d.behind, useColor),
 		)
 		if i == len(selected)-1 {
-			syncLine = fmt.Sprintf("%s%ssync: upstream=%s ahead=%s behind=%s",
+			syncLine = fmt.Sprintf("%s%s%s %s%s %s%s %s%s",
 				uiIndent+uiIndent,
 				"   ",
+				styleMuted("sync:", useColor),
+				styleMuted("upstream=", useColor),
 				renderPlanUpstreamLabel(d.upstream, useColor),
+				styleMuted("ahead=", useColor),
 				renderPlanAheadBehindValue(d.ahead, useColor),
+				styleMuted("behind=", useColor),
 				renderPlanAheadBehindValue(d.behind, useColor),
 			)
 		}
@@ -633,7 +641,7 @@ func printRemoveRepoPlan(out io.Writer, workspaceID string, selected []removeRep
 			if i == len(selected)-1 {
 				prefix = "   "
 			}
-			body = append(body, fmt.Sprintf("%s%sfiles:", uiIndent+uiIndent, prefix))
+			body = append(body, fmt.Sprintf("%s%s%s", uiIndent+uiIndent, prefix, styleMuted("files:", useColor)))
 			renderLines := d.files
 			if useColor && len(d.filesANSI) == len(d.files) {
 				renderLines = d.filesANSI
@@ -663,20 +671,20 @@ func renderPlanRiskLabel(detail removeRepoPlanDetail, useColor bool) string {
 	riskText := string(detail.state)
 	switch detail.state {
 	case workspacerisk.RepoStateClean:
-		return riskText
+		return styleMuted(riskText, useColor)
 	case workspacerisk.RepoStateUnpushed, workspacerisk.RepoStateDiverged:
 		return styleWarn(riskText, useColor)
 	default:
 		base := styleError(riskText, useColor)
 		parts := make([]string, 0, 3)
 		if detail.staged > 0 {
-			parts = append(parts, fmt.Sprintf("staged=%d", detail.staged))
+			parts = append(parts, renderPlanDirtyCounter("staged", detail.staged, useColor))
 		}
 		if detail.unstaged > 0 {
-			parts = append(parts, fmt.Sprintf("unstaged=%d", detail.unstaged))
+			parts = append(parts, renderPlanDirtyCounter("unstaged", detail.unstaged, useColor))
 		}
 		if detail.untracked > 0 {
-			parts = append(parts, fmt.Sprintf("untracked=%d", detail.untracked))
+			parts = append(parts, renderPlanDirtyCounter("untracked", detail.untracked, useColor))
 		}
 		if len(parts) == 0 {
 			return base
@@ -687,7 +695,7 @@ func renderPlanRiskLabel(detail removeRepoPlanDetail, useColor bool) string {
 
 func renderPlanUpstreamLabel(upstream string, useColor bool) string {
 	if strings.TrimSpace(upstream) == "" {
-		return styleMuted("(none)", useColor)
+		return styleWarn("(none)", useColor)
 	}
 	return upstream
 }
@@ -696,7 +704,15 @@ func renderPlanAheadBehindValue(v int, useColor bool) string {
 	if v > 0 {
 		return styleWarn(fmt.Sprintf("%d", v), useColor)
 	}
-	return fmt.Sprintf("%d", v)
+	return styleMuted(fmt.Sprintf("%d", v), useColor)
+}
+
+func renderPlanDirtyCounter(name string, v int, useColor bool) string {
+	token := fmt.Sprintf("%s=%d", name, v)
+	if v > 0 {
+		return styleError(token, useColor)
+	}
+	return styleMuted(token, useColor)
 }
 
 func printRemoveRepoResult(out io.Writer, removed []removeRepoCandidate, useColor bool) {
