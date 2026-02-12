@@ -516,16 +516,11 @@ func detectBranchForClose(ctx context.Context, worktreePath string, fallback str
 }
 
 func (c *CLI) confirmRiskProceed() (bool, error) {
-	line, err := c.promptLine(fmt.Sprintf("%sclose selected workspaces? [Enter=yes / n=no]: ", uiIndent))
+	line, err := c.promptLine(renderCloseRiskApplyPrompt(writerSupportsColor(c.Out)))
 	if err != nil {
 		return false, err
 	}
-	switch strings.ToLower(strings.TrimSpace(line)) {
-	case "", "y", "yes":
-		return true, nil
-	default:
-		return false, nil
-	}
+	return strings.EqualFold(strings.TrimSpace(line), "yes"), nil
 }
 
 func (c *CLI) confirmContinue(prompt string) (bool, error) {
@@ -579,12 +574,16 @@ func hasNonCleanRisk(items []workspaceRiskDetail) bool {
 }
 
 func printRiskSection(w io.Writer, items []workspaceRiskDetail, useColor bool) {
-	body := make([]string, 0, len(items)*2+4)
+	body := make([]string, 0, len(items)*2+6)
 	cleanCount := 0
 	warningCount := 0
 	dangerCount := 0
+	body = append(body, fmt.Sprintf("%s%s close %d workspaces", uiIndent, styleMuted("•", useColor), len(items)))
+	if len(items) > 0 {
+		body = append(body, fmt.Sprintf("%s%s workspaces:", uiIndent, styleMuted("•", useColor)))
+	}
 
-	for _, it := range items {
+	for i, it := range items {
 		switch it.risk {
 		case workspacerisk.WorkspaceRiskClean:
 			cleanCount++
@@ -594,25 +593,34 @@ func printRiskSection(w io.Writer, items []workspaceRiskDetail, useColor bool) {
 			dangerCount++
 		}
 
-		body = append(body, fmt.Sprintf("%s• %s %s", uiIndent, it.id, renderWorkspaceRiskBadge(it.risk, useColor)))
-		if it.risk == workspacerisk.WorkspaceRiskClean {
-			continue
+		connector := "├─ "
+		prefix := styleMuted("│  ", useColor)
+		if i == len(items)-1 {
+			connector = "└─ "
+			prefix = "   "
 		}
+		body = append(body, fmt.Sprintf("%s%s%s", uiIndent+uiIndent, styleMuted(connector, useColor), it.id))
+		body = append(body, fmt.Sprintf("%s%s%s %s", uiIndent+uiIndent, prefix, styleMuted("risk:", useColor), renderWorkspaceRiskBadge(it.risk, useColor)))
 		for _, repo := range it.perRepo {
 			if repo.state == workspacerisk.RepoStateClean {
 				continue
 			}
-			body = append(body, fmt.Sprintf("%s- %s %s", uiIndent+uiIndent, repo.alias, renderRepoRiskState(repo.state, useColor)))
+			body = append(body, fmt.Sprintf("%s%s%s  %s %s", uiIndent+uiIndent, prefix, styleMuted("repos:", useColor), repo.alias, renderRepoRiskState(repo.state, useColor)))
 		}
 	}
 	body = append(body, "")
-	body = append(body, fmt.Sprintf("%s%s clean=%d warning=%d danger=%d", uiIndent, styleAccent("summary:", useColor), cleanCount, warningCount, dangerCount))
-	body = append(body, fmt.Sprintf("%s%s all-or-nothing close", uiIndent, styleAccent("policy:", useColor)))
+	body = append(body, fmt.Sprintf("%s%s %s clean=%d warning=%d danger=%d", uiIndent, styleMuted("•", useColor), styleAccent("summary:", useColor), cleanCount, warningCount, dangerCount))
+	body = append(body, fmt.Sprintf("%s%s %s all-or-nothing close", uiIndent, styleMuted("•", useColor), styleAccent("policy:", useColor)))
 
-	printSection(w, renderRiskTitle(useColor), body, sectionRenderOptions{
-		blankAfterHeading: true,
+	printSection(w, styleBold("Plan:", useColor), body, sectionRenderOptions{
+		blankAfterHeading: false,
 		trailingBlank:     true,
 	})
+}
+
+func renderCloseRiskApplyPrompt(useColor bool) string {
+	bullet := styleMuted("•", useColor)
+	return fmt.Sprintf("%s%s type %s to apply close on non-clean workspaces: ", uiIndent, bullet, styleAccent("yes", useColor))
 }
 
 func inspectWorkspaceRepoRisk(ctx context.Context, root string, workspaceID string, repos []statestore.WorkspaceRepo) (workspacerisk.WorkspaceRisk, []repoRiskItem) {

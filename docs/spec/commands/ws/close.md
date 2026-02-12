@@ -82,15 +82,16 @@ If the Git working tree has unrelated changes, this command must not include the
 - Interactive selection should use `gionx ws select --act close`.
 - Selector and follow-up output should use section headings:
   - `Workspaces(active):`
-  - `Risk:`
+  - `Plan:`
   - `Result:`
 - `ws close` user-facing wording uses `close` for actions/results:
   - selector footer action hint: `enter close`
-  - risk confirmation prompt: `close selected workspaces? ...`
+  - risk confirmation prompt: `type yes to apply close on non-clean workspaces:`
   - result summary verb: `Closed n / m`
 - Internal lifecycle/storage naming remains `archived` (status/event/commit message).
 - Section spacing:
-  - `Workspaces(active):` and `Risk:` have one blank line after heading.
+  - `Workspaces(active):` has one blank line after heading.
+  - `Plan:` has no blank line after heading.
   - `Result:` has no blank line after heading.
 - Section body indentation must use shared global UI indentation constants.
 
@@ -99,8 +100,8 @@ If the Git working tree has unrelated changes, this command must not include the
 - After selector confirmation, evaluate risk for all selected workspaces.
 - `risky` is defined as `dirty` / `unpushed` / `diverged` (plus `unknown` as non-safe).
 - If selected set is clean-only, proceed directly to close and print `Result:`.
-- If any selected workspace is non-clean (`risky` or `unknown`), print `Risk:` section and require explicit
-  confirmation there before execution.
+- If any selected workspace is non-clean (`risky` or `unknown`), print `Plan:` section with risk details and
+  require explicit `yes` confirmation before execution.
 - If risk confirmation is declined/canceled, abort without side effects.
 - Risk label semantics and severity follow `commands/ws/selector.md`.
 

@@ -1,10 +1,13 @@
-Risk:
+Plan:
+  • close 2 workspaces
+  • workspaces:
+    ├─ WS1
+    │  risk: [dirty]
+    │  repos:  repo-a [dirty]
+    │  repos:  repo-b [unpushed]
+    └─ WS2
+       risk: [clean]
 
-  • WS1 [dirty]
-    - repo-a [dirty]
-    - repo-b [unpushed]
-  • WS2 [clean]
-
-  summary: clean=1 warning=0 danger=1
-  policy: all-or-nothing close
+  • summary: clean=1 warning=0 danger=1
+  • policy: all-or-nothing close
 

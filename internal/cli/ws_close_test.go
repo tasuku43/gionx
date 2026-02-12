@@ -113,7 +113,7 @@ func TestCLI_WS_Close_ArchivesWorkspaceRemovesWorktreesCommitsAndUpdatesDB(t *te
 		if code != exitOK {
 			t.Fatalf("ws close exit code = %d, want %d (stderr=%q)", code, exitOK, err.String())
 		}
-		if strings.Contains(err.String(), "close selected workspaces?") {
+		if strings.Contains(err.String(), "type yes to apply close on non-clean workspaces:") {
 			t.Fatalf("clean close should not require confirmation: %q", err.String())
 		}
 	}
@@ -238,7 +238,7 @@ func TestCLI_WS_Close_DirtyRepo_PromptsAndCanAbort(t *testing.T) {
 		if code != exitError {
 			t.Fatalf("ws close exit code = %d, want %d (stderr=%q)", code, exitError, err.String())
 		}
-		if !strings.Contains(err.String(), "close selected workspaces?") {
+		if !strings.Contains(err.String(), "type yes to apply close on non-clean workspaces:") {
 			t.Fatalf("stderr missing confirmation prompt: %q", err.String())
 		}
 	}
@@ -428,17 +428,23 @@ func TestPrintCloseRiskSection_UsesSharedSpacingAndIndent(t *testing.T) {
 	printRiskSection(&out, items, false)
 	got := out.String()
 
-	if !strings.HasPrefix(got, "Risk:\n\n") {
-		t.Fatalf("risk section should have one blank line after heading: %q", got)
+	if !strings.HasPrefix(got, "Plan:\n") {
+		t.Fatalf("close plan section should start with plan heading: %q", got)
 	}
-	if !strings.Contains(got, "\n  • WS1 [dirty]\n") {
-		t.Fatalf("workspace risk row should use shared indentation: %q", got)
+	if !strings.Contains(got, "\n  • close 2 workspaces\n") {
+		t.Fatalf("plan summary row should use shared indentation: %q", got)
 	}
-	if !strings.Contains(got, "\n    - repo-a [dirty]\n") {
+	if !strings.Contains(got, "\n    ├─ WS1\n") {
+		t.Fatalf("workspace tree row mismatch: %q", got)
+	}
+	if !strings.Contains(got, "\n    │  risk: [dirty]\n") {
+		t.Fatalf("workspace risk row mismatch: %q", got)
+	}
+	if !strings.Contains(got, "\n    │  repos:  repo-a [dirty]\n") {
 		t.Fatalf("repo risk detail indentation mismatch: %q", got)
 	}
-	if !strings.Contains(got, "\n  summary: clean=1 warning=0 danger=1\n  policy: all-or-nothing close\n") {
-		t.Fatalf("risk summary block mismatch: %q", got)
+	if !strings.Contains(got, "\n  • summary: clean=1 warning=0 danger=1\n  • policy: all-or-nothing close\n") {
+		t.Fatalf("plan summary block mismatch: %q", got)
 	}
 }
 
