@@ -696,7 +696,6 @@ func printRemoveRepoPlan(out io.Writer, workspaceID string, selected []removeRep
 			}
 		}
 	}
-	fmt.Fprintln(out)
 	printSection(out, styleBold("Plan:", useColor), body, sectionRenderOptions{
 		blankAfterHeading: false,
 		trailingBlank:     true,
