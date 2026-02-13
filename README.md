@@ -1,4 +1,4 @@
-# gionx
+# kra
 # Development (for contributors / agents)
 
 - Start here: `docs/START_HERE.md`
@@ -9,12 +9,12 @@
 
 ```sh
 # 1) initialize root explicitly
-gionx init --root ~/gionx
+kra init --root ~/kra
 
 # 2) check current context
-gionx context current
+kra context current
 
 # 3) create and use workspace
-gionx ws create --no-prompt TASK-1234
-gionx ws --id TASK-1234 --act go
+kra ws create --no-prompt TASK-1234
+kra ws --id TASK-1234 --act go
 ```

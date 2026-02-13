@@ -11,7 +11,7 @@ status: planned
   - Parallel: with MVP-002/MVP-003 if different owners; otherwise do serial
 
 - [x] MVP-002: Path resolution and root detection
-  - What: resolve `GIONX_ROOT`, XDG paths for `state.db` and repo pool
+  - What: resolve `KRA_ROOT`, XDG paths for `state.db` and repo pool
   - Specs:
     - `docs/spec/concepts/state-store.md`
     - `docs/spec/concepts/layout.md`
@@ -29,7 +29,7 @@ status: planned
 
 ## Init
 
-- [x] MVP-010: `gionx init`
+- [x] MVP-010: `kra init`
   - What: ensure layout dirs, create root `AGENTS.md`, create `.gitignore`, run `git init` if needed,
     initialize state store settings
   - Specs:
@@ -42,7 +42,7 @@ status: planned
 
 ## Workspace core (no Git worktrees yet)
 
-- [x] MVP-020: `gionx ws create`
+- [x] MVP-020: `kra ws create`
   - What: create workspace scaffolding + insert workspace snapshot + append `created` event
   - Specs:
     - `docs/spec/commands/ws/create.md`
@@ -51,7 +51,7 @@ status: planned
   - Depends: MVP-010
   - Parallel: yes (with MVP-021 once MVP-010 done)
 
-- [x] MVP-021: `gionx ws list` (without repo risk at first)
+- [x] MVP-021: `kra ws list` (without repo risk at first)
   - What: list snapshot + basic drift import/mark-missing behavior
   - Specs:
     - `docs/spec/commands/ws/list.md`
@@ -69,7 +69,7 @@ status: planned
   - Depends: MVP-002, MVP-003
   - Parallel: yes (can start before MVP-010; used by add-repo/reopen)
 
-- [x] MVP-031: `gionx ws add-repo`
+- [x] MVP-031: `kra ws add-repo`
   - What: normalize repo spec, derive alias, prefetch, branch/base_ref prompt, create worktree,
     record `workspace_repos`
   - Specs:
@@ -81,7 +81,7 @@ status: planned
 
 ## Archive lifecycle (Git-managed root)
 
-- [x] MVP-040: `gionx ws close`
+- [x] MVP-040: `kra ws close`
   - What: risk inspection (live), delete worktrees, atomic rename to `archive/`, commit touched paths,
     update snapshot + append event
   - Specs:
@@ -91,7 +91,7 @@ status: planned
   - Depends: MVP-031
   - Serial: yes
 
-- [x] MVP-041: `gionx ws reopen`
+- [x] MVP-041: `kra ws reopen`
   - What: atomic rename back, recreate worktrees, commit touched paths, update snapshot + append event
   - Specs:
     - `docs/spec/commands/ws/reopen.md`
@@ -100,7 +100,7 @@ status: planned
   - Depends: MVP-040
   - Serial: yes
 
-- [x] MVP-042: `gionx ws purge`
+- [x] MVP-042: `kra ws purge`
   - What: confirmations, delete dirs, remove snapshot row, append event, commit touched paths
   - Specs:
     - `docs/spec/commands/ws/purge.md`
@@ -110,7 +110,7 @@ status: planned
 
 ## Hardening / tests
 
-- [x] MVP-050: `gionx state` foundation (registry)
+- [x] MVP-050: `kra state` foundation (registry)
   - What: introduce registry metadata for root-scoped `state.db` discovery and hygiene workflows
   - Specs:
     - `docs/spec/commands/state/registry.md`
@@ -118,15 +118,15 @@ status: planned
   - Depends: MVP-002, MVP-003, MVP-010
   - Parallel: yes (independent from ws archive lifecycle)
 
-- [x] MVP-051: `gionx context` (root switch fallback)
-  - What: add context management and root resolution fallback when `GIONX_ROOT` is unset
+- [x] MVP-051: `kra context` (root switch fallback)
+  - What: add context management and root resolution fallback when `KRA_ROOT` is unset
   - Specs:
     - `docs/spec/commands/context.md`
     - `docs/spec/commands/state/registry.md`
   - Depends: MVP-050
   - Parallel: yes
 
-- [x] MVP-060: `gionx repo add` (shared pool upsert)
+- [x] MVP-060: `kra repo add` (shared pool upsert)
   - What: add root-scoped repo registration command that upserts shared bare pool and current root `repos` rows
     from repo specs (best-effort, conflict-safe).
   - Specs:
@@ -135,7 +135,7 @@ status: planned
   - Depends: MVP-051
   - Parallel: yes
 
-- [x] MVP-061: `gionx repo discover` (provider-based bulk add)
+- [x] MVP-061: `kra repo discover` (provider-based bulk add)
   - What: add provider adapter flow (`--provider` default github) to discover org repos, exclude current-root
     registered repos, and bulk add selected repos through `repo add` path.
   - Specs:
@@ -144,7 +144,7 @@ status: planned
   - Depends: MVP-060
   - Parallel: yes
 
-- [x] MVP-062: `gionx repo remove` (root-local logical detach)
+- [x] MVP-062: `kra repo remove` (root-local logical detach)
   - What: remove selected repos from current root `repos` registration using selector/direct mode.
     Keep physical bare repos untouched, and fail fast when selected repos are still referenced by
     `workspace_repos`.
@@ -154,7 +154,7 @@ status: planned
   - Depends: MVP-060, MVP-061
   - Parallel: yes
 
-- [x] MVP-063: `gionx repo gc` (safe physical pool cleanup)
+- [x] MVP-063: `kra repo gc` (safe physical pool cleanup)
   - What: garbage-collect bare repos from shared pool only when safety gates pass.
   - Specs:
     - `docs/spec/commands/repo/gc.md`
@@ -163,7 +163,7 @@ status: planned
   - Parallel: yes
 
 - [x] MVP-900: Test harness + non-happy-path coverage baseline
-  - What: temp `GIONX_ROOT`, isolated sqlite file per test, drift scenario tests
+  - What: temp `KRA_ROOT`, isolated sqlite file per test, drift scenario tests
   - Specs:
     - `docs/dev/TESTING.md`
   - Depends: MVP-003

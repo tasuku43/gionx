@@ -9,7 +9,7 @@ import (
 	"strings"
 )
 
-const workspaceMetaFilename = ".gionx.meta.json"
+const workspaceMetaFilename = ".kra.meta.json"
 
 type workspaceMetaFile struct {
 	SchemaVersion int                        `json:"schema_version"`
@@ -61,7 +61,7 @@ func writeWorkspaceMetaFile(wsPath string, meta workspaceMetaFile) error {
 	}
 	b = append(b, '\n')
 
-	tmp, err := os.CreateTemp(wsPath, ".gionx-meta-*.tmp")
+	tmp, err := os.CreateTemp(wsPath, ".kra-meta-*.tmp")
 	if err != nil {
 		return fmt.Errorf("create workspace meta temp file: %w", err)
 	}

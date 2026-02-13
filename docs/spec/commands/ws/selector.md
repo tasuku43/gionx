@@ -1,5 +1,5 @@
 ---
-title: "`gionx ws` selector UI"
+title: "`kra ws` selector UI"
 status: implemented
 ---
 
@@ -180,14 +180,14 @@ Optional flags may switch scope if defined in each command spec.
 ## Unified launcher flow (planned)
 
 - Human launcher:
-  - `gionx ws`
+  - `kra ws`
 - Explicit selection entrypoint:
-  - `gionx ws select`
+  - `kra ws select`
 
 Behavior:
 - outside workspace:
-  - `gionx ws` requires explicit `--id <id>` (no implicit list fallback).
-  - selection-first flow is `gionx ws select`.
+  - `kra ws` requires explicit `--id <id>` (no implicit list fallback).
+  - selection-first flow is `kra ws select`.
 - inside workspace:
   - if under `workspaces/<id>/`: show current-workspace action menu:
     - `add-repo`

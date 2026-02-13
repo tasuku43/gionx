@@ -8,17 +8,17 @@ status: implemented
 ## Goal
 
 Provide a default, repo-local guide for coding agents (and humans) to understand:
-- what `gionx` is optimizing for
-- what each directory under `GIONX_ROOT` means
+- what `kra` is optimizing for
+- what each directory under `KRA_ROOT` means
 - where to put notes and artifacts
 - how to safely close/archive a workspace
 
 ## Files
 
-`gionx` always generates one root-level guide:
+`kra` always generates one root-level guide:
 
-- `GIONX_ROOT/AGENTS.md`
-  - global guidance for using `gionx`
+- `KRA_ROOT/AGENTS.md`
+  - global guidance for using `kra`
   - expected directory structure
   - policies (what is tracked in Git, what is ignored)
 
@@ -28,7 +28,7 @@ Workspace-level `AGENTS.md` is template-driven:
 
 ## Content (recommended skeleton)
 
-### `GIONX_ROOT/AGENTS.md`
+### `KRA_ROOT/AGENTS.md`
 
 Include:
 
@@ -39,12 +39,12 @@ Include:
   - `workspaces/<id>/repos/<alias>/`: git worktrees (NOT Git-tracked)
   - `archive/<id>/`: archived workspaces (Git-tracked)
 - Workflow:
-  - `gionx ws create` -> `gionx ws --act add-repo` -> work -> `gionx ws --act close`
+  - `kra ws create` -> `kra ws --act add-repo` -> work -> `kra ws --act close`
 - Git policy:
   - track: everything except `workspaces/**/repos/**`
   - ignore: `workspaces/**/repos/**`
 
-### `GIONX_ROOT/workspaces/<id>/AGENTS.md` (optional, template-defined)
+### `KRA_ROOT/workspaces/<id>/AGENTS.md` (optional, template-defined)
 
 If used, recommended content is:
 
@@ -55,9 +55,9 @@ If used, recommended content is:
   - where to store artifacts
   - keep code changes inside `repos/` worktrees only
 - Closing:
-  - run `gionx ws --act close --id <id>` to archive and remove worktrees
+  - run `kra ws --act close --id <id>` to archive and remove worktrees
 
 ## Notes
 
-- `gionx` does not define a formal priority/override mechanism between the two files.
+- `kra` does not define a formal priority/override mechanism between the two files.
   Agents are expected to load relevant files based on their working directory and file touches.

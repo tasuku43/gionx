@@ -16,16 +16,17 @@ import (
 )
 
 const (
-	envJiraBaseURL  = "GIONX_JIRA_BASE_URL"
-	envJiraEmail    = "GIONX_JIRA_EMAIL"
-	envJiraAPIToken = "GIONX_JIRA_API_TOKEN"
+	envJiraBaseURL  = "KRA_JIRA_BASE_URL"
+	envJiraEmail    = "KRA_JIRA_EMAIL"
+	envJiraAPIToken = "KRA_JIRA_API_TOKEN"
 )
 
 var issueKeyRegexp = regexp.MustCompile(`(?i)\b([a-z][a-z0-9]+-\d+)\b`)
 var legacySprintKVPattern = regexp.MustCompile(`([a-zA-Z]+)=([^,\]]+)`)
 
 type Client struct {
-	httpClient *http.Client
+	httpClient        *http.Client
+	baseURLFromConfig string
 }
 
 type Issue struct {
@@ -49,11 +50,18 @@ type Sprint struct {
 }
 
 func NewClient() *Client {
-	return &Client{httpClient: &http.Client{Timeout: 10 * time.Second}}
+	return NewClientWithBaseURL("")
+}
+
+func NewClientWithBaseURL(baseURL string) *Client {
+	return &Client{
+		httpClient:        &http.Client{Timeout: 10 * time.Second},
+		baseURLFromConfig: strings.TrimSpace(baseURL),
+	}
 }
 
 func (c *Client) FetchIssueByTicketURL(ctx context.Context, ticketURL string) (key string, summary string, err error) {
-	cfg, err := loadEnvConfig()
+	cfg, err := loadEnvConfig(c.baseURLFromConfig)
 	if err != nil {
 		return "", "", err
 	}
@@ -109,8 +117,11 @@ type envConfig struct {
 	apiToken string
 }
 
-func loadEnvConfig() (envConfig, error) {
-	baseURLRaw := strings.TrimSpace(os.Getenv(envJiraBaseURL))
+func loadEnvConfig(baseURLFromConfig string) (envConfig, error) {
+	baseURLRaw := strings.TrimSpace(baseURLFromConfig)
+	if envBaseURL := strings.TrimSpace(os.Getenv(envJiraBaseURL)); envBaseURL != "" {
+		baseURLRaw = envBaseURL
+	}
 	email := strings.TrimSpace(os.Getenv(envJiraEmail))
 	apiToken := strings.TrimSpace(os.Getenv(envJiraAPIToken))
 
@@ -154,7 +165,7 @@ func basicAuth(email string, token string) string {
 }
 
 func (c *Client) SearchIssuesByJQL(ctx context.Context, jql string, maxResults int) ([]Issue, error) {
-	cfg, err := loadEnvConfig()
+	cfg, err := loadEnvConfig(c.baseURLFromConfig)
 	if err != nil {
 		return nil, err
 	}
@@ -228,7 +239,7 @@ func (c *Client) ListScrumBoardsByProject(ctx context.Context, projectKey string
 }
 
 func (c *Client) listScrumBoards(ctx context.Context, projectKey string) ([]Board, error) {
-	cfg, err := loadEnvConfig()
+	cfg, err := loadEnvConfig(c.baseURLFromConfig)
 	if err != nil {
 		return nil, err
 	}
@@ -297,7 +308,7 @@ func (c *Client) listScrumBoards(ctx context.Context, projectKey string) ([]Boar
 }
 
 func (c *Client) ListBoardSprintsActiveFuture(ctx context.Context, boardID int) ([]Sprint, error) {
-	cfg, err := loadEnvConfig()
+	cfg, err := loadEnvConfig(c.baseURLFromConfig)
 	if err != nil {
 		return nil, err
 	}
@@ -363,7 +374,7 @@ func (c *Client) ListBoardSprintsActiveFuture(ctx context.Context, boardID int) 
 }
 
 func (c *Client) GetSprint(ctx context.Context, sprintID int) (Sprint, error) {
-	cfg, err := loadEnvConfig()
+	cfg, err := loadEnvConfig(c.baseURLFromConfig)
 	if err != nil {
 		return Sprint{}, err
 	}
@@ -411,7 +422,7 @@ func (c *Client) GetSprint(ctx context.Context, sprintID int) (Sprint, error) {
 }
 
 func (c *Client) ListProjectOpenSprints(ctx context.Context, projectKey string, maxResults int) ([]Sprint, error) {
-	cfg, err := loadEnvConfig()
+	cfg, err := loadEnvConfig(c.baseURLFromConfig)
 	if err != nil {
 		return nil, err
 	}
@@ -675,7 +686,7 @@ func parseLegacySprintString(v string) (Sprint, bool) {
 }
 
 func (c *Client) ListBoardProjectKeys(ctx context.Context, boardID int) ([]string, error) {
-	cfg, err := loadEnvConfig()
+	cfg, err := loadEnvConfig(c.baseURLFromConfig)
 	if err != nil {
 		return nil, err
 	}

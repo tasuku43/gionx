@@ -7,10 +7,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/tasuku43/gionx/internal/app/contextcmd"
-	"github.com/tasuku43/gionx/internal/core/workspacerisk"
-	"github.com/tasuku43/gionx/internal/infra/appports"
-	"github.com/tasuku43/gionx/internal/infra/paths"
+	"github.com/tasuku43/kra/internal/app/contextcmd"
+	"github.com/tasuku43/kra/internal/core/workspacerisk"
+	"github.com/tasuku43/kra/internal/infra/appports"
+	"github.com/tasuku43/kra/internal/infra/paths"
 )
 
 func (c *CLI) runContext(args []string) int {
@@ -292,7 +292,7 @@ func (c *CLI) runContextRename(args []string) int {
 		return exitOK
 	}
 	if len(args) != 2 {
-		fmt.Fprintf(c.Err, "usage: gionx context rename <old-name> <new-name>\n")
+		fmt.Fprintf(c.Err, "usage: kra context rename <old-name> <new-name>\n")
 		return exitUsage
 	}
 
@@ -364,7 +364,7 @@ func (c *CLI) runContextRemove(args []string) int {
 		return exitOK
 	}
 	if len(args) != 1 {
-		fmt.Fprintf(c.Err, "usage: gionx context rm <name>\n")
+		fmt.Fprintf(c.Err, "usage: kra context rm <name>\n")
 		return exitUsage
 	}
 

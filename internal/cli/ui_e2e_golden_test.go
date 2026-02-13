@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/tasuku43/gionx/internal/testutil"
+	"github.com/tasuku43/kra/internal/testutil"
 )
 
 type uiE2EStep struct {
@@ -37,7 +37,7 @@ func TestGolden_UIE2E_CoreWorkspaceWorkflow(t *testing.T) {
 			configureRootGitUserForUIE2E(t, env.Root)
 		}
 
-		transcript.WriteString(fmt.Sprintf("$ gionx %s\n", strings.Join(step.Args, " ")))
+		transcript.WriteString(fmt.Sprintf("$ kra %s\n", strings.Join(step.Args, " ")))
 		transcript.WriteString(fmt.Sprintf("exit: %d\n", code))
 		if strings.TrimSpace(stdout) != "" {
 			transcript.WriteString("stdout:\n")
@@ -83,7 +83,7 @@ func TestGolden_UIE2E_ArchivePurgeFlow(t *testing.T) {
 			configureRootGitUserForUIE2E(t, env.Root)
 		}
 
-		transcript.WriteString(fmt.Sprintf("$ gionx %s\n", strings.Join(step.Args, " ")))
+		transcript.WriteString(fmt.Sprintf("$ kra %s\n", strings.Join(step.Args, " ")))
 		transcript.WriteString(fmt.Sprintf("exit: %d\n", code))
 		if strings.TrimSpace(stdout) != "" {
 			transcript.WriteString("stdout:\n")

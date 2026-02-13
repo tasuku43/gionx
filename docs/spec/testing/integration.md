@@ -1,29 +1,29 @@
 ---
-title: "Integration testing (gionx)"
+title: "Integration testing (kra)"
 status: implemented
 ---
 
-# Integration testing (gionx)
+# Integration testing (kra)
 
 ## Purpose
 
-Define an expanded integration test plan for `gionx` commands through the archive lifecycle (`MVP-042`).
+Define an expanded integration test plan for `kra` commands through the archive lifecycle (`MVP-042`).
 
 This ticket focuses on "drift" and partial failure scenarios across:
-- filesystem under `GIONX_ROOT`
+- filesystem under `KRA_ROOT`
 - root index cache
 - git repo pool + worktrees
 
 ## Scope (initial)
 
 Commands implemented through `MVP-042`:
-- `gionx init`
-- `gionx template validate`
-- `gionx ws create`
-- `gionx ws --act add-repo`
-- `gionx ws --act close`
-- `gionx ws --act reopen`
-- `gionx ws --act purge`
+- `kra init`
+- `kra template validate`
+- `kra ws create`
+- `kra ws --act add-repo`
+- `kra ws --act close`
+- `kra ws --act reopen`
+- `kra ws --act purge`
 
 ## Done definition
 
@@ -32,7 +32,7 @@ Commands implemented through `MVP-042`:
   - drift between index and filesystem
   - git worktree constraints / repo pool issues (as applicable)
 - Keep tests isolated:
-  - temp `GIONX_ROOT` per test
+  - temp `KRA_ROOT` per test
   - isolated metadata/index files per test
   - avoid using the developer’s global git config/state
 

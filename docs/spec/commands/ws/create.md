@@ -1,9 +1,9 @@
 ---
-title: "`gionx ws create`"
+title: "`kra ws create`"
 status: implemented
 ---
 
-# `gionx ws create`
+# `kra ws create`
 
 ## Purpose
 
@@ -15,17 +15,20 @@ Create a workspace from a root-local template.
   - validation rules should follow `gion` (e.g. reject `/`)
 - `--template <name>` (optional): template name under `<current-root>/templates`
   - if omitted, resolve in this order:
-    1. `<current-root>/.gionx/config.yaml` -> `workspace.defaults.template`
-    2. `~/.gionx/config.yaml` -> `workspace.defaults.template`
+    1. `<current-root>/.kra/config.yaml` -> `workspace.defaults.template`
+    2. `~/.kra/config.yaml` -> `workspace.defaults.template`
     3. fallback `default`
 - `--no-prompt` (optional): do not prompt for `title` (store empty)
 - `--jira <ticket-url>` (optional): resolve `id` and `title` from Jira issue
   - `id = issueKey`
   - `title = issue summary`
-  - auth is env-only:
-    - `GIONX_JIRA_BASE_URL`
-    - `GIONX_JIRA_EMAIL`
-    - `GIONX_JIRA_API_TOKEN`
+  - base URL resolution order:
+    1. `KRA_JIRA_BASE_URL` (if set)
+    2. `<current-root>/.kra/config.yaml` -> `integration.jira.base_url`
+    3. `~/.kra/config.yaml` -> `integration.jira.base_url`
+  - auth credentials are env-only:
+    - `KRA_JIRA_EMAIL`
+    - `KRA_JIRA_API_TOKEN`
   - fail-fast if issue fetch/auth/parse fails (no workspace dir, no state row)
   - must not be combined with `--id` / `--title`
   - can be combined with `--template`
@@ -39,19 +42,19 @@ Create a workspace from a root-local template.
   - reserved top-level paths are forbidden:
     - `repos/`
     - `.git/`
-    - `.gionx.meta.json`
+    - `.kra.meta.json`
   - symlink entries are forbidden
   - validation reports all found violations (not first-only)
 - Create `<current-root>/workspaces/<id>/`
 - Copy `templates/<name>/` contents into `workspaces/<id>/` (static copy, no placeholder expansion).
-- Prompt for `title` and store it in workspace metadata (`.gionx.meta.json`)
+- Prompt for `title` and store it in workspace metadata (`.kra.meta.json`)
   - if in a no-prompt mode, store an empty title
 - In `--jira` mode:
   - do not prompt
   - store `workspace.source_url = <ticket-url>`
 - Workspace ID collisions:
   - if `<id>` already exists as `active`, return an error and reference the existing workspace
-  - if `<id>` already exists as `archived`, guide the user to `gionx ws --act reopen <id>`
+  - if `<id>` already exists as `archived`, guide the user to `kra ws --act reopen <id>`
   - if `<id>` was previously purged, allow creating it again as a new generation
 - Do not create repos at this stage (repos are added via `ws --act add-repo`).
 - If copy or metadata write fails after workspace dir creation, remove `workspaces/<id>/` and fail.
@@ -62,13 +65,13 @@ Create a workspace from a root-local template.
   - `Result:`
   - `  Created 1 / 1`
   - `  ✔ <workspace-id>`
-  - `  path: <GIONX_ROOT/workspaces/<id>>`
+  - `  path: <KRA_ROOT/workspaces/<id>>`
 - `Result:` heading style follows shared UI token rules (`text.primary` + bold).
 - Summary line should follow shared result color semantics (`status.success` on success).
 
 ## FS metadata behavior
 
-- `ws create` must create `workspaces/<id>/.gionx.meta.json` as canonical workspace metadata.
+- `ws create` must create `workspaces/<id>/.kra.meta.json` as canonical workspace metadata.
 - Initial file content must include:
   - `schema_version`
   - `workspace` object (`id`, `title`(stored as `title` for compatibility), `source_url`, `status=active`, timestamps)

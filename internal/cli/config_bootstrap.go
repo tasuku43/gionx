@@ -6,7 +6,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/tasuku43/gionx/internal/infra/paths"
+	"github.com/tasuku43/kra/internal/infra/paths"
 )
 
 func ensureGlobalConfigScaffold() error {
@@ -33,11 +33,11 @@ func ensureGlobalConfigScaffold() error {
 }
 
 func defaultGlobalConfigContent() string {
-	return `# gionx global config
+	return `# kra global config
 # Precedence (high -> low):
 #   1) CLI flags
-#   2) root config: <GIONX_ROOT>/.gionx/config.yaml
-#   3) this file: ~/.gionx/config.yaml
+#   2) root config: <KRA_ROOT>/.kra/config.yaml
+#   3) this file: ~/.kra/config.yaml
 #   4) built-in defaults
 #
 # Empty string values are treated as unset.
@@ -48,6 +48,7 @@ workspace:
 
 integration:
   jira:
+    # base_url: https://jira.example.com
     # defaults:
     #   space: SRE
     #   type: sprint # sprint | jql

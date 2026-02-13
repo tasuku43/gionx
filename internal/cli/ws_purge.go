@@ -9,9 +9,9 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/tasuku43/gionx/internal/core/workspacerisk"
-	"github.com/tasuku43/gionx/internal/infra/gitutil"
-	"github.com/tasuku43/gionx/internal/infra/paths"
+	"github.com/tasuku43/kra/internal/core/workspacerisk"
+	"github.com/tasuku43/kra/internal/infra/gitutil"
+	"github.com/tasuku43/kra/internal/infra/paths"
 )
 
 type purgeWorkspaceMeta struct {
@@ -45,7 +45,7 @@ func (c *CLI) runWSPurge(args []string) int {
 		if len(args) > 1 {
 			fmt.Fprintf(c.Err, "unexpected args for ws purge: %q\n", strings.Join(args[1:], " "))
 		}
-		fmt.Fprintln(c.Err, "ws purge requires <id>; use `gionx ws select --archived` for interactive selection")
+		fmt.Fprintln(c.Err, "ws purge requires <id>; use `kra ws select --archived` for interactive selection")
 		c.printWSPurgeUsage(c.Err)
 		return exitUsage
 	}
@@ -71,7 +71,7 @@ func (c *CLI) runWSPurge(args []string) int {
 	}
 	root, err := paths.ResolveExistingRoot(wd)
 	if err != nil {
-		fmt.Fprintf(c.Err, "resolve GIONX_ROOT: %v\n", err)
+		fmt.Fprintf(c.Err, "resolve KRA_ROOT: %v\n", err)
 		return exitError
 	}
 	if err := c.ensureDebugLog(root, "ws-purge"); err != nil {

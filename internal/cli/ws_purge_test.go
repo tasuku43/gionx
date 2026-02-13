@@ -8,8 +8,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/tasuku43/gionx/internal/core/workspacerisk"
-	"github.com/tasuku43/gionx/internal/testutil"
+	"github.com/tasuku43/kra/internal/core/workspacerisk"
+	"github.com/tasuku43/kra/internal/testutil"
 )
 
 func TestCLI_WS_Purge_Help_ShowsUsage(t *testing.T) {
@@ -22,7 +22,7 @@ func TestCLI_WS_Purge_Help_ShowsUsage(t *testing.T) {
 	if code != exitOK {
 		t.Fatalf("exit code = %d, want %d", code, exitOK)
 	}
-	if !strings.Contains(out.String(), "gionx ws --act purge") {
+	if !strings.Contains(out.String(), "kra ws --act purge") {
 		t.Fatalf("stdout missing ws purge usage: %q", out.String())
 	}
 	if err.Len() != 0 {

@@ -1,14 +1,14 @@
 ---
-title: "`gionx repo gc`"
+title: "`kra repo gc`"
 status: implemented
 ---
 
-# `gionx repo gc`
+# `kra repo gc`
 
 ## Usage
 
 ```sh
-gionx repo gc [<repo-key|repo-uid>...]
+kra repo gc [<repo-key|repo-uid>...]
 ```
 
 ## Purpose
@@ -55,6 +55,6 @@ If any gate fails, that repo is not included in gc candidates.
 
 ## FS metadata safety behavior
 
-- Safety gate evaluation must include FS-based references from workspace/archive `.gionx.meta.json`.
+- Safety gate evaluation must include FS-based references from workspace/archive `.kra.meta.json`.
 - Cross-root checks should work without SQL joins, using canonical metadata + registry/index scan.
 - Missing/corrupt index data must not permit unsafe deletion; command should rebuild index or fail closed.

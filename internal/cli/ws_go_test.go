@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/tasuku43/gionx/internal/testutil"
+	"github.com/tasuku43/kra/internal/testutil"
 )
 
 func TestCLI_WS_Go_Help_ShowsUsage(t *testing.T) {
@@ -20,7 +20,7 @@ func TestCLI_WS_Go_Help_ShowsUsage(t *testing.T) {
 	if code != exitOK {
 		t.Fatalf("exit code = %d, want %d", code, exitOK)
 	}
-	if !strings.Contains(out.String(), "gionx ws --act go") {
+	if !strings.Contains(out.String(), "kra ws --act go") {
 		t.Fatalf("stdout missing ws go usage: %q", out.String())
 	}
 	if err.Len() != 0 {

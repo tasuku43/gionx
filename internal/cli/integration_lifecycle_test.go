@@ -8,9 +8,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/tasuku43/gionx/internal/core/repospec"
-	"github.com/tasuku43/gionx/internal/core/repostore"
-	"github.com/tasuku43/gionx/internal/testutil"
+	"github.com/tasuku43/kra/internal/core/repospec"
+	"github.com/tasuku43/kra/internal/core/repostore"
+	"github.com/tasuku43/kra/internal/testutil"
 )
 
 func TestCLI_WS_AddRepo_CorruptedRepoPool_FailsWithoutStateMutation(t *testing.T) {

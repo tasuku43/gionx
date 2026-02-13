@@ -3,7 +3,7 @@ title: "Workspace Meta JSON"
 status: implemented
 ---
 
-# Workspace Meta JSON (`.gionx.meta.json`)
+# Workspace Meta JSON (`.kra.meta.json`)
 
 ## Purpose
 
@@ -12,8 +12,8 @@ Define a single-file metadata format per workspace/archive that supports:
 - repo restore metadata required by `ws reopen`
 
 This file is canonical and stored in:
-- `GIONX_ROOT/workspaces/<id>/.gionx.meta.json` (active)
-- `GIONX_ROOT/archive/<id>/.gionx.meta.json` (archived)
+- `KRA_ROOT/workspaces/<id>/.kra.meta.json` (active)
+- `KRA_ROOT/archive/<id>/.kra.meta.json` (archived)
 
 ## File format (v1)
 
@@ -61,7 +61,7 @@ This file is canonical and stored in:
 ## Command expectations
 
 - `ws create`:
-  - create `.gionx.meta.json` with empty `repos_restore`.
+  - create `.kra.meta.json` with empty `repos_restore`.
 - `ws add-repo`:
   - update `repos_restore` entries for added/bound repos.
 - `ws close`:

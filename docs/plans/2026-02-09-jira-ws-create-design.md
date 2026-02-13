@@ -2,7 +2,7 @@
 
 Date: 2026-02-09
 Status: agreed
-Scope: `gionx ws create --jira <ticket-url>` (single issue only)
+Scope: `kra ws create --jira <ticket-url>` (single issue only)
 
 ## Goals
 
@@ -12,7 +12,7 @@ Scope: `gionx ws create --jira <ticket-url>` (single issue only)
 
 ## User Experience (MVP)
 
-- Entry point: `gionx ws create --jira <ticket-url>`.
+- Entry point: `kra ws create --jira <ticket-url>`.
 - On success:
   - `workspace id` is Jira `issueKey` (for example: `PROJ-123`).
   - `workspace title` is Jira `summary`.
@@ -24,14 +24,14 @@ Scope: `gionx ws create --jira <ticket-url>` (single issue only)
 ## Auth and Configuration
 
 - MVP uses environment variables only (no local credential persistence).
-- Variable naming uses `gionx` prefix for future provider expansion:
-  - `GIONX_JIRA_BASE_URL`
-  - `GIONX_JIRA_EMAIL`
-  - `GIONX_JIRA_API_TOKEN`
+- Variable naming uses `kra` prefix for future provider expansion:
+  - `KRA_JIRA_BASE_URL`
+  - `KRA_JIRA_EMAIL`
+  - `KRA_JIRA_API_TOKEN`
 - Rationale:
   - fastest secure delivery for MVP
   - no local secrets-at-rest concern
-  - future-ready naming for GitHub integration (`GIONX_GITHUB_*`)
+  - future-ready naming for GitHub integration (`KRA_GITHUB_*`)
 
 ## Architecture and Future Compatibility
 
@@ -59,6 +59,6 @@ This split intentionally prepares for future bulk flow (`jira import sprint ...`
 ## Out of Scope (MVP)
 
 - Sprint bulk creation command
-- Secret storage command (for example `gionx jira auth`)
+- Secret storage command (for example `kra jira auth`)
 - Multi-provider auto-detection (`--from <url>`)
 - Long-term sync behavior with Jira updates

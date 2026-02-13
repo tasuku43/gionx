@@ -3,6 +3,7 @@ package config
 import (
 	"errors"
 	"fmt"
+	"net/url"
 	"os"
 	"strings"
 
@@ -32,6 +33,7 @@ type IntegrationConfig struct {
 }
 
 type JiraConfig struct {
+	BaseURL  string       `yaml:"base_url"`
 	Defaults JiraDefaults `yaml:"defaults"`
 }
 
@@ -66,13 +68,20 @@ func LoadFile(path string) (Config, error) {
 
 func (c *Config) Normalize() {
 	c.Workspace.Defaults.Template = strings.TrimSpace(c.Workspace.Defaults.Template)
+	c.Integration.Jira.BaseURL = strings.TrimSpace(c.Integration.Jira.BaseURL)
 	c.Integration.Jira.Defaults.Space = strings.ToUpper(strings.TrimSpace(c.Integration.Jira.Defaults.Space))
 	c.Integration.Jira.Defaults.Project = strings.ToUpper(strings.TrimSpace(c.Integration.Jira.Defaults.Project))
 	c.Integration.Jira.Defaults.Type = strings.ToLower(strings.TrimSpace(c.Integration.Jira.Defaults.Type))
 }
 
 func (c Config) Validate() error {
-	issues := make([]string, 0, 2)
+	issues := make([]string, 0, 3)
+	if c.Integration.Jira.BaseURL != "" {
+		u, err := url.Parse(c.Integration.Jira.BaseURL)
+		if err != nil || u.Scheme == "" || u.Host == "" {
+			issues = append(issues, "integration.jira.base_url must be an absolute URL")
+		}
+	}
 	if c.Integration.Jira.Defaults.Type != "" &&
 		c.Integration.Jira.Defaults.Type != JiraTypeSprint &&
 		c.Integration.Jira.Defaults.Type != JiraTypeJQL {
@@ -94,6 +103,9 @@ func Merge(global Config, root Config) Config {
 	out := global
 	if root.Workspace.Defaults.Template != "" {
 		out.Workspace.Defaults.Template = root.Workspace.Defaults.Template
+	}
+	if root.Integration.Jira.BaseURL != "" {
+		out.Integration.Jira.BaseURL = root.Integration.Jira.BaseURL
 	}
 	if root.Integration.Jira.Defaults.Space != "" {
 		out.Integration.Jira.Defaults.Space = root.Integration.Jira.Defaults.Space

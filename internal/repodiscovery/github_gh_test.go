@@ -77,7 +77,7 @@ func TestGitHubGHProvider_ListOrgRepos_FallbackToUserEndpointOn404(t *testing.T)
 		if got := args[2]; !strings.HasPrefix(got, "/users/tasuku43/repos") {
 			t.Fatalf("2nd endpoint = %q", got)
 		}
-		return "tasuku43/gionx\tgit@github.com:tasuku43/gionx.git\thttps://github.com/tasuku43/gionx.git", nil
+		return "tasuku43/kra\tgit@github.com:tasuku43/kra.git\thttps://github.com/tasuku43/kra.git", nil
 	})
 
 	repos, err := p.ListOrgRepos(context.Background(), "tasuku43")
@@ -90,7 +90,7 @@ func TestGitHubGHProvider_ListOrgRepos_FallbackToUserEndpointOn404(t *testing.T)
 	if len(repos) != 1 {
 		t.Fatalf("len(repos) = %d, want 1", len(repos))
 	}
-	if repos[0].RepoKey != "tasuku43/gionx" {
+	if repos[0].RepoKey != "tasuku43/kra" {
 		t.Fatalf("RepoKey = %q", repos[0].RepoKey)
 	}
 }

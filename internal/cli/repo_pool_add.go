@@ -9,9 +9,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/tasuku43/gionx/internal/core/repospec"
-	"github.com/tasuku43/gionx/internal/core/repostore"
-	"github.com/tasuku43/gionx/internal/infra/gitutil"
+	"github.com/tasuku43/kra/internal/core/repospec"
+	"github.com/tasuku43/kra/internal/core/repostore"
+	"github.com/tasuku43/kra/internal/infra/gitutil"
 )
 
 const repoPoolAddDefaultWorkers = 4

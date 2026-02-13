@@ -10,10 +10,10 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/tasuku43/gionx/internal/core/repospec"
-	"github.com/tasuku43/gionx/internal/core/repostore"
-	"github.com/tasuku43/gionx/internal/repodiscovery"
-	"github.com/tasuku43/gionx/internal/testutil"
+	"github.com/tasuku43/kra/internal/core/repospec"
+	"github.com/tasuku43/kra/internal/core/repostore"
+	"github.com/tasuku43/kra/internal/repodiscovery"
+	"github.com/tasuku43/kra/internal/testutil"
 )
 
 func TestCLI_RepoAdd_AddsPoolAndRegistersRepo(t *testing.T) {

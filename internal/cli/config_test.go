@@ -7,14 +7,14 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/tasuku43/gionx/internal/config"
+	"github.com/tasuku43/kra/internal/config"
 )
 
 func TestCLI_LoadMergedConfig_GlobalAndRootPrecedence(t *testing.T) {
-	gionxHome := setGionxHomeForTest(t)
+	kraHome := setKraHomeForTest(t)
 	root := t.TempDir()
 
-	globalPath := filepath.Join(gionxHome, "config.yaml")
+	globalPath := filepath.Join(kraHome, "config.yaml")
 	if err := os.MkdirAll(filepath.Dir(globalPath), 0o755); err != nil {
 		t.Fatalf("mkdir global config dir: %v", err)
 	}
@@ -31,7 +31,7 @@ integration:
 		t.Fatalf("write global config: %v", err)
 	}
 
-	rootPath := filepath.Join(root, ".gionx", "config.yaml")
+	rootPath := filepath.Join(root, ".kra", "config.yaml")
 	if err := os.MkdirAll(filepath.Dir(rootPath), 0o755); err != nil {
 		t.Fatalf("mkdir root config dir: %v", err)
 	}
@@ -64,10 +64,10 @@ integration:
 }
 
 func TestCLI_LoadMergedConfig_ConflictingScopeFails(t *testing.T) {
-	gionxHome := setGionxHomeForTest(t)
+	kraHome := setKraHomeForTest(t)
 	root := t.TempDir()
 
-	globalPath := filepath.Join(gionxHome, "config.yaml")
+	globalPath := filepath.Join(kraHome, "config.yaml")
 	if err := os.MkdirAll(filepath.Dir(globalPath), 0o755); err != nil {
 		t.Fatalf("mkdir global config dir: %v", err)
 	}
@@ -80,7 +80,7 @@ integration:
 		t.Fatalf("write global config: %v", err)
 	}
 
-	rootPath := filepath.Join(root, ".gionx", "config.yaml")
+	rootPath := filepath.Join(root, ".kra", "config.yaml")
 	if err := os.MkdirAll(filepath.Dir(rootPath), 0o755); err != nil {
 		t.Fatalf("mkdir root config dir: %v", err)
 	}

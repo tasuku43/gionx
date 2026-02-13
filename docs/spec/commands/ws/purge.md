@@ -1,13 +1,13 @@
 ---
-title: "`gionx ws --act purge`"
+title: "`kra ws --act purge`"
 status: implemented
 ---
 
-# `gionx ws --act purge [--no-prompt --force] <id>`
+# `kra ws --act purge [--no-prompt --force] <id>`
 
 ## Purpose
 
-Permanently delete a workspace and its archive from `GIONX_ROOT`, and remove the workspace snapshot
+Permanently delete a workspace and its archive from `KRA_ROOT`, and remove the workspace snapshot
 from runtime index data.
 
 This is a destructive operation. It is separate from `ws --act close`, which keeps an archive.
@@ -27,7 +27,7 @@ This is a destructive operation. It is separate from `ws --act close`, which kee
 
 1) If the workspace is `active`, inspect repo risk (live)
 
-- For each repo under `GIONX_ROOT/workspaces/<id>/repos/<alias>`:
+- For each repo under `KRA_ROOT/workspaces/<id>/repos/<alias>`:
   - compute risk similar to `gion` (dirty / unpushed / diverged / unknown / clean)
 - If any repo is not clean, require an additional confirmation before continuing.
 
@@ -38,8 +38,8 @@ This is a destructive operation. It is separate from `ws --act close`, which kee
 
 3) Delete workspace and archive directories (if present)
 
-- Delete `GIONX_ROOT/workspaces/<id>/` if it exists.
-- Delete `GIONX_ROOT/archive/<id>/` if it exists.
+- Delete `KRA_ROOT/workspaces/<id>/` if it exists.
+- Delete `KRA_ROOT/archive/<id>/` if it exists.
 
 4) Update metadata/index
 
@@ -60,4 +60,4 @@ If the Git working tree has unrelated changes, this command must not include the
 ## Modes
 
 - This command is explicit-id mode only.
-- Interactive selection must use `gionx ws select --archived`.
+- Interactive selection must use `kra ws select --archived`.

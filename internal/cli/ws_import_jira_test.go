@@ -12,7 +12,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/tasuku43/gionx/internal/testutil"
+	"github.com/tasuku43/kra/internal/testutil"
 )
 
 func TestCLI_WS_Import_Help_ShowsUsage(t *testing.T) {
@@ -24,7 +24,7 @@ func TestCLI_WS_Import_Help_ShowsUsage(t *testing.T) {
 	if code != exitOK {
 		t.Fatalf("exit code = %d, want %d", code, exitOK)
 	}
-	if !strings.Contains(out.String(), "gionx ws import") {
+	if !strings.Contains(out.String(), "kra ws import") {
 		t.Fatalf("stdout missing ws import usage: %q", out.String())
 	}
 	if err.Len() != 0 {
@@ -41,7 +41,7 @@ func TestCLI_WS_Import_Jira_Help_ShowsUsage(t *testing.T) {
 	if code != exitOK {
 		t.Fatalf("exit code = %d, want %d", code, exitOK)
 	}
-	if !strings.Contains(out.String(), "gionx ws import jira") {
+	if !strings.Contains(out.String(), "kra ws import jira") {
 		t.Fatalf("stdout missing ws import jira usage: %q", out.String())
 	}
 	if err.Len() != 0 {
@@ -117,7 +117,7 @@ func TestCLI_WS_Import_Jira_DefaultTypeJQL_PromptsForJQL(t *testing.T) {
 	env := testutil.NewEnv(t)
 	env.EnsureRootLayout(t)
 
-	rootConfigPath := filepath.Join(env.Root, ".gionx", "config.yaml")
+	rootConfigPath := filepath.Join(env.Root, ".kra", "config.yaml")
 	if err := os.MkdirAll(filepath.Dir(rootConfigPath), 0o755); err != nil {
 		t.Fatalf("mkdir root config dir: %v", err)
 	}
@@ -134,9 +134,9 @@ func TestCLI_WS_Import_Jira_DefaultTypeJQL_PromptsForJQL(t *testing.T) {
 		_, _ = w.Write([]byte(`{"issues":[{"key":"PROJ-401","fields":{"summary":"Default mode jql"}}]}`))
 	}))
 	t.Cleanup(server.Close)
-	t.Setenv("GIONX_JIRA_BASE_URL", server.URL)
-	t.Setenv("GIONX_JIRA_EMAIL", "dev@example.com")
-	t.Setenv("GIONX_JIRA_API_TOKEN", "token-123")
+	t.Setenv("KRA_JIRA_BASE_URL", server.URL)
+	t.Setenv("KRA_JIRA_EMAIL", "dev@example.com")
+	t.Setenv("KRA_JIRA_API_TOKEN", "token-123")
 
 	var in bytes.Buffer
 	in.WriteString("assignee=currentUser()\n")
@@ -165,7 +165,7 @@ func TestCLI_WS_Import_Jira_UsesConfigDefaultSpaceForSprint(t *testing.T) {
 	env := testutil.NewEnv(t)
 	env.EnsureRootLayout(t)
 
-	rootConfigPath := filepath.Join(env.Root, ".gionx", "config.yaml")
+	rootConfigPath := filepath.Join(env.Root, ".kra", "config.yaml")
 	if err := os.MkdirAll(filepath.Dir(rootConfigPath), 0o755); err != nil {
 		t.Fatalf("mkdir root config dir: %v", err)
 	}
@@ -182,9 +182,9 @@ func TestCLI_WS_Import_Jira_UsesConfigDefaultSpaceForSprint(t *testing.T) {
 		_, _ = w.Write([]byte(`{"issues":[{"key":"PROJ-402","fields":{"summary":"Default space"}}]}`))
 	}))
 	t.Cleanup(server.Close)
-	t.Setenv("GIONX_JIRA_BASE_URL", server.URL)
-	t.Setenv("GIONX_JIRA_EMAIL", "dev@example.com")
-	t.Setenv("GIONX_JIRA_API_TOKEN", "token-123")
+	t.Setenv("KRA_JIRA_BASE_URL", server.URL)
+	t.Setenv("KRA_JIRA_EMAIL", "dev@example.com")
+	t.Setenv("KRA_JIRA_API_TOKEN", "token-123")
 
 	var out bytes.Buffer
 	var err bytes.Buffer
@@ -205,7 +205,7 @@ func TestCLI_WS_Import_Jira_ConfigConflictFails(t *testing.T) {
 	env := testutil.NewEnv(t)
 	env.EnsureRootLayout(t)
 
-	rootConfigPath := filepath.Join(env.Root, ".gionx", "config.yaml")
+	rootConfigPath := filepath.Join(env.Root, ".kra", "config.yaml")
 	if err := os.MkdirAll(filepath.Dir(rootConfigPath), 0o755); err != nil {
 		t.Fatalf("mkdir root config dir: %v", err)
 	}
@@ -313,9 +313,9 @@ func TestCLI_WS_Import_Jira_NoPromptWithoutApply_PrintsPlanWithSkipAndFail(t *te
 		_, _ = w.Write([]byte(`{"issues":[{"key":"PROJ-101","fields":{"summary":"Already exists"}},{"key":"BAD/1","fields":{"summary":"Invalid key"}}]}`))
 	}))
 	t.Cleanup(server.Close)
-	t.Setenv("GIONX_JIRA_BASE_URL", server.URL)
-	t.Setenv("GIONX_JIRA_EMAIL", "dev@example.com")
-	t.Setenv("GIONX_JIRA_API_TOKEN", "token-123")
+	t.Setenv("KRA_JIRA_BASE_URL", server.URL)
+	t.Setenv("KRA_JIRA_EMAIL", "dev@example.com")
+	t.Setenv("KRA_JIRA_API_TOKEN", "token-123")
 
 	var out bytes.Buffer
 	var err bytes.Buffer
@@ -357,9 +357,9 @@ func TestCLI_WS_Import_Jira_NoPromptWithoutApply_UsesBulletedPlanLayout(t *testi
 		_, _ = w.Write([]byte(`{"issues":[{"key":"PROJ-201","fields":{"summary":"Implement import"}}]}`))
 	}))
 	t.Cleanup(server.Close)
-	t.Setenv("GIONX_JIRA_BASE_URL", server.URL)
-	t.Setenv("GIONX_JIRA_EMAIL", "dev@example.com")
-	t.Setenv("GIONX_JIRA_API_TOKEN", "token-123")
+	t.Setenv("KRA_JIRA_BASE_URL", server.URL)
+	t.Setenv("KRA_JIRA_EMAIL", "dev@example.com")
+	t.Setenv("KRA_JIRA_API_TOKEN", "token-123")
 
 	var out bytes.Buffer
 	var err bytes.Buffer
@@ -405,9 +405,9 @@ func TestCLI_WS_Import_Jira_JSON_NoPromptWithoutApply_Contract(t *testing.T) {
 		_, _ = w.Write([]byte(`{"issues":[{"key":"PROJ-101","fields":{"summary":"Already exists"}},{"key":"PROJ-102","fields":{"summary":"Archived exists"}},{"key":"BAD/1","fields":{"summary":"Invalid key"}},{"key":"PROJ-103","fields":{"summary":"Create me"}}]}`))
 	}))
 	t.Cleanup(server.Close)
-	t.Setenv("GIONX_JIRA_BASE_URL", server.URL)
-	t.Setenv("GIONX_JIRA_EMAIL", "dev@example.com")
-	t.Setenv("GIONX_JIRA_API_TOKEN", "token-123")
+	t.Setenv("KRA_JIRA_BASE_URL", server.URL)
+	t.Setenv("KRA_JIRA_EMAIL", "dev@example.com")
+	t.Setenv("KRA_JIRA_API_TOKEN", "token-123")
 
 	var out bytes.Buffer
 	var err bytes.Buffer
@@ -460,9 +460,9 @@ func TestCLI_WS_Import_Jira_PromptDecline_WithFailedPlan_ReturnsError(t *testing
 		_, _ = w.Write([]byte(`{"issues":[{"key":"BAD/1","fields":{"summary":"Invalid key"}}]}`))
 	}))
 	t.Cleanup(server.Close)
-	t.Setenv("GIONX_JIRA_BASE_URL", server.URL)
-	t.Setenv("GIONX_JIRA_EMAIL", "dev@example.com")
-	t.Setenv("GIONX_JIRA_API_TOKEN", "token-123")
+	t.Setenv("KRA_JIRA_BASE_URL", server.URL)
+	t.Setenv("KRA_JIRA_EMAIL", "dev@example.com")
+	t.Setenv("KRA_JIRA_API_TOKEN", "token-123")
 
 	var in bytes.Buffer
 	in.WriteString("n\n")
@@ -500,9 +500,9 @@ func TestCLI_WS_Import_Jira_PromptAccept_PrintsResultSummary(t *testing.T) {
 		_, _ = w.Write([]byte(`{"issues":[{"key":"PROJ-310","fields":{"summary":"Prompt apply"}}]}`))
 	}))
 	t.Cleanup(server.Close)
-	t.Setenv("GIONX_JIRA_BASE_URL", server.URL)
-	t.Setenv("GIONX_JIRA_EMAIL", "dev@example.com")
-	t.Setenv("GIONX_JIRA_API_TOKEN", "token-123")
+	t.Setenv("KRA_JIRA_BASE_URL", server.URL)
+	t.Setenv("KRA_JIRA_EMAIL", "dev@example.com")
+	t.Setenv("KRA_JIRA_API_TOKEN", "token-123")
 
 	var in bytes.Buffer
 	in.WriteString("\n")
@@ -540,9 +540,9 @@ func TestCLI_WS_Import_Jira_JSON_Prompt_PrintsPromptToStderr(t *testing.T) {
 		_, _ = w.Write([]byte(`{"issues":[{"key":"PROJ-301","fields":{"summary":"JSON prompt test"}}]}`))
 	}))
 	t.Cleanup(server.Close)
-	t.Setenv("GIONX_JIRA_BASE_URL", server.URL)
-	t.Setenv("GIONX_JIRA_EMAIL", "dev@example.com")
-	t.Setenv("GIONX_JIRA_API_TOKEN", "token-123")
+	t.Setenv("KRA_JIRA_BASE_URL", server.URL)
+	t.Setenv("KRA_JIRA_EMAIL", "dev@example.com")
+	t.Setenv("KRA_JIRA_API_TOKEN", "token-123")
 
 	var in bytes.Buffer
 	in.WriteString("n\n")
@@ -579,9 +579,9 @@ func TestCLI_WS_Import_Jira_NoPromptApply_CreatesWorkspace(t *testing.T) {
 		_, _ = w.Write([]byte(`{"issues":[{"key":"PROJ-201","fields":{"summary":"Implement import"}}]}`))
 	}))
 	t.Cleanup(server.Close)
-	t.Setenv("GIONX_JIRA_BASE_URL", server.URL)
-	t.Setenv("GIONX_JIRA_EMAIL", "dev@example.com")
-	t.Setenv("GIONX_JIRA_API_TOKEN", "token-123")
+	t.Setenv("KRA_JIRA_BASE_URL", server.URL)
+	t.Setenv("KRA_JIRA_EMAIL", "dev@example.com")
+	t.Setenv("KRA_JIRA_API_TOKEN", "token-123")
 
 	var out bytes.Buffer
 	var err bytes.Buffer
@@ -635,9 +635,9 @@ func TestCLI_WS_Import_Jira_JSON_NoPromptApply_CreateFailureReason(t *testing.T)
 		_, _ = w.Write([]byte(`{"issues":[{"key":"PROJ-201","fields":{"summary":"Create fails"}}]}`))
 	}))
 	t.Cleanup(server.Close)
-	t.Setenv("GIONX_JIRA_BASE_URL", server.URL)
-	t.Setenv("GIONX_JIRA_EMAIL", "dev@example.com")
-	t.Setenv("GIONX_JIRA_API_TOKEN", "token-123")
+	t.Setenv("KRA_JIRA_BASE_URL", server.URL)
+	t.Setenv("KRA_JIRA_EMAIL", "dev@example.com")
+	t.Setenv("KRA_JIRA_API_TOKEN", "token-123")
 
 	var out bytes.Buffer
 	var err bytes.Buffer
@@ -696,9 +696,9 @@ func TestCLI_WS_Import_Jira_SprintNoValue_PromptSelectsFromSpaceSprintList(t *te
 		}
 	}))
 	t.Cleanup(server.Close)
-	t.Setenv("GIONX_JIRA_BASE_URL", server.URL)
-	t.Setenv("GIONX_JIRA_EMAIL", "dev@example.com")
-	t.Setenv("GIONX_JIRA_API_TOKEN", "token-123")
+	t.Setenv("KRA_JIRA_BASE_URL", server.URL)
+	t.Setenv("KRA_JIRA_EMAIL", "dev@example.com")
+	t.Setenv("KRA_JIRA_API_TOKEN", "token-123")
 
 	var in bytes.Buffer
 	in.WriteString("1\nn\n")
@@ -741,9 +741,9 @@ func TestCLI_WS_Import_Jira_SprintNoValue_ShowsOnlyActiveFuture(t *testing.T) {
 		_, _ = w.Write([]byte(`{"issues":[]}`))
 	}))
 	t.Cleanup(server.Close)
-	t.Setenv("GIONX_JIRA_BASE_URL", server.URL)
-	t.Setenv("GIONX_JIRA_EMAIL", "dev@example.com")
-	t.Setenv("GIONX_JIRA_API_TOKEN", "token-123")
+	t.Setenv("KRA_JIRA_BASE_URL", server.URL)
+	t.Setenv("KRA_JIRA_EMAIL", "dev@example.com")
+	t.Setenv("KRA_JIRA_API_TOKEN", "token-123")
 
 	var in bytes.Buffer
 	in.WriteString("1\nn\n")
@@ -786,9 +786,9 @@ func TestCLI_WS_Import_Jira_SprintName_NoPrompt_Works(t *testing.T) {
 		_, _ = w.Write([]byte(`{"issues":[]}`))
 	}))
 	t.Cleanup(server.Close)
-	t.Setenv("GIONX_JIRA_BASE_URL", server.URL)
-	t.Setenv("GIONX_JIRA_EMAIL", "dev@example.com")
-	t.Setenv("GIONX_JIRA_API_TOKEN", "token-123")
+	t.Setenv("KRA_JIRA_BASE_URL", server.URL)
+	t.Setenv("KRA_JIRA_EMAIL", "dev@example.com")
+	t.Setenv("KRA_JIRA_API_TOKEN", "token-123")
 
 	var out bytes.Buffer
 	var err bytes.Buffer
@@ -818,9 +818,9 @@ func TestCLI_WS_Import_Jira_SprintNumericID_UsesJQLDirect(t *testing.T) {
 		_, _ = w.Write([]byte(`{"issues":[]}`))
 	}))
 	t.Cleanup(server.Close)
-	t.Setenv("GIONX_JIRA_BASE_URL", server.URL)
-	t.Setenv("GIONX_JIRA_EMAIL", "dev@example.com")
-	t.Setenv("GIONX_JIRA_API_TOKEN", "token-123")
+	t.Setenv("KRA_JIRA_BASE_URL", server.URL)
+	t.Setenv("KRA_JIRA_EMAIL", "dev@example.com")
+	t.Setenv("KRA_JIRA_API_TOKEN", "token-123")
 
 	var out bytes.Buffer
 	var err bytes.Buffer
@@ -853,9 +853,9 @@ func TestCLI_WS_Import_Jira_ProjectAlias_WorksLikeSpace(t *testing.T) {
 		_, _ = w.Write([]byte(`{"issues":[]}`))
 	}))
 	t.Cleanup(server.Close)
-	t.Setenv("GIONX_JIRA_BASE_URL", server.URL)
-	t.Setenv("GIONX_JIRA_EMAIL", "dev@example.com")
-	t.Setenv("GIONX_JIRA_API_TOKEN", "token-123")
+	t.Setenv("KRA_JIRA_BASE_URL", server.URL)
+	t.Setenv("KRA_JIRA_EMAIL", "dev@example.com")
+	t.Setenv("KRA_JIRA_API_TOKEN", "token-123")
 
 	var out bytes.Buffer
 	var err bytes.Buffer

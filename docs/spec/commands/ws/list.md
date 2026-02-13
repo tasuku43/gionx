@@ -1,12 +1,12 @@
 ---
-title: "`gionx ws list`"
+title: "`kra ws list`"
 status: implemented
 ---
 
-# `gionx ws list [--archived] [--tree] [--format human|tsv]`
+# `kra ws list [--archived] [--tree] [--format human|tsv]`
 
 Alias:
-- `gionx ws ls` (same semantics as `ws list`)
+- `kra ws ls` (same semantics as `ws list`)
 
 ## Purpose
 
@@ -74,8 +74,8 @@ List workspaces with status and summary fields, similar in spirit to `gion manif
 
 ## Behavior (MVP)
 
-- Filesystem metadata (`.gionx.meta.json`) is the primary source of desired/current state.
-- Directory existence under `GIONX_ROOT/workspaces/` and `GIONX_ROOT/archive/` is treated as physical truth.
+- Filesystem metadata (`.kra.meta.json`) is the primary source of desired/current state.
+- Directory existence under `KRA_ROOT/workspaces/` and `KRA_ROOT/archive/` is treated as physical truth.
 
 ### Drift repair (MVP)
 

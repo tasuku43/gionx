@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/tasuku43/gionx/internal/paths"
+	"github.com/tasuku43/kra/internal/paths"
 )
 
 func TestCLI_GlobalDebugFlag_BeforeHelp(t *testing.T) {
@@ -27,7 +27,7 @@ func TestCLI_GlobalDebugFlag_BeforeHelp(t *testing.T) {
 	}
 }
 
-func TestCLI_WSList_Debug_WritesLogUnderGIONXRoot(t *testing.T) {
+func TestCLI_WSList_Debug_WritesLogUnderKRARoot(t *testing.T) {
 	root := t.TempDir()
 
 	if err := os.MkdirAll(filepath.Join(root, "workspaces"), 0o755); err != nil {
@@ -37,7 +37,7 @@ func TestCLI_WSList_Debug_WritesLogUnderGIONXRoot(t *testing.T) {
 		t.Fatalf("create archive/: %v", err)
 	}
 
-	setGionxHomeForTest(t)
+	setKraHomeForTest(t)
 	if err := paths.WriteCurrentContext(root); err != nil {
 		t.Fatalf("WriteCurrentContext() error: %v", err)
 	}
@@ -51,7 +51,7 @@ func TestCLI_WSList_Debug_WritesLogUnderGIONXRoot(t *testing.T) {
 		t.Fatalf("exit code = %d, want %d (stderr=%q)", code, exitOK, err.String())
 	}
 
-	logDir := filepath.Join(root, ".gionx", "logs")
+	logDir := filepath.Join(root, ".kra", "logs")
 	entries, readErr := os.ReadDir(logDir)
 	if readErr != nil {
 		t.Fatalf("read debug log dir: %v", readErr)

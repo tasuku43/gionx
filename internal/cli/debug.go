@@ -9,7 +9,7 @@ import (
 	"time"
 )
 
-const debugLogDir = ".gionx/logs"
+const debugLogDir = ".kra/logs"
 
 type debugSession struct {
 	mu   sync.Mutex

@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/tasuku43/gionx/internal/testutil"
+	"github.com/tasuku43/kra/internal/testutil"
 )
 
 func TestCLI_WS_Launcher_RequiresIDOrWorkspaceContext(t *testing.T) {

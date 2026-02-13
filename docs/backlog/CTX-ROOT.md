@@ -5,7 +5,7 @@ status: planned
 
 # CTX-ROOT Backlog
 
-- [x] CTX-ROOT-001: `gionx init` pending spec parity
+- [x] CTX-ROOT-001: `kra init` pending spec parity
   - What: implement `--root`, non-TTY guidance, interactive root prompt, and current-context update on success.
   - Specs:
     - `docs/spec/commands/init.md`
@@ -13,7 +13,7 @@ status: planned
   - Depends: MVP-010, MVP-051
   - Serial: yes
 
-- [x] CTX-ROOT-002: remove `GIONX_ROOT` env-based root resolution
+- [x] CTX-ROOT-002: remove `KRA_ROOT` env-based root resolution
   - What: remove environment-variable root override from runtime resolution and use context-first behavior.
   - Specs:
     - `docs/spec/commands/context.md`

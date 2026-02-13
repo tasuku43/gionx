@@ -5,13 +5,13 @@ status: implemented
 
 # Layout
 
-## GIONX_ROOT
+## KRA_ROOT
 
-`GIONX_ROOT` is a user-chosen working directory that is intended to be Git-managed.
+`KRA_ROOT` is a user-chosen working directory that is intended to be Git-managed.
 
 ## Root detection (filesystem)
 
-When a command needs to operate on an existing root, `gionx` detects root by:
+When a command needs to operate on an existing root, `kra` detects root by:
 
 1) If `current-context` is set: use it (must look like a root).
 2) Otherwise: walk up from the current working directory and pick the nearest directory that looks like a root.
@@ -30,7 +30,7 @@ At the workspace level, we separate "text-first" logs from "file-first" artifact
 ### Directories
 
 ```
-GIONX_ROOT/
+KRA_ROOT/
   AGENTS.md
   templates/
     <name>/        # workspace template root copied by ws create
@@ -53,7 +53,7 @@ Notes:
 
 ## Git tracking policy
 
-`gionx` treats `GIONX_ROOT` as a Git working tree.
+`kra` treats `KRA_ROOT` as a Git working tree.
 
 - Track:
   - `workspaces/<id>/` except `repos/` (notes, artifacts, AGENTS.md, and any additional files)

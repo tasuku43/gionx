@@ -10,8 +10,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/tasuku43/gionx/internal/core/workspacerisk"
-	"github.com/tasuku43/gionx/internal/testutil"
+	"github.com/tasuku43/kra/internal/core/workspacerisk"
+	"github.com/tasuku43/kra/internal/testutil"
 )
 
 func TestCLI_WS_Close_Help_ShowsUsage(t *testing.T) {
@@ -24,7 +24,7 @@ func TestCLI_WS_Close_Help_ShowsUsage(t *testing.T) {
 	if code != exitOK {
 		t.Fatalf("exit code = %d, want %d", code, exitOK)
 	}
-	if !strings.Contains(out.String(), "gionx ws --act close") {
+	if !strings.Contains(out.String(), "kra ws --act close") {
 		t.Fatalf("stdout missing ws close usage: %q", out.String())
 	}
 	if err.Len() != 0 {
@@ -498,7 +498,7 @@ func TestEnsureRootGitWorktree_RejectsRootOutsideGitWorktree(t *testing.T) {
 	if err == nil {
 		t.Fatalf("ensureRootGitWorktree() error = nil, want non-nil")
 	}
-	if !strings.Contains(err.Error(), "GIONX_ROOT must be a git working tree") {
+	if !strings.Contains(err.Error(), "KRA_ROOT must be a git working tree") {
 		t.Fatalf("error = %q, want git working tree guidance", err.Error())
 	}
 }

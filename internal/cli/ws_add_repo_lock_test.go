@@ -15,7 +15,7 @@ func TestAcquireWorkspaceAddRepoLock_CreateAndRelease(t *testing.T) {
 		t.Fatalf("acquireWorkspaceAddRepoLock() error: %v", err)
 	}
 
-	lockPath := filepath.Join(root, ".gionx", "locks", "ws-add-repo-WS-LOCK-001.lock")
+	lockPath := filepath.Join(root, ".kra", "locks", "ws-add-repo-WS-LOCK-001.lock")
 	raw, err := os.ReadFile(lockPath)
 	if err != nil {
 		t.Fatalf("read lock file: %v", err)
@@ -32,7 +32,7 @@ func TestAcquireWorkspaceAddRepoLock_CreateAndRelease(t *testing.T) {
 
 func TestAcquireWorkspaceAddRepoLock_StaleLegacyLockRecovered(t *testing.T) {
 	root := t.TempDir()
-	lockDir := filepath.Join(root, ".gionx", "locks")
+	lockDir := filepath.Join(root, ".kra", "locks")
 	if err := os.MkdirAll(lockDir, 0o755); err != nil {
 		t.Fatalf("MkdirAll(lockDir): %v", err)
 	}
@@ -50,7 +50,7 @@ func TestAcquireWorkspaceAddRepoLock_StaleLegacyLockRecovered(t *testing.T) {
 
 func TestAcquireWorkspaceAddRepoLock_ActivePIDLockBlocked(t *testing.T) {
 	root := t.TempDir()
-	lockDir := filepath.Join(root, ".gionx", "locks")
+	lockDir := filepath.Join(root, ".kra", "locks")
 	if err := os.MkdirAll(lockDir, 0o755); err != nil {
 		t.Fatalf("MkdirAll(lockDir): %v", err)
 	}

@@ -8,8 +8,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/tasuku43/gionx/internal/paths"
-	"github.com/tasuku43/gionx/internal/stateregistry"
+	"github.com/tasuku43/kra/internal/paths"
+	"github.com/tasuku43/kra/internal/stateregistry"
 )
 
 func TestCLI_Context_Help(t *testing.T) {
@@ -21,7 +21,7 @@ func TestCLI_Context_Help(t *testing.T) {
 	if code != exitOK {
 		t.Fatalf("exit code = %d, want %d", code, exitOK)
 	}
-	if !strings.Contains(out.String(), "gionx context") {
+	if !strings.Contains(out.String(), "kra context") {
 		t.Fatalf("stdout missing context usage: %q", out.String())
 	}
 	if err.Len() != 0 {
@@ -30,7 +30,7 @@ func TestCLI_Context_Help(t *testing.T) {
 }
 
 func TestCLI_Context_UseAndCurrent(t *testing.T) {
-	setGionxHomeForTest(t)
+	setKraHomeForTest(t)
 
 	root := t.TempDir()
 	if err := os.MkdirAll(filepath.Join(root, "workspaces"), 0o755); err != nil {
@@ -66,7 +66,7 @@ func TestCLI_Context_UseAndCurrent(t *testing.T) {
 }
 
 func TestCLI_Context_ListShowsRegistryEntries(t *testing.T) {
-	setGionxHomeForTest(t)
+	setKraHomeForTest(t)
 
 	rootA := t.TempDir()
 	rootB := t.TempDir()
@@ -100,7 +100,7 @@ func TestCLI_Context_ListShowsRegistryEntries(t *testing.T) {
 }
 
 func TestCLI_Context_ListMarksCurrentContext(t *testing.T) {
-	setGionxHomeForTest(t)
+	setKraHomeForTest(t)
 
 	root := t.TempDir()
 	otherRoot := t.TempDir()
@@ -130,7 +130,7 @@ func TestCLI_Context_ListMarksCurrentContext(t *testing.T) {
 }
 
 func TestCLI_Context_CurrentFailsWhenContextMissing(t *testing.T) {
-	setGionxHomeForTest(t)
+	setKraHomeForTest(t)
 
 	missing := filepath.Join(t.TempDir(), "missing-root")
 	if err := paths.WriteCurrentContext(missing); err != nil {
@@ -150,7 +150,7 @@ func TestCLI_Context_CurrentFailsWhenContextMissing(t *testing.T) {
 }
 
 func TestCLI_Context_UseWithoutNameRequiresTTY(t *testing.T) {
-	setGionxHomeForTest(t)
+	setKraHomeForTest(t)
 
 	root := t.TempDir()
 	if err := stateregistry.SetContextName(root, "sre", time.Unix(100, 0)); err != nil {
@@ -167,13 +167,13 @@ func TestCLI_Context_UseWithoutNameRequiresTTY(t *testing.T) {
 	if !strings.Contains(err.String(), "requires a TTY") {
 		t.Fatalf("stderr missing tty guidance: %q", err.String())
 	}
-	if !strings.Contains(err.String(), "gionx context <subcommand>") {
+	if !strings.Contains(err.String(), "kra context <subcommand>") {
 		t.Fatalf("stderr should include context usage: %q", err.String())
 	}
 }
 
 func TestCLI_Context_RemoveWithoutNameRequiresTTY(t *testing.T) {
-	setGionxHomeForTest(t)
+	setKraHomeForTest(t)
 
 	root := t.TempDir()
 	if err := stateregistry.SetContextName(root, "sre", time.Unix(100, 0)); err != nil {
@@ -190,13 +190,13 @@ func TestCLI_Context_RemoveWithoutNameRequiresTTY(t *testing.T) {
 	if !strings.Contains(err.String(), "context rm without <name> requires a TTY") {
 		t.Fatalf("stderr missing tty guidance: %q", err.String())
 	}
-	if !strings.Contains(err.String(), "gionx context <subcommand>") {
+	if !strings.Contains(err.String(), "kra context <subcommand>") {
 		t.Fatalf("stderr should include context usage: %q", err.String())
 	}
 }
 
 func TestCLI_Context_Rename(t *testing.T) {
-	setGionxHomeForTest(t)
+	setKraHomeForTest(t)
 
 	root := t.TempDir()
 	if err := stateregistry.SetContextName(root, "old", time.Unix(100, 0)); err != nil {
@@ -219,7 +219,7 @@ func TestCLI_Context_Rename(t *testing.T) {
 }
 
 func TestCLI_Context_RemoveProtectsCurrent(t *testing.T) {
-	setGionxHomeForTest(t)
+	setKraHomeForTest(t)
 
 	root := t.TempDir()
 	if err := stateregistry.SetContextName(root, "sre", time.Unix(100, 0)); err != nil {
@@ -242,7 +242,7 @@ func TestCLI_Context_RemoveProtectsCurrent(t *testing.T) {
 }
 
 func TestCLI_Context_Remove(t *testing.T) {
-	setGionxHomeForTest(t)
+	setKraHomeForTest(t)
 
 	root := t.TempDir()
 	other := t.TempDir()

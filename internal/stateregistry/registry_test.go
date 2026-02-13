@@ -9,7 +9,7 @@ import (
 )
 
 func TestTouch_CreateOnFirstUse(t *testing.T) {
-	t.Setenv("GIONX_HOME", filepath.Join(t.TempDir(), ".gionx"))
+	t.Setenv("KRA_HOME", filepath.Join(t.TempDir(), ".kra"))
 
 	root := t.TempDir()
 	now := time.Unix(1710000000, 0)
@@ -40,7 +40,7 @@ func TestTouch_CreateOnFirstUse(t *testing.T) {
 }
 
 func TestTouch_UpdatesLastUsedAtMonotonic(t *testing.T) {
-	t.Setenv("GIONX_HOME", filepath.Join(t.TempDir(), ".gionx"))
+	t.Setenv("KRA_HOME", filepath.Join(t.TempDir(), ".kra"))
 
 	root := t.TempDir()
 	if err := Touch(root, time.Unix(200, 0)); err != nil {
@@ -73,7 +73,7 @@ func TestTouch_UpdatesLastUsedAtMonotonic(t *testing.T) {
 }
 
 func TestTouch_MalformedRegistry_ReturnsRecoveryHint(t *testing.T) {
-	t.Setenv("GIONX_HOME", filepath.Join(t.TempDir(), ".gionx"))
+	t.Setenv("KRA_HOME", filepath.Join(t.TempDir(), ".kra"))
 
 	registryPath, err := Path()
 	if err != nil {
@@ -103,7 +103,7 @@ func TestTouch_MalformedRegistry_ReturnsRecoveryHint(t *testing.T) {
 }
 
 func TestRenameContextName_UpdatesNameAndRejectsConflict(t *testing.T) {
-	t.Setenv("GIONX_HOME", filepath.Join(t.TempDir(), ".gionx"))
+	t.Setenv("KRA_HOME", filepath.Join(t.TempDir(), ".kra"))
 
 	rootA := t.TempDir()
 	rootB := t.TempDir()
@@ -134,7 +134,7 @@ func TestRenameContextName_UpdatesNameAndRejectsConflict(t *testing.T) {
 }
 
 func TestRemoveContextName_RemovesEntry(t *testing.T) {
-	t.Setenv("GIONX_HOME", filepath.Join(t.TempDir(), ".gionx"))
+	t.Setenv("KRA_HOME", filepath.Join(t.TempDir(), ".kra"))
 
 	root := t.TempDir()
 	if err := SetContextName(root, "remove-me", time.Unix(100, 0)); err != nil {

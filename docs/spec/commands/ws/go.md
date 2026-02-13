@@ -1,9 +1,9 @@
 ---
-title: "`gionx ws --act go`"
+title: "`kra ws --act go`"
 status: implemented
 ---
 
-# `gionx ws --act go [--archived] [--id <id>] [--ui] [--format human|json] [<id>]`
+# `kra ws --act go [--archived] [--id <id>] [--ui] [--format human|json] [<id>]`
 
 ## Purpose
 
@@ -22,12 +22,12 @@ Jump to a workspace directory as a "start work" action.
 
 - Action is routed via `ws --act go`.
 - This command path is explicit-id mode only (`--id` or positional `<id>`).
-- For interactive selection, use `gionx ws select --act go`.
+- For interactive selection, use `kra ws select --act go`.
 
 ### Target path
 
-- active target: `GIONX_ROOT/workspaces/<id>/`
-- archived target (with `--archived`): `GIONX_ROOT/archive/<id>/`
+- active target: `KRA_ROOT/workspaces/<id>/`
+- archived target (with `--archived`): `KRA_ROOT/archive/<id>/`
 
 ### UX detail
 
@@ -37,12 +37,12 @@ Jump to a workspace directory as a "start work" action.
 
 ### Shell integration
 
-- `gionx` cannot mutate the parent shell cwd directly.
+- `kra` cannot mutate the parent shell cwd directly.
 - For practical navigation, shell wrappers execute action-file entries after command completion.
-- Shell-wide wrapper integration is provided via `gionx shell init <shell>`.
+- Shell-wide wrapper integration is provided via `kra shell init <shell>`.
 - Planned extension:
   - when routed from unified launcher flow, `go` semantics remain identical to direct `ws --act go`.
-  - shell integration uses post-exec action protocol (`GIONX_SHELL_ACTION_FILE`) for launcher-routed go actions.
+  - shell integration uses post-exec action protocol (`KRA_SHELL_ACTION_FILE`) for launcher-routed go actions.
 
 ## Errors
 
@@ -64,5 +64,5 @@ Jump to a workspace directory as a "start work" action.
 
 ## Candidate title behavior
 
-- Candidate discovery for `ws go` should align with FS-first workspace discovery and `.gionx.meta.json`.
+- Candidate discovery for `ws go` should align with FS-first workspace discovery and `.kra.meta.json`.
 - Candidate titles must use metadata `title` only (no runtime-derived work-state labels).

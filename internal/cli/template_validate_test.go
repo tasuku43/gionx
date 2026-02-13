@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/tasuku43/gionx/internal/testutil"
+	"github.com/tasuku43/kra/internal/testutil"
 )
 
 func TestCLI_TemplateValidate_AllTemplates_CollectsViolations(t *testing.T) {
@@ -39,7 +39,7 @@ func TestCLI_TemplateValidate_AllTemplates_CollectsViolations(t *testing.T) {
 	if !strings.Contains(errBuf.String(), "template=bad path=repos") {
 		t.Fatalf("stderr missing repos violation: %q", errBuf.String())
 	}
-	if !strings.Contains(errBuf.String(), "template=bad path=.gionx.meta.json") {
+	if !strings.Contains(errBuf.String(), "template=bad path=.kra.meta.json") {
 		t.Fatalf("stderr missing workspace meta violation: %q", errBuf.String())
 	}
 	if !strings.Contains(errBuf.String(), "template=bad path=link") {

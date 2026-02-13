@@ -13,28 +13,28 @@ frequently used command options.
 ## Config files
 
 - Global config (optional):
-  - `~/.gionx/config.yaml`
+  - `~/.kra/config.yaml`
   - if missing, treat as empty config
   - bootstrap policy:
     - first run of a state-changing command creates a commented scaffold file
       (read-only commands do not create it)
 - Root-local config:
-  - `<GIONX_ROOT>/.gionx/config.yaml`
+  - `<KRA_ROOT>/.kra/config.yaml`
   - lifecycle/bootstrap is defined by `docs/spec/commands/init.md`
 
-Global path may be overridden with `$GIONX_HOME`:
-- `<GIONX_HOME>/config.yaml`
-- `<GIONX_HOME>/state/current-context`
-- `<GIONX_HOME>/state/root-registry.json`
-- `<GIONX_HOME>/repo-pool/`
+Global path may be overridden with `$KRA_HOME`:
+- `<KRA_HOME>/config.yaml`
+- `<KRA_HOME>/state/current-context`
+- `<KRA_HOME>/state/root-registry.json`
+- `<KRA_HOME>/repo-pool/`
 
 ## Merge precedence
 
 Resolve values in this order:
 
 1. CLI flag/input
-2. root config (`<root>/.gionx/config.yaml`)
-3. global config (`~/.gionx/config.yaml`)
+2. root config (`<root>/.kra/config.yaml`)
+3. global config (`~/.kra/config.yaml`)
 4. command default
 
 For string values, empty/whitespace-only values are treated as "unset".

@@ -9,7 +9,7 @@ status: implemented
 
 Define one consistent semantic color rule for all interactive and non-interactive human-readable outputs.
 
-`gionx` must not design output colors by raw color names.  
+`kra` must not design output colors by raw color names.  
 Commands must use semantic tokens and shared helpers.
 
 ## Core policy
@@ -35,7 +35,7 @@ Commands must use semantic tokens and shared helpers.
 - `git.ref.local`
 - `git.ref.remote`
 
-## gionx mapping rules
+## kra mapping rules
 
 - Workspace status:
   - `active` -> `accent`

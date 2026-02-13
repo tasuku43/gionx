@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/tasuku43/gionx/internal/testutil"
+	"github.com/tasuku43/kra/internal/testutil"
 )
 
 func TestCLI_WS_Create_InvalidRoot_Errors(t *testing.T) {
@@ -21,7 +21,7 @@ func TestCLI_WS_Create_InvalidRoot_Errors(t *testing.T) {
 	if code != exitError {
 		t.Fatalf("exit code = %d, want %d (stderr=%q)", code, exitError, errBuf.String())
 	}
-	if !strings.Contains(errBuf.String(), "does not look like a gionx root") {
+	if !strings.Contains(errBuf.String(), "does not look like a kra root") {
 		t.Fatalf("stderr missing root error: %q", errBuf.String())
 	}
 }
@@ -123,7 +123,7 @@ func TestCLI_Init_IgnoresLegacyRepoPoolDrift(t *testing.T) {
 	testutil.RequireCommand(t, "git")
 
 	root := t.TempDir()
-	setGionxHomeForTest(t)
+	setKraHomeForTest(t)
 	t.Setenv("XDG_DATA_HOME", filepath.Join(t.TempDir(), "xdg-data"))
 	t.Setenv("XDG_CACHE_HOME", filepath.Join(t.TempDir(), "xdg-cache"))
 

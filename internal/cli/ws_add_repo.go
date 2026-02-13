@@ -17,10 +17,10 @@ import (
 	"time"
 
 	"github.com/mattn/go-isatty"
-	"github.com/tasuku43/gionx/internal/core/repospec"
-	"github.com/tasuku43/gionx/internal/core/repostore"
-	"github.com/tasuku43/gionx/internal/infra/gitutil"
-	"github.com/tasuku43/gionx/internal/infra/paths"
+	"github.com/tasuku43/kra/internal/core/repospec"
+	"github.com/tasuku43/kra/internal/core/repostore"
+	"github.com/tasuku43/kra/internal/infra/gitutil"
+	"github.com/tasuku43/kra/internal/infra/paths"
 )
 
 type addRepoPoolCandidate struct {
@@ -243,7 +243,7 @@ func (c *CLI) runWSAddRepo(args []string) int {
 	}
 	root, err := paths.ResolveExistingRoot(wd)
 	if err != nil {
-		fmt.Fprintf(c.Err, "resolve GIONX_ROOT: %v\n", err)
+		fmt.Fprintf(c.Err, "resolve KRA_ROOT: %v\n", err)
 		return exitError
 	}
 	if err := c.ensureDebugLog(root, "ws-add-repo"); err != nil {
@@ -789,17 +789,17 @@ func resolveWorkspaceIDForAddRepo(root string, cwd string, args []string) (strin
 	}
 	rel = filepath.Clean(rel)
 	if rel == "." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) || rel == ".." {
-		return "", fmt.Errorf("workspace id is required when not inside GIONX_ROOT/workspaces/<id>")
+		return "", fmt.Errorf("workspace id is required when not inside KRA_ROOT/workspaces/<id>")
 	}
 	first := strings.Split(rel, string(filepath.Separator))[0]
 	if err := validateWorkspaceID(first); err != nil {
-		return "", fmt.Errorf("workspace id is required when not inside GIONX_ROOT/workspaces/<id>")
+		return "", fmt.Errorf("workspace id is required when not inside KRA_ROOT/workspaces/<id>")
 	}
 	return first, nil
 }
 
 func acquireWorkspaceAddRepoLock(root string, workspaceID string) (func(), error) {
-	lockDir := filepath.Join(root, ".gionx", "locks")
+	lockDir := filepath.Join(root, ".kra", "locks")
 	if err := os.MkdirAll(lockDir, 0o755); err != nil {
 		return nil, fmt.Errorf("create lock dir: %w", err)
 	}

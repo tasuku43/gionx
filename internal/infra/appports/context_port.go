@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/tasuku43/gionx/internal/app/contextcmd"
-	"github.com/tasuku43/gionx/internal/paths"
-	"github.com/tasuku43/gionx/internal/stateregistry"
+	"github.com/tasuku43/kra/internal/app/contextcmd"
+	"github.com/tasuku43/kra/internal/paths"
+	"github.com/tasuku43/kra/internal/stateregistry"
 )
 
 type ContextPort struct {

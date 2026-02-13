@@ -6,8 +6,8 @@ import (
 	"os"
 	"strings"
 
-	"github.com/tasuku43/gionx/internal/app/repocmd"
-	"github.com/tasuku43/gionx/internal/infra/appports"
+	"github.com/tasuku43/kra/internal/app/repocmd"
+	"github.com/tasuku43/kra/internal/infra/appports"
 )
 
 func (c *CLI) runRepoAdd(args []string) int {

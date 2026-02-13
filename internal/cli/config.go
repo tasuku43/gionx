@@ -3,8 +3,8 @@ package cli
 import (
 	"fmt"
 
-	"github.com/tasuku43/gionx/internal/config"
-	"github.com/tasuku43/gionx/internal/infra/paths"
+	"github.com/tasuku43/kra/internal/config"
+	"github.com/tasuku43/kra/internal/infra/paths"
 )
 
 func (c *CLI) loadMergedConfig(root string) (config.Config, error) {

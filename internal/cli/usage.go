@@ -7,10 +7,10 @@ import (
 
 func (c *CLI) printRootUsage(w io.Writer) {
 	fmt.Fprint(w, `Usage:
-  gionx [--debug] <command> [args]
+  kra [--debug] <command> [args]
 
 Commands:
-  init              Initialize GIONX_ROOT
+  init              Initialize KRA_ROOT
   context           Context commands
   repo              Repository pool commands
   template          Workspace template commands
@@ -20,13 +20,13 @@ Commands:
   help              Show this help
 
 Run:
-  gionx <command> --help
+  kra <command> --help
 `)
 }
 
 func (c *CLI) printContextUsage(w io.Writer) {
 	fmt.Fprint(w, `Usage:
-  gionx context <subcommand> [args]
+  kra context <subcommand> [args]
 
 Subcommands:
   current           Print current context name (or path fallback)
@@ -43,7 +43,7 @@ Subcommands:
 
 func (c *CLI) printRepoUsage(w io.Writer) {
 	fmt.Fprint(w, `Usage:
-  gionx repo <subcommand> [args]
+  kra repo <subcommand> [args]
 
 Subcommands:
   add               Add repositories into shared repo pool
@@ -56,22 +56,22 @@ Subcommands:
 
 func (c *CLI) printShellUsage(w io.Writer) {
 	fmt.Fprint(w, `Usage:
-  gionx shell <subcommand> [args]
+  kra shell <subcommand> [args]
 
 Subcommands:
   init [shell]      Print shell integration function for eval
   help              Show this help
 
 Examples:
-  eval "$(gionx shell init zsh)"
-  eval "$(gionx shell init bash)"
-  eval (gionx shell init fish)
+  eval "$(kra shell init zsh)"
+  eval "$(kra shell init bash)"
+  eval (kra shell init fish)
 `)
 }
 
 func (c *CLI) printTemplateUsage(w io.Writer) {
 	fmt.Fprint(w, `Usage:
-  gionx template <subcommand> [args]
+  kra template <subcommand> [args]
 
 Subcommands:
   validate          Validate workspace templates under current root
@@ -81,7 +81,7 @@ Subcommands:
 
 func (c *CLI) printTemplateValidateUsage(w io.Writer) {
 	fmt.Fprint(w, `Usage:
-  gionx template validate [--name <template>]
+  kra template validate [--name <template>]
 
 Validate templates under <current-root>/templates.
 
@@ -92,13 +92,13 @@ Options:
 
 func (c *CLI) printInitUsage(w io.Writer) {
 	fmt.Fprint(w, `Usage:
-  gionx init [--root <path>] [--context <name>]
+  kra init [--root <path>] [--context <name>]
 
-Initialize GIONX_ROOT and set current context.
+Initialize KRA_ROOT and set current context.
 
 Root selection order:
 - --root <path> (explicit)
-- interactive prompt in TTY (default: ~/gionx)
+- interactive prompt in TTY (default: ~/kra)
 - non-TTY without --root: fail
 
 Context name:
@@ -110,11 +110,11 @@ Context name:
 
 func (c *CLI) printWSUsage(w io.Writer) {
 	fmt.Fprint(w, `Usage:
-  gionx ws [--id <id>] [--act <action>] [action-args...]
-  gionx ws select [--archived] [--act <go|close|add-repo|remove-repo|reopen|purge>]
-  gionx ws create [--no-prompt] <id>
-  gionx ws import jira (--sprint [<id|name>] [--board <id|name>] | --jql "<expr>") [--limit <n>] [--apply] [--no-prompt] [--json]
-  gionx ws list|ls [--archived] [--tree] [--format human|tsv]
+  kra ws [--id <id>] [--act <action>] [action-args...]
+  kra ws select [--archived] [--act <go|close|add-repo|remove-repo|reopen|purge>]
+  kra ws create [--no-prompt] <id>
+  kra ws import jira (--sprint [<id|name>] [--board <id|name>] | --jql "<expr>") [--limit <n>] [--apply] [--no-prompt] [--json]
+  kra ws list|ls [--archived] [--tree] [--format human|tsv]
 
 Subcommands:
   create            Create a workspace
@@ -125,37 +125,37 @@ Subcommands:
   help              Show this help
 
 Run:
-  gionx ws <subcommand> --help
+  kra ws <subcommand> --help
 
 Notes:
 - edit actions for existing workspaces are routed by --act.
 - active actions: go, add-repo, remove-repo, close
 - archived actions: reopen, purge (applies archived scope automatically)
 - ws --archived --act go|add-repo|remove-repo|close is invalid.
-- gionx ws opens action launcher when --act is omitted.
-- gionx ws resolves workspace from --id or current workspace context.
-- gionx ws select always opens workspace selection first.
+- kra ws opens action launcher when --act is omitted.
+- kra ws resolves workspace from --id or current workspace context.
+- kra ws select always opens workspace selection first.
 - invalid --act/scope combinations fail with usage.
 `)
 }
 
 func (c *CLI) printWSCreateUsage(w io.Writer) {
 	fmt.Fprint(w, `Usage:
-  gionx ws create [--no-prompt] [--template <name>] <id>
-  gionx ws create --jira <ticket-url> [--template <name>]
+  kra ws create [--no-prompt] [--template <name>] <id>
+  kra ws create --jira <ticket-url> [--template <name>]
 
-Create a workspace directory from template and write .gionx.meta.json.
+Create a workspace directory from template and write .kra.meta.json.
 
 Options:
   --no-prompt        Do not prompt for title (store empty)
   --template         Template name under <current-root>/templates (default: default)
-  --jira             Resolve workspace id/title from Jira issue URL (env auth required)
+  --jira             Resolve workspace id/title from Jira issue URL (email/token env required; base URL supports config)
 `)
 }
 
 func (c *CLI) printWSImportUsage(w io.Writer) {
 	fmt.Fprint(w, `Usage:
-  gionx ws import <source> [args]
+  kra ws import <source> [args]
 
 Sources:
   jira              Import workspaces from Jira issues
@@ -165,9 +165,9 @@ Sources:
 
 func (c *CLI) printWSImportJiraUsage(w io.Writer) {
 	fmt.Fprint(w, `Usage:
-  gionx ws import jira --sprint [<id|name>] --space <key> [--limit <n>] [--apply] [--no-prompt] [--json]
-  gionx ws import jira --sprint [<id|name>] --project <key> [--limit <n>] [--apply] [--no-prompt] [--json]
-  gionx ws import jira --jql "<expr>" [--limit <n>] [--apply] [--no-prompt] [--json]
+  kra ws import jira --sprint [<id|name>] --space <key> [--limit <n>] [--apply] [--no-prompt] [--json]
+  kra ws import jira --sprint [<id|name>] --project <key> [--limit <n>] [--apply] [--no-prompt] [--json]
+  kra ws import jira --jql "<expr>" [--limit <n>] [--apply] [--no-prompt] [--json]
 
 Plan-first bulk workspace creation from Jira.
 
@@ -183,7 +183,7 @@ Rules:
 
 func (c *CLI) printRepoAddUsage(w io.Writer) {
 	fmt.Fprint(w, `Usage:
-  gionx repo add <repo-spec>...
+  kra repo add <repo-spec>...
 
 Add one or more repositories into the shared repo pool and register them in the current root index.
 
@@ -196,7 +196,7 @@ Accepted repo-spec formats:
 
 func (c *CLI) printRepoDiscoverUsage(w io.Writer) {
 	fmt.Fprint(w, `Usage:
-  gionx repo discover --org <org> [--provider github]
+  kra repo discover --org <org> [--provider github]
 
 Discover repositories from provider, select multiple repos, and add them into the shared repo pool.
 
@@ -208,7 +208,7 @@ Options:
 
 func (c *CLI) printRepoRemoveUsage(w io.Writer) {
 	fmt.Fprint(w, `Usage:
-  gionx repo remove [<repo-key>...]
+  kra repo remove [<repo-key>...]
 
 Remove repositories from the current root registry (logical detach from this root only).
 
@@ -224,7 +224,7 @@ Notes:
 
 func (c *CLI) printRepoGCUsage(w io.Writer) {
 	fmt.Fprint(w, `Usage:
-  gionx repo gc [<repo-key|repo-uid>...]
+  kra repo gc [<repo-key|repo-uid>...]
 
 Garbage-collect bare repositories from shared repo pool when safety gates pass.
 
@@ -242,8 +242,8 @@ Safety gates:
 
 func (c *CLI) printWSListUsage(w io.Writer) {
 	fmt.Fprint(w, `Usage:
-  gionx ws list [--archived] [--tree] [--format human|tsv]
-  gionx ws ls [--archived] [--tree] [--format human|tsv]
+  kra ws list [--archived] [--tree] [--format human|tsv]
+  kra ws ls [--archived] [--tree] [--format human|tsv]
 
 List workspaces from filesystem metadata and repair basic drift.
 
@@ -256,8 +256,8 @@ Options:
 
 func (c *CLI) printWSAddRepoUsage(w io.Writer) {
 	fmt.Fprint(w, `Usage:
-  gionx ws --act add-repo [--id <workspace-id>] [<workspace-id>] [--format human|json] [--refresh] [--no-fetch]
-  gionx ws --act add-repo --format json --id <workspace-id> --repo <repo-key> [--repo <repo-key> ...] [--branch <name>] [--base-ref <origin/branch>] [--refresh] [--no-fetch] [--yes]
+  kra ws --act add-repo [--id <workspace-id>] [<workspace-id>] [--format human|json] [--refresh] [--no-fetch]
+  kra ws --act add-repo --format json --id <workspace-id> --repo <repo-key> [--repo <repo-key> ...] [--branch <name>] [--base-ref <origin/branch>] [--refresh] [--no-fetch] [--yes]
 
 Add repositories from the repo pool to a workspace.
 
@@ -276,8 +276,8 @@ Behavior:
 
 func (c *CLI) printWSRemoveRepoUsage(w io.Writer) {
 	fmt.Fprint(w, `Usage:
-  gionx ws --act remove-repo [--id <workspace-id>] [<workspace-id>] [--format human|json]
-  gionx ws --act remove-repo --format json --id <workspace-id> --repo <repo-key> [--repo <repo-key> ...] [--yes] [--force]
+  kra ws --act remove-repo [--id <workspace-id>] [<workspace-id>] [--format human|json]
+  kra ws --act remove-repo --format json --id <workspace-id> --repo <repo-key> [--repo <repo-key> ...] [--yes] [--force]
 
 Remove repositories from a workspace (binding + worktree).
 
@@ -295,7 +295,7 @@ Behavior:
 
 func (c *CLI) printWSGoUsage(w io.Writer) {
 	fmt.Fprint(w, `Usage:
-  gionx ws --act go [--archived] [--id <id>] [--ui] [--format human|json] [<id>]
+  kra ws --act go [--archived] [--id <id>] [--ui] [--format human|json] [<id>]
 
 Resolve a workspace directory target:
 - active target: workspaces/<id>/
@@ -310,13 +310,13 @@ Options:
 
 func (c *CLI) printWSCloseUsage(w io.Writer) {
 	fmt.Fprint(w, `Usage:
-  gionx ws --act close [--id <id>] [--force] [--format human|json] [<id>]
+  kra ws --act close [--id <id>] [--force] [--format human|json] [<id>]
 
 Close (archive) a workspace:
 - inspect repo risk (live) and prompt if not clean
 - remove git worktrees under workspaces/<id>/repos/
 - move workspaces/<id>/ to archive/<id>/ atomically
-- commit the archive change in GIONX_ROOT
+- commit the archive change in KRA_ROOT
 
 If ID is omitted, current directory must resolve to an active workspace.
 `)
@@ -324,32 +324,32 @@ If ID is omitted, current directory must resolve to an active workspace.
 
 func (c *CLI) printWSReopenUsage(w io.Writer) {
 	fmt.Fprint(w, `Usage:
-  gionx ws --act reopen <id>
+  kra ws --act reopen <id>
 
 Reopen an archived workspace:
 - move archive/<id>/ to workspaces/<id>/ atomically
 - recreate git worktrees under workspaces/<id>/repos/
-- commit the reopen change in GIONX_ROOT
+- commit the reopen change in KRA_ROOT
 
-Use gionx ws select --archived for interactive selection.
+Use kra ws select --archived for interactive selection.
 `)
 }
 
 func (c *CLI) printWSPurgeUsage(w io.Writer) {
 	fmt.Fprint(w, `Usage:
-  gionx ws --act purge [--no-prompt --force] <id>
+  kra ws --act purge [--no-prompt --force] <id>
 
 Purge (permanently delete) a workspace:
 - always asks confirmation in interactive mode
 - if workspace is active, inspects repo risk and asks an extra confirmation when risky
 - remove git worktrees under workspaces/<id>/repos/ (if present)
 - delete workspaces/<id>/ and archive/<id>/ (if present)
-- commit the purge change in GIONX_ROOT (message: "purge: <id>")
+- commit the purge change in KRA_ROOT (message: "purge: <id>")
 
 Options:
   --no-prompt        Do not ask confirmations (requires --force)
   --force            Required with --no-prompt
 
-Use gionx ws select --archived for interactive selection.
+Use kra ws select --archived for interactive selection.
 `)
 }

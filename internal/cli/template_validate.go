@@ -6,7 +6,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/tasuku43/gionx/internal/infra/paths"
+	"github.com/tasuku43/kra/internal/infra/paths"
 )
 
 type templateValidationReport struct {
@@ -54,7 +54,7 @@ func (c *CLI) runTemplateValidate(args []string) int {
 	}
 	root, err := paths.ResolveExistingRoot(wd)
 	if err != nil {
-		fmt.Fprintf(c.Err, "resolve GIONX_ROOT: %v\n", err)
+		fmt.Fprintf(c.Err, "resolve KRA_ROOT: %v\n", err)
 		return exitError
 	}
 	if err := c.ensureDebugLog(root, "template-validate"); err != nil {

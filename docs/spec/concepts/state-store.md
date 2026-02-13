@@ -7,15 +7,15 @@ status: implemented
 
 ## Overview
 
-`gionx` is filesystem-first.
+`kra` is filesystem-first.
 
-- Canonical workspace state is `workspaces/<id>/.gionx.meta.json` (or `archive/<id>/.gionx.meta.json`).
-- Physical truth is directory layout under `GIONX_ROOT/workspaces` and `GIONX_ROOT/archive`.
+- Canonical workspace state is `workspaces/<id>/.kra.meta.json` (or `archive/<id>/.kra.meta.json`).
+- Physical truth is directory layout under `KRA_ROOT/workspaces` and `KRA_ROOT/archive`.
 - Optional index data may exist for performance or selector UX, but it must be rebuildable from filesystem data.
 
 ## Canonical data
 
-Workspace metadata file (`.gionx.meta.json`) must contain:
+Workspace metadata file (`.kra.meta.json`) must contain:
 
 - workspace identity and lifecycle status (`active` / `archived`)
 - user-facing fields (`title`, `source_url`)
@@ -26,7 +26,7 @@ Commands must not require SQL-only rows for lifecycle correctness.
 
 ## Root registry
 
-`gionx` maintains `~/.gionx/state/root-registry.json` for known-root discovery.
+`kra` maintains `~/.kra/state/root-registry.json` for known-root discovery.
 
 - entry fields:
   - `root_path` (absolute canonical path, unique)
@@ -37,14 +37,14 @@ Commands must not require SQL-only rows for lifecycle correctness.
 
 ## Locations (defaults)
 
-- Global config: `~/.gionx/config.yaml`
-- Current context pointer: `~/.gionx/state/current-context`
-- Root registry: `~/.gionx/state/root-registry.json`
-- Repo pool: `~/.gionx/repo-pool/`
+- Global config: `~/.kra/config.yaml`
+- Current context pointer: `~/.kra/state/current-context`
+- Root registry: `~/.kra/state/root-registry.json`
+- Repo pool: `~/.kra/repo-pool/`
 
 Environment override:
 
-- `$GIONX_HOME` (default: `~/.gionx`)
+- `$KRA_HOME` (default: `~/.kra`)
 
 ## Legacy compatibility
 

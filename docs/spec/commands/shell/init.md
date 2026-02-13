@@ -1,9 +1,9 @@
 ---
-title: "`gionx shell init`"
+title: "`kra shell init`"
 status: implemented
 ---
 
-# `gionx shell init [<shell>]`
+# `kra shell init [<shell>]`
 
 ## Purpose
 
@@ -20,8 +20,8 @@ Print shell integration script that applies parent-shell side effects via action
 - Print eval-ready script to stdout.
 - Script contains:
   - one-time setup hint comment
-  - shell function `gionx` override
-  - for all command paths, set `GIONX_SHELL_ACTION_FILE=<tempfile>` and let `gionx` emit post-exec action
+  - shell function `kra` override
+  - for all command paths, set `KRA_SHELL_ACTION_FILE=<tempfile>` and let `kra` emit post-exec action
     (for example `cd '<path>'`) into that file when needed
   - after command success, apply action file content if present
 - Unsupported shell names must fail with usage error.
@@ -29,6 +29,6 @@ Print shell integration script that applies parent-shell side effects via action
 ## Output examples
 
 - POSIX shells:
-  - `eval "$(gionx shell init zsh)"`
+  - `eval "$(kra shell init zsh)"`
 - fish:
-  - `eval (gionx shell init fish)`
+  - `eval (kra shell init fish)`

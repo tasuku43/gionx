@@ -24,7 +24,7 @@ status: planned
   - Depends: TEMPLATE-WS-001
   - Serial: yes
 
-- [x] TEMPLATE-WS-003: `gionx template validate` command
+- [x] TEMPLATE-WS-003: `kra template validate` command
   - What: add template validation command with shared validator reuse and all-violations report.
   - Specs:
     - `docs/spec/commands/template/validate.md`

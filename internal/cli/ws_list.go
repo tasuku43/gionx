@@ -12,9 +12,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/tasuku43/gionx/internal/infra/gitutil"
-	"github.com/tasuku43/gionx/internal/infra/paths"
-	"github.com/tasuku43/gionx/internal/infra/statestore"
+	"github.com/tasuku43/kra/internal/infra/gitutil"
+	"github.com/tasuku43/kra/internal/infra/paths"
+	"github.com/tasuku43/kra/internal/infra/statestore"
 )
 
 type wsListOptions struct {
@@ -51,7 +51,7 @@ func (c *CLI) runWSList(args []string) int {
 	}
 	root, err := paths.ResolveExistingRoot(wd)
 	if err != nil {
-		fmt.Fprintf(c.Err, "resolve GIONX_ROOT: %v\n", err)
+		fmt.Fprintf(c.Err, "resolve KRA_ROOT: %v\n", err)
 		return exitError
 	}
 	if err := c.ensureDebugLog(root, "ws-list"); err != nil {

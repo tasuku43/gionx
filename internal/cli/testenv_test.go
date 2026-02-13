@@ -5,10 +5,10 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/tasuku43/gionx/internal/paths"
+	"github.com/tasuku43/kra/internal/paths"
 )
 
-func setGionxHomeForTest(t *testing.T) string {
+func setKraHomeForTest(t *testing.T) string {
 	t.Helper()
 	base := t.TempDir()
 	home := filepath.Join(base, "home")
@@ -16,15 +16,15 @@ func setGionxHomeForTest(t *testing.T) string {
 		t.Fatalf("mkdir test HOME dir: %v", err)
 	}
 	t.Setenv("HOME", home)
-	gionxHome := filepath.Join(base, ".gionx")
-	t.Setenv("GIONX_HOME", gionxHome)
-	return gionxHome
+	kraHome := filepath.Join(base, ".kra")
+	t.Setenv("KRA_HOME", kraHome)
+	return kraHome
 }
 
 func prepareCurrentRootForTest(t *testing.T) string {
 	t.Helper()
 	root := t.TempDir()
-	setGionxHomeForTest(t)
+	setKraHomeForTest(t)
 	if err := os.MkdirAll(filepath.Join(root, "workspaces"), 0o755); err != nil {
 		t.Fatalf("create workspaces/: %v", err)
 	}

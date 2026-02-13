@@ -6,10 +6,10 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/tasuku43/gionx/internal/core/repospec"
-	"github.com/tasuku43/gionx/internal/core/repostore"
-	"github.com/tasuku43/gionx/internal/gitutil"
-	"github.com/tasuku43/gionx/internal/testutil"
+	"github.com/tasuku43/kra/internal/core/repospec"
+	"github.com/tasuku43/kra/internal/core/repostore"
+	"github.com/tasuku43/kra/internal/gitutil"
+	"github.com/tasuku43/kra/internal/testutil"
 )
 
 func seedRepoPoolAndState(t *testing.T, env testutil.Env, repoSpecInput string) (repoUID string, repoKey string, alias string) {

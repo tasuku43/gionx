@@ -7,11 +7,11 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/tasuku43/gionx/internal/paths"
+	"github.com/tasuku43/kra/internal/paths"
 )
 
 func TestCLI_Run_StateChangingCommand_BootstrapsGlobalConfig(t *testing.T) {
-	gionxHome := setGionxHomeForTest(t)
+	kraHome := setKraHomeForTest(t)
 	root := t.TempDir()
 	if err := os.MkdirAll(filepath.Join(root, "workspaces"), 0o755); err != nil {
 		t.Fatalf("create workspaces/: %v", err)
@@ -22,7 +22,7 @@ func TestCLI_Run_StateChangingCommand_BootstrapsGlobalConfig(t *testing.T) {
 	seedDefaultTemplate(t, root)
 	writeCurrentContextForTest(t, root)
 
-	globalConfigPath := filepath.Join(gionxHome, "config.yaml")
+	globalConfigPath := filepath.Join(kraHome, "config.yaml")
 	if _, err := os.Stat(globalConfigPath); !os.IsNotExist(err) {
 		t.Fatalf("global config should not exist before run: %v", err)
 	}
@@ -45,8 +45,8 @@ func TestCLI_Run_StateChangingCommand_BootstrapsGlobalConfig(t *testing.T) {
 }
 
 func TestCLI_Run_ReadOnlyCommand_DoesNotBootstrapGlobalConfig(t *testing.T) {
-	gionxHome := setGionxHomeForTest(t)
-	globalConfigPath := filepath.Join(gionxHome, "config.yaml")
+	kraHome := setKraHomeForTest(t)
+	globalConfigPath := filepath.Join(kraHome, "config.yaml")
 
 	var out bytes.Buffer
 	var err bytes.Buffer

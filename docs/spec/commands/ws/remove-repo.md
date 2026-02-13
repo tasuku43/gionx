@@ -1,24 +1,24 @@
 ---
-title: "`gionx ws --act remove-repo`"
+title: "`kra ws --act remove-repo`"
 status: implemented
 ---
 
-# `gionx ws --act remove-repo [--id <workspace-id>] [<workspace-id>] [--format human|json]`
+# `kra ws --act remove-repo [--id <workspace-id>] [<workspace-id>] [--format human|json]`
 
 ## Purpose
 
 Remove repository bindings from a workspace and delete corresponding workspace worktrees.
 
-This command is the operational counterpart of `gionx ws --act add-repo`.
+This command is the operational counterpart of `kra ws --act add-repo`.
 
 ## Inputs
 
 - `workspace-id` (optional): existing active workspace ID
 - `--id <workspace-id>` (optional): explicit workspace ID flag
   - cannot be combined with positional `workspace-id`
-  - if omitted, current working directory must be under `GIONX_ROOT/workspaces/<id>/`
+  - if omitted, current working directory must be under `KRA_ROOT/workspaces/<id>/`
   - otherwise the command fails fast
-- interactive selection is handled by `gionx ws select --act remove-repo`.
+- interactive selection is handled by `kra ws select --act remove-repo`.
 - JSON mode (`--format json`) is non-interactive and accepts:
   - `--repo <repo-key>` (repeatable, required)
   - `--yes` (required)
@@ -68,7 +68,7 @@ This command is the operational counterpart of `gionx ws --act add-repo`.
   - on failure, abort with error
 
 5. FS metadata behavior
-  - on success, remove corresponding entries from `workspaces/<id>/.gionx.meta.json` `repos_restore`
+  - on success, remove corresponding entries from `workspaces/<id>/.kra.meta.json` `repos_restore`
   - metadata update must be atomic (`temp + rename`)
 
 6. Result
@@ -90,5 +90,5 @@ This command is the operational counterpart of `gionx ws --act add-repo`.
 ## Scope and launcher integration
 
 - Action is valid only for active workspaces.
-- `gionx ws select --act remove-repo` is supported and skips action menu.
-- Action menu (`gionx ws` in active workspace context) should include `remove-repo` near `add-repo`.
+- `kra ws select --act remove-repo` is supported and skips action menu.
+- Action menu (`kra ws` in active workspace context) should include `remove-repo` near `add-repo`.

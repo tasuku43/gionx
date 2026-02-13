@@ -19,7 +19,7 @@ func (c *CLI) createWorkspaceAtRoot(root string, id string, title string, source
 		return "", fmt.Errorf("stat workspace dir: %w", err)
 	}
 	if _, err := os.Stat(archivedPath); err == nil {
-		return "", fmt.Errorf("workspace already exists and is archived: %s\nrun: gionx ws --act reopen %s", id, id)
+		return "", fmt.Errorf("workspace already exists and is archived: %s\nrun: kra ws --act reopen %s", id, id)
 	} else if err != nil && !os.IsNotExist(err) {
 		return "", fmt.Errorf("stat archived workspace dir: %w", err)
 	}

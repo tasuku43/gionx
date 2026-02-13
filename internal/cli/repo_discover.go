@@ -7,10 +7,10 @@ import (
 	"os"
 	"strings"
 
-	"github.com/tasuku43/gionx/internal/app/repocmd"
-	"github.com/tasuku43/gionx/internal/infra/appports"
-	"github.com/tasuku43/gionx/internal/infra/gitutil"
-	"github.com/tasuku43/gionx/internal/repodiscovery"
+	"github.com/tasuku43/kra/internal/app/repocmd"
+	"github.com/tasuku43/kra/internal/infra/appports"
+	"github.com/tasuku43/kra/internal/infra/gitutil"
+	"github.com/tasuku43/kra/internal/repodiscovery"
 )
 
 var newRepoDiscoveryProvider = repodiscovery.NewProvider

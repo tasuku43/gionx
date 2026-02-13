@@ -9,10 +9,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/tasuku43/gionx/internal/core/repospec"
-	"github.com/tasuku43/gionx/internal/core/repostore"
-	"github.com/tasuku43/gionx/internal/infra/gitutil"
-	"github.com/tasuku43/gionx/internal/infra/paths"
+	"github.com/tasuku43/kra/internal/core/repospec"
+	"github.com/tasuku43/kra/internal/core/repostore"
+	"github.com/tasuku43/kra/internal/infra/gitutil"
+	"github.com/tasuku43/kra/internal/infra/paths"
 )
 
 var errNoArchivedWorkspaces = errors.New("no archived workspaces available")
@@ -34,7 +34,7 @@ func (c *CLI) runWSReopen(args []string) int {
 		if len(args) > 1 {
 			fmt.Fprintf(c.Err, "unexpected args for ws reopen: %q\n", strings.Join(args[1:], " "))
 		}
-		fmt.Fprintln(c.Err, "ws reopen requires <id>; use `gionx ws select --archived` for interactive selection")
+		fmt.Fprintln(c.Err, "ws reopen requires <id>; use `kra ws select --archived` for interactive selection")
 		c.printWSReopenUsage(c.Err)
 		return exitUsage
 	}
@@ -57,7 +57,7 @@ func (c *CLI) runWSReopen(args []string) int {
 	}
 	root, err := paths.ResolveExistingRoot(wd)
 	if err != nil {
-		fmt.Fprintf(c.Err, "resolve GIONX_ROOT: %v\n", err)
+		fmt.Fprintf(c.Err, "resolve KRA_ROOT: %v\n", err)
 		return exitError
 	}
 	if err := c.ensureDebugLog(root, "ws-reopen"); err != nil {

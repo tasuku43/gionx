@@ -1,9 +1,9 @@
 ---
-title: "`gionx ws --act add-repo`"
+title: "`kra ws --act add-repo`"
 status: implemented
 ---
 
-# `gionx ws --act add-repo [--id <workspace-id>] [<workspace-id>] [--format human|json] [--refresh] [--no-fetch]`
+# `kra ws --act add-repo [--id <workspace-id>] [<workspace-id>] [--format human|json] [--refresh] [--no-fetch]`
 
 ## Purpose
 
@@ -14,9 +14,9 @@ Add repositories from the existing repo pool to a workspace as Git worktrees.
 - `workspace-id` (optional): existing active workspace ID
 - `--id <workspace-id>` (optional): explicit workspace ID flag
   - cannot be combined with positional `workspace-id`
-  - if omitted, current working directory must be under `GIONX_ROOT/workspaces/<id>/`
+  - if omitted, current working directory must be under `KRA_ROOT/workspaces/<id>/`
   - otherwise the command fails fast
-- interactive selection is handled by `gionx ws select --act add-repo`.
+- interactive selection is handled by `kra ws select --act add-repo`.
 - JSON mode (`--format json`) is non-interactive and accepts:
   - `--repo <repo-key>` (repeatable, required)
   - `--branch <name>` (optional, defaults to workspace id)
@@ -113,7 +113,7 @@ Add repositories from the existing repo pool to a workspace as Git worktrees.
 
 6. Apply (all-or-nothing)
   - create local branches as needed
-  - create worktrees under `GIONX_ROOT/workspaces/<id>/repos/<alias>`
+  - create worktrees under `KRA_ROOT/workspaces/<id>/repos/<alias>`
   - record workspace-repo bindings in index
   - on any failure, rollback all created branches/worktrees/bindings
 
@@ -165,7 +165,7 @@ Add repositories from the existing repo pool to a workspace as Git worktrees.
 
 ## FS metadata behavior
 
-- On successful apply, command must update `workspaces/<id>/.gionx.meta.json`:
+- On successful apply, command must update `workspaces/<id>/.kra.meta.json`:
   - upsert corresponding entries in `repos_restore`
   - persist `repo_uid`, `repo_key`, `remote_url`, `alias`, `branch`, `base_ref`
 - `repos_restore` alias uniqueness must be validated before file replace.

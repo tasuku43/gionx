@@ -9,7 +9,7 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/tasuku43/gionx/internal/infra/paths"
+	"github.com/tasuku43/kra/internal/infra/paths"
 )
 
 var errWSGoSingleSelectionRequired = errors.New("ws go requires exactly one workspace selected")
@@ -128,7 +128,7 @@ func (c *CLI) runWSGo(args []string) int {
 	}
 	root, err := paths.ResolveExistingRoot(wd)
 	if err != nil {
-		fmt.Fprintf(c.Err, "resolve GIONX_ROOT: %v\n", err)
+		fmt.Fprintf(c.Err, "resolve KRA_ROOT: %v\n", err)
 		return exitError
 	}
 	if err := c.ensureDebugLog(root, "ws-go"); err != nil {
@@ -218,7 +218,7 @@ func (c *CLI) runWSGoJSON(workspaceID string, archivedScope bool) int {
 			WorkspaceID: workspaceID,
 			Error: &cliJSONError{
 				Code:    "internal_error",
-				Message: fmt.Sprintf("resolve GIONX_ROOT: %v", err),
+				Message: fmt.Sprintf("resolve KRA_ROOT: %v", err),
 			},
 		})
 		return exitError

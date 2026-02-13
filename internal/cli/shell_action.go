@@ -4,10 +4,10 @@ import (
 	"os"
 	"strings"
 
-	appshell "github.com/tasuku43/gionx/internal/app/shellaction"
+	appshell "github.com/tasuku43/kra/internal/app/shellaction"
 )
 
-const shellActionFileEnv = "GIONX_SHELL_ACTION_FILE"
+const shellActionFileEnv = "KRA_SHELL_ACTION_FILE"
 
 type shellActionAdapter struct{}
 

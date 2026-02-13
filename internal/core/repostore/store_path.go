@@ -3,7 +3,7 @@ package repostore
 import (
 	"path/filepath"
 
-	"github.com/tasuku43/gionx/internal/core/repospec"
+	"github.com/tasuku43/kra/internal/core/repospec"
 )
 
 func StorePath(bareRoot string, spec repospec.Spec) string {

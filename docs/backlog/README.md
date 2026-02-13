@@ -1,5 +1,5 @@
 ---
-title: "gionx backlog index"
+title: "kra backlog index"
 status: planned
 ---
 
@@ -66,7 +66,7 @@ Do not treat an item as "done" until all of the following are true:
 - Tests exist, including at least some non-happy-path coverage (see `docs/dev/TESTING.md`).
 - The linked spec frontmatter is updated to `status: implemented`.
 
-Special note (commands that commit inside `GIONX_ROOT`):
+Special note (commands that commit inside `KRA_ROOT`):
 - The spec must define the staging allowlist (which path prefixes may be staged/committed).
 - The implementation must enforce it (stage allowlist only, verify staged paths are within allowlist, abort otherwise).
 
@@ -90,7 +90,7 @@ When you finish a backlog item, include a short next-steps report in your final 
 Recommended (workspace handoff):
 
 ```sh
-gion manifest add --no-apply --repo git@github.com:tasuku43/gionx.git MVP-001
+gion manifest add --no-apply --repo git@github.com:tasuku43/kra.git MVP-001
 gion plan
 gion apply --no-prompt
 ```

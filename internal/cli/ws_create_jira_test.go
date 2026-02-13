@@ -11,7 +11,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/tasuku43/gionx/internal/testutil"
+	"github.com/tasuku43/kra/internal/testutil"
 )
 
 func TestCLI_WS_Create_Jira_Success(t *testing.T) {
@@ -30,9 +30,9 @@ func TestCLI_WS_Create_Jira_Success(t *testing.T) {
 	}))
 	t.Cleanup(server.Close)
 
-	t.Setenv("GIONX_JIRA_BASE_URL", server.URL)
-	t.Setenv("GIONX_JIRA_EMAIL", "dev@example.com")
-	t.Setenv("GIONX_JIRA_API_TOKEN", "token-123")
+	t.Setenv("KRA_JIRA_BASE_URL", server.URL)
+	t.Setenv("KRA_JIRA_EMAIL", "dev@example.com")
+	t.Setenv("KRA_JIRA_API_TOKEN", "token-123")
 
 	var out bytes.Buffer
 	var errBuf bytes.Buffer
@@ -70,9 +70,9 @@ func TestCLI_WS_Create_Jira_Success(t *testing.T) {
 func TestCLI_WS_Create_Jira_MissingEnv_FailsFastWithoutWorkspaceCreation(t *testing.T) {
 	env := testutil.NewEnv(t)
 	env.EnsureRootLayout(t)
-	t.Setenv("GIONX_JIRA_BASE_URL", "")
-	t.Setenv("GIONX_JIRA_EMAIL", "")
-	t.Setenv("GIONX_JIRA_API_TOKEN", "")
+	t.Setenv("KRA_JIRA_BASE_URL", "")
+	t.Setenv("KRA_JIRA_EMAIL", "")
+	t.Setenv("KRA_JIRA_API_TOKEN", "")
 
 	var out bytes.Buffer
 	var errBuf bytes.Buffer
@@ -116,9 +116,9 @@ func TestCLI_WS_Create_Jira_404_FailsFastWithoutStateMutation(t *testing.T) {
 	}))
 	t.Cleanup(server.Close)
 
-	t.Setenv("GIONX_JIRA_BASE_URL", server.URL)
-	t.Setenv("GIONX_JIRA_EMAIL", "dev@example.com")
-	t.Setenv("GIONX_JIRA_API_TOKEN", "token-123")
+	t.Setenv("KRA_JIRA_BASE_URL", server.URL)
+	t.Setenv("KRA_JIRA_EMAIL", "dev@example.com")
+	t.Setenv("KRA_JIRA_API_TOKEN", "token-123")
 
 	var out bytes.Buffer
 	var errBuf bytes.Buffer
@@ -155,9 +155,9 @@ func TestCLI_WS_Create_Jira_WithTemplateOption_AppliesTemplate(t *testing.T) {
 	}))
 	t.Cleanup(server.Close)
 
-	t.Setenv("GIONX_JIRA_BASE_URL", server.URL)
-	t.Setenv("GIONX_JIRA_EMAIL", "dev@example.com")
-	t.Setenv("GIONX_JIRA_API_TOKEN", "token-123")
+	t.Setenv("KRA_JIRA_BASE_URL", server.URL)
+	t.Setenv("KRA_JIRA_EMAIL", "dev@example.com")
+	t.Setenv("KRA_JIRA_API_TOKEN", "token-123")
 
 	var out bytes.Buffer
 	var errBuf bytes.Buffer
@@ -171,5 +171,42 @@ func TestCLI_WS_Create_Jira_WithTemplateOption_AppliesTemplate(t *testing.T) {
 	wsPath := filepath.Join(env.Root, "workspaces", "PROJ-200")
 	if _, err := os.Stat(filepath.Join(wsPath, "CUSTOM.md")); err != nil {
 		t.Fatalf("workspace missing template file: %v", err)
+	}
+}
+
+func TestCLI_WS_Create_Jira_UsesConfigBaseURLWhenEnvMissing(t *testing.T) {
+	env := testutil.NewEnv(t)
+	env.EnsureRootLayout(t)
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/rest/api/3/issue/PROJ-301" {
+			t.Fatalf("request path = %q, want %q", r.URL.Path, "/rest/api/3/issue/PROJ-301")
+		}
+		_, _ = w.Write([]byte(`{"key":"PROJ-301","fields":{"summary":"Config base url"}}`))
+	}))
+	t.Cleanup(server.Close)
+
+	rootConfigPath := filepath.Join(env.Root, ".kra", "config.yaml")
+	if err := os.MkdirAll(filepath.Dir(rootConfigPath), 0o755); err != nil {
+		t.Fatalf("mkdir root config dir: %v", err)
+	}
+	if err := os.WriteFile(rootConfigPath, []byte("integration:\n  jira:\n    base_url: "+server.URL+"\n"), 0o644); err != nil {
+		t.Fatalf("write root config: %v", err)
+	}
+
+	t.Setenv("KRA_JIRA_BASE_URL", "")
+	t.Setenv("KRA_JIRA_EMAIL", "dev@example.com")
+	t.Setenv("KRA_JIRA_API_TOKEN", "token-123")
+
+	var out bytes.Buffer
+	var errBuf bytes.Buffer
+	c := New(&out, &errBuf)
+
+	code := c.Run([]string{"ws", "create", "--jira", "https://jira.example.com/browse/PROJ-301"})
+	if code != exitOK {
+		t.Fatalf("exit code = %d, want %d (stderr=%q)", code, exitOK, errBuf.String())
+	}
+	if !strings.Contains(out.String(), "✔ PROJ-301") {
+		t.Fatalf("stdout missing created issue key: %q", out.String())
 	}
 }

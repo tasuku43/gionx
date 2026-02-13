@@ -1,9 +1,9 @@
 ---
-title: "`gionx state` registry foundation"
+title: "`kra state` registry foundation"
 status: implemented
 ---
 
-# `gionx state` registry foundation
+# `kra state` registry foundation
 
 ## Purpose
 
@@ -11,14 +11,14 @@ Provide a stable foundation for root discovery and cross-root metadata scan.
 
 ## Background
 
-- `gionx` keeps canonical workspace metadata under each root filesystem.
+- `kra` keeps canonical workspace metadata under each root filesystem.
 - Cross-root operations (e.g. `repo gc`) still need a compact list of known roots.
 - We need a canonical registry to make future `state`/`context` workflows reliable.
 
 ## Scope (foundation only)
 
-- Define a registry file managed by `gionx`:
-  - location: `~/.gionx/state/root-registry.json`
+- Define a registry file managed by `kra`:
+  - location: `~/.kra/state/root-registry.json`
   - format: JSON
 - Each entry tracks one known root:
   - `root_path` (absolute, canonical path)
@@ -27,9 +27,9 @@ Provide a stable foundation for root discovery and cross-root metadata scan.
 - Registry updates happen on root-touch paths used by current commands (`init`, `ws create`, `ws list`, `repo *`).
 
 Implemented command integration:
-- `gionx init`
-- `gionx ws create`
-- `gionx ws list`
+- `kra init`
+- `kra ws create`
+- `kra ws list`
 
 ## Invariants
 
@@ -39,8 +39,8 @@ Implemented command integration:
 
 ## Out of scope (follow-up specs)
 
-- User-facing `gionx state list`
-- User-facing `gionx state gc`
+- User-facing `kra state list`
+- User-facing `kra state gc`
 - Automatic deletion policy
 - Registry lock strategy beyond MVP local atomic write
 

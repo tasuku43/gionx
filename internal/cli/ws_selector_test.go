@@ -5,7 +5,7 @@ import (
 	"testing"
 
 	tea "github.com/charmbracelet/bubbletea"
-	"github.com/tasuku43/gionx/internal/core/workspacerisk"
+	"github.com/tasuku43/kra/internal/core/workspacerisk"
 )
 
 func TestWorkspaceSelectorModel_SpaceTogglesSelection(t *testing.T) {
@@ -90,7 +90,7 @@ func TestWorkspaceSelectorModel_FilterPersistsAfterToggle(t *testing.T) {
 func TestFilteredCandidateIndices_UsesFuzzyMatch(t *testing.T) {
 	candidates := []workspaceSelectorCandidate{
 		{ID: "example-org/helmfiles", Title: "platform", Risk: workspacerisk.WorkspaceRiskClean},
-		{ID: "tasuku43/gionx", Title: "command line tool", Risk: workspacerisk.WorkspaceRiskClean},
+		{ID: "tasuku43/kra", Title: "command line tool", Risk: workspacerisk.WorkspaceRiskClean},
 	}
 
 	got := filteredCandidateIndices(candidates, "cs")
@@ -844,7 +844,7 @@ func TestWorkspaceSelectorModel_MultiModeEnterWaitsConfirmDelay(t *testing.T) {
 }
 
 func TestWorkspaceSelectorModel_MultiModeReducedMotionSkipsConfirmDelay(t *testing.T) {
-	t.Setenv("GIONX_REDUCED_MOTION", "1")
+	t.Setenv("KRA_REDUCED_MOTION", "1")
 
 	m := newWorkspaceSelectorModel(
 		[]workspaceSelectorCandidate{
@@ -875,7 +875,7 @@ func TestWorkspaceSelectorModel_MultiModeReducedMotionSkipsConfirmDelay(t *testi
 }
 
 func TestWorkspaceSelectorModel_SingleModeReducedMotionSkipsConfirmDelay(t *testing.T) {
-	t.Setenv("GIONX_REDUCED_MOTION", "1")
+	t.Setenv("KRA_REDUCED_MOTION", "1")
 
 	m := newWorkspaceSelectorModelWithOptionsAndMode(
 		[]workspaceSelectorCandidate{

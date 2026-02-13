@@ -11,9 +11,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/tasuku43/gionx/internal/core/workspacerisk"
-	"github.com/tasuku43/gionx/internal/infra/gitutil"
-	"github.com/tasuku43/gionx/internal/infra/paths"
+	"github.com/tasuku43/kra/internal/core/workspacerisk"
+	"github.com/tasuku43/kra/internal/infra/gitutil"
+	"github.com/tasuku43/kra/internal/infra/paths"
 )
 
 type removeRepoCandidate struct {
@@ -125,7 +125,7 @@ func (c *CLI) runWSRemoveRepo(args []string) int {
 	}
 	root, err := paths.ResolveExistingRoot(wd)
 	if err != nil {
-		fmt.Fprintf(c.Err, "resolve GIONX_ROOT: %v\n", err)
+		fmt.Fprintf(c.Err, "resolve KRA_ROOT: %v\n", err)
 		return exitError
 	}
 	if err := c.ensureDebugLog(root, "ws-remove-repo"); err != nil {

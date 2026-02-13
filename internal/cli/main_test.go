@@ -8,7 +8,7 @@ import (
 )
 
 func TestMain(m *testing.M) {
-	testBase, err := os.MkdirTemp("", "gionx-test-home-*")
+	testBase, err := os.MkdirTemp("", "kra-test-home-*")
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "failed to create isolated test home: %v\n", err)
 		os.Exit(1)
@@ -19,11 +19,11 @@ func TestMain(m *testing.M) {
 		os.Exit(1)
 	}
 	_ = os.Setenv("HOME", testHome)
-	_ = os.Setenv("GIONX_HOME", filepath.Join(testBase, ".gionx"))
-	_ = os.Setenv("GIT_AUTHOR_NAME", "gionx-test")
-	_ = os.Setenv("GIT_AUTHOR_EMAIL", "gionx-test@example.com")
-	_ = os.Setenv("GIT_COMMITTER_NAME", "gionx-test")
-	_ = os.Setenv("GIT_COMMITTER_EMAIL", "gionx-test@example.com")
+	_ = os.Setenv("KRA_HOME", filepath.Join(testBase, ".kra"))
+	_ = os.Setenv("GIT_AUTHOR_NAME", "kra-test")
+	_ = os.Setenv("GIT_AUTHOR_EMAIL", "kra-test@example.com")
+	_ = os.Setenv("GIT_COMMITTER_NAME", "kra-test")
+	_ = os.Setenv("GIT_COMMITTER_EMAIL", "kra-test@example.com")
 
 	code := m.Run()
 	_ = os.RemoveAll(testBase)

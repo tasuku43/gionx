@@ -4,8 +4,8 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/tasuku43/gionx/internal/app/wscreate"
-	"github.com/tasuku43/gionx/internal/infra/jira"
+	"github.com/tasuku43/kra/internal/app/wscreate"
+	"github.com/tasuku43/kra/internal/infra/jira"
 )
 
 type WSCreateJiraPort struct {
@@ -13,7 +13,11 @@ type WSCreateJiraPort struct {
 }
 
 func NewWSCreateJiraPort() *WSCreateJiraPort {
-	return &WSCreateJiraPort{client: jira.NewClient()}
+	return NewWSCreateJiraPortWithBaseURL("")
+}
+
+func NewWSCreateJiraPortWithBaseURL(baseURL string) *WSCreateJiraPort {
+	return &WSCreateJiraPort{client: jira.NewClientWithBaseURL(baseURL)}
 }
 
 func (p *WSCreateJiraPort) FetchIssueByTicketURL(ctx context.Context, ticketURL string) (wscreate.JiraIssue, error) {

@@ -13,7 +13,7 @@ status: planned
   - Depends: -
   - Serial: yes (foundation for migration items)
 
-- [x] FS-STATE-002: `ws create` writes `.gionx.meta.json`
+- [x] FS-STATE-002: `ws create` writes `.kra.meta.json`
   - What: create workspace-local canonical metadata file with schema version and workspace core fields.
   - Specs:
     - `docs/spec/concepts/workspace-meta-json.md`
@@ -21,7 +21,7 @@ status: planned
   - Depends: FS-STATE-001
   - Serial: yes
 
-- [x] FS-STATE-003: `ws add-repo` persists restore metadata in `.gionx.meta.json`
+- [x] FS-STATE-003: `ws add-repo` persists restore metadata in `.kra.meta.json`
   - What: update `repos_restore` on successful bindings and keep alias/branch/base_ref deterministic.
   - Specs:
     - `docs/spec/concepts/workspace-meta-json.md`
@@ -30,14 +30,14 @@ status: planned
   - Serial: yes
 
 - [x] FS-STATE-004: `ws close` snapshots restore metadata from live worktrees
-  - What: refresh `.gionx.meta.json.repos_restore` before removing worktrees and archiving directory.
+  - What: refresh `.kra.meta.json.repos_restore` before removing worktrees and archiving directory.
   - Specs:
     - `docs/spec/concepts/workspace-meta-json.md`
     - `docs/spec/commands/ws/close.md`
   - Depends: FS-STATE-003
   - Serial: yes
 
-- [x] FS-STATE-005: `ws reopen` restores from `.gionx.meta.json` (no DB binding dependency)
+- [x] FS-STATE-005: `ws reopen` restores from `.kra.meta.json` (no DB binding dependency)
   - What: recreate worktrees exclusively from `repos_restore` and keep close/reopen reversible.
   - Specs:
     - `docs/spec/concepts/workspace-meta-json.md`

@@ -8,8 +8,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/tasuku43/gionx/internal/core/workspacerisk"
-	"github.com/tasuku43/gionx/internal/infra/statestore"
+	"github.com/tasuku43/kra/internal/core/workspacerisk"
+	"github.com/tasuku43/kra/internal/infra/statestore"
 )
 
 func TestGolden_WSActionSelectorSingle(t *testing.T) {
@@ -64,7 +64,7 @@ func TestGolden_WSAddRepoPlan(t *testing.T) {
 	var out bytes.Buffer
 	plan := []addRepoPlanItem{
 		{Candidate: addRepoPoolCandidate{RepoKey: "example-org/terraforms"}},
-		{Candidate: addRepoPoolCandidate{RepoKey: "tasuku43/gionx"}},
+		{Candidate: addRepoPoolCandidate{RepoKey: "tasuku43/kra"}},
 	}
 	printAddRepoPlan(&out, "DEMO-0000", plan, false)
 	assertGolden(t, "ws_add_repo_plan.golden", out.String())
@@ -145,7 +145,7 @@ func TestGolden_WSListHuman_Tree(t *testing.T) {
 			Title: "Audit current manifest structure",
 			Repos: []statestore.WorkspaceRepo{
 				{
-					Alias:  "gionx",
+					Alias:  "kra",
 					Branch: "main",
 					MissingAt: sql.NullInt64{
 						Valid: false,

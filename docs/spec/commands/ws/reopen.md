@@ -1,9 +1,9 @@
 ---
-title: "`gionx ws --act reopen`"
+title: "`kra ws --act reopen`"
 status: implemented
 ---
 
-# `gionx ws --act reopen <id>`
+# `kra ws --act reopen <id>`
 
 ## Purpose
 
@@ -25,17 +25,17 @@ This supports the common case where a task was considered done, but more work is
 
 1) Restore workspace directory
 
-- Move `GIONX_ROOT/archive/<id>/` to `GIONX_ROOT/workspaces/<id>/` using an atomic rename.
+- Move `KRA_ROOT/archive/<id>/` to `KRA_ROOT/workspaces/<id>/` using an atomic rename.
 
 2) Recreate repos directory
 
-- Ensure `GIONX_ROOT/workspaces/<id>/repos/` exists.
+- Ensure `KRA_ROOT/workspaces/<id>/repos/` exists.
 
 3) Recreate worktrees from metadata
 
 For each recorded workspace repo entry:
 - Ensure the bare repo exists in the repo pool and `fetch` (prefetch should start as soon as possible)
-- Create a worktree at `GIONX_ROOT/workspaces/<id>/repos/<alias>`
+- Create a worktree at `KRA_ROOT/workspaces/<id>/repos/<alias>`
 - Check out the recorded branch:
   - if the remote branch exists, check it out (track it)
   - otherwise, create it from the default branch
@@ -66,11 +66,11 @@ If the Git working tree has unrelated changes, this command must not include the
 ## Modes
 
 - This command is explicit-id mode only.
-- Interactive selection must use `gionx ws select --archived`.
+- Interactive selection must use `kra ws select --archived`.
 
 ## FS metadata behavior
 
-- `ws reopen` must read `workspaces/<id>/.gionx.meta.json` (moved from archive) and recreate worktrees from
+- `ws reopen` must read `workspaces/<id>/.kra.meta.json` (moved from archive) and recreate worktrees from
   `repos_restore`.
 - Reopen flow must not require index-only rows to rebuild worktrees.
-- On success, update `.gionx.meta.json.workspace.status` to `active` atomically.
+- On success, update `.kra.meta.json.workspace.status` to `active` atomically.

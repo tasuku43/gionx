@@ -1,6 +1,6 @@
 package paths
 
-import base "github.com/tasuku43/gionx/internal/paths"
+import base "github.com/tasuku43/kra/internal/paths"
 
 func ResolveExistingRoot(cwd string) (string, error) { return base.ResolveExistingRoot(cwd) }
 func DefaultRepoPoolPath() (string, error)           { return base.DefaultRepoPoolPath() }

@@ -1,4 +1,4 @@
-# Agent Instructions (gionx)
+# Agent Instructions (kra)
 
 ## Language
 
@@ -30,12 +30,12 @@ When working from `docs/backlog/README.md`:
 
 This project has two different "commit scopes":
 
-1) **Development commits (inside this `gionx` repo)**
+1) **Development commits (inside this `kra` repo)**
 - Keep commits small and slice-aligned to the backlog item.
 - Stage only the paths you intended to change for that slice.
 
-2) **User-data commits (commands that commit inside `GIONX_ROOT`)**
-- Many `gionx` commands intentionally commit changes in the user's `GIONX_ROOT`.
+2) **User-data commits (commands that commit inside `KRA_ROOT`)**
+- Many `kra` commands intentionally commit changes in the user's `KRA_ROOT`.
 - The staging scope must be an allowlist derived from the command + arguments (typically fixed prefixes like
   `workspaces/<id>/` or `archive/<id>/`).
 - Implementation rule:

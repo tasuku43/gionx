@@ -7,12 +7,12 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/tasuku43/gionx/internal/stateregistry"
+	"github.com/tasuku43/kra/internal/stateregistry"
 )
 
 func TestCLI_StateRegistry_InitCreatesEntry(t *testing.T) {
 	root := t.TempDir()
-	setGionxHomeForTest(t)
+	setKraHomeForTest(t)
 
 	var out bytes.Buffer
 	var err bytes.Buffer
@@ -43,7 +43,7 @@ func TestCLI_StateRegistry_InitCreatesEntry(t *testing.T) {
 
 func TestCLI_StateRegistry_WSCreateUpdatesLastUsed(t *testing.T) {
 	root := t.TempDir()
-	setGionxHomeForTest(t)
+	setKraHomeForTest(t)
 
 	{
 		var out bytes.Buffer
@@ -89,7 +89,7 @@ func TestCLI_StateRegistry_WSCreateUpdatesLastUsed(t *testing.T) {
 
 func TestCLI_StateRegistry_WSMalformedRegistryFails(t *testing.T) {
 	root := t.TempDir()
-	setGionxHomeForTest(t)
+	setKraHomeForTest(t)
 
 	{
 		var out bytes.Buffer

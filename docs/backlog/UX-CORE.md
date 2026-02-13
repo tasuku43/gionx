@@ -15,7 +15,7 @@ status: planned
   - Depends: UX-WS-014
   - Parallel: yes
 
-- [x] UX-CORE-002: Shell integration bootstrap (`gionx shell init`)
+- [x] UX-CORE-002: Shell integration bootstrap (`kra shell init`)
   - What: add shell integration command that prints eval-ready wrapper function and align `ws go` default output
     to shell snippet mode.
   - Specs:
@@ -45,7 +45,7 @@ status: planned
   - Parallel: no
 
 - [x] UX-CORE-005: Reduced motion toggle for selector confirm transition
-  - What: add opt-out for confirm delay animation (e.g. `GIONX_REDUCED_MOTION=1`) while preserving behavior parity.
+  - What: add opt-out for confirm delay animation (e.g. `KRA_REDUCED_MOTION=1`) while preserving behavior parity.
   - Specs:
     - `docs/spec/concepts/ui-selector.md`
     - `docs/spec/concepts/ui-color.md`

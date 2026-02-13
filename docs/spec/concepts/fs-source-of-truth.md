@@ -16,7 +16,7 @@ This spec defines the current canonical model.
 
 ## Principles
 
-- Canonical state lives under `GIONX_ROOT` as files/directories.
+- Canonical state lives under `KRA_ROOT` as files/directories.
 - Runtime-derived values (risk, logical todo/in-progress) are not persisted.
 - Root-external data under XDG is treated as cache/index unless explicitly required otherwise.
 - Commands must continue to be safe under partial failure (atomic writes, strict allowlists, rollback where possible).
@@ -29,7 +29,7 @@ This spec defines the current canonical model.
   - `workspaces/<id>/`
   - `archive/<id>/`
 - workspace metadata and repo restore metadata:
-  - `.gionx.meta.json` stored inside workspace/archive directories
+  - `.kra.meta.json` stored inside workspace/archive directories
 
 ### Rebuildable (can be recreated)
 

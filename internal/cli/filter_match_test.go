@@ -31,8 +31,8 @@ func TestFuzzyFilterMatch(t *testing.T) {
 		},
 		{
 			name:     "case insensitive",
-			haystack: "tasuku43/GIONX",
-			needle:   "gx",
+			haystack: "tasuku43/KRA",
+			needle:   "kr",
 			want:     true,
 		},
 		{

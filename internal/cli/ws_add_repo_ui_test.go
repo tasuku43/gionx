@@ -208,7 +208,7 @@ func TestBuildAddRepoInputsLines_StateTransitionSnapshots(t *testing.T) {
 
 func TestRenderAddRepoInputsProgress_NonTTY_NoEscapeAndStableLineCount(t *testing.T) {
 	rows := []addRepoInputProgress{
-		{RepoKey: "tasuku43/gionx", BaseRef: "origin/main"},
+		{RepoKey: "tasuku43/kra", BaseRef: "origin/main"},
 	}
 	var out bytes.Buffer
 	rendered := renderAddRepoInputsProgress(&out, "TEST-010", rows, 0, false, 99, true, true)
@@ -226,7 +226,7 @@ func TestRenderAddRepoInputsProgress_NonTTY_NoEscapeAndStableLineCount(t *testin
 
 func TestRenderAddRepoInputsProgress_NonTTY_AfterPrompt_CanKeepPendingBranch(t *testing.T) {
 	rows := []addRepoInputProgress{
-		{RepoKey: "tasuku43/gionx", BaseRef: "origin/main"},
+		{RepoKey: "tasuku43/kra", BaseRef: "origin/main"},
 	}
 	var out bytes.Buffer
 	_ = renderAddRepoInputsProgress(&out, "TEST-010", rows, 0, false, 99, true, true)
@@ -238,7 +238,7 @@ func TestRenderAddRepoInputsProgress_NonTTY_AfterPrompt_CanKeepPendingBranch(t *
 
 func TestRenderAddRepoInputsProgress_NonTTY_AfterPrompt_HidesPendingBranchAndKeepsBaseRefOpen(t *testing.T) {
 	rows := []addRepoInputProgress{
-		{RepoKey: "tasuku43/gionx", BaseRef: "origin/main"},
+		{RepoKey: "tasuku43/kra", BaseRef: "origin/main"},
 	}
 	var out bytes.Buffer
 	_ = renderAddRepoInputsProgress(&out, "TEST-010", rows, 0, false, 99, false, true)

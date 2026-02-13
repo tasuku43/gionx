@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/tasuku43/gionx/internal/testutil"
+	"github.com/tasuku43/kra/internal/testutil"
 )
 
 func TestCLI_WSCreate_DefaultTemplateMissing_Fails(t *testing.T) {
@@ -104,7 +104,7 @@ func TestCLI_WSCreate_UsesRootConfigDefaultTemplateWhenTemplateOmitted(t *testin
 	if err := os.WriteFile(filepath.Join(custom, "FROM_CUSTOM.md"), []byte("custom template\n"), 0o644); err != nil {
 		t.Fatalf("write custom marker: %v", err)
 	}
-	rootConfigPath := filepath.Join(env.Root, ".gionx", "config.yaml")
+	rootConfigPath := filepath.Join(env.Root, ".kra", "config.yaml")
 	if err := os.MkdirAll(filepath.Dir(rootConfigPath), 0o755); err != nil {
 		t.Fatalf("mkdir root config dir: %v", err)
 	}
@@ -130,7 +130,7 @@ func TestCLI_WSCreate_TemplateFlagOverridesConfigDefault(t *testing.T) {
 	env := testutil.NewEnv(t)
 	env.EnsureRootLayout(t)
 
-	rootConfigPath := filepath.Join(env.Root, ".gionx", "config.yaml")
+	rootConfigPath := filepath.Join(env.Root, ".kra", "config.yaml")
 	if err := os.MkdirAll(filepath.Dir(rootConfigPath), 0o755); err != nil {
 		t.Fatalf("mkdir root config dir: %v", err)
 	}
@@ -164,7 +164,7 @@ func TestCLI_WSCreate_UsesGlobalConfigDefaultTemplateWhenRootConfigMissing(t *te
 	env := testutil.NewEnv(t)
 	env.EnsureRootLayout(t)
 
-	globalConfigPath := filepath.Join(env.GionxHome, "config.yaml")
+	globalConfigPath := filepath.Join(env.KraHome, "config.yaml")
 	if err := os.MkdirAll(filepath.Dir(globalConfigPath), 0o755); err != nil {
 		t.Fatalf("mkdir global config dir: %v", err)
 	}

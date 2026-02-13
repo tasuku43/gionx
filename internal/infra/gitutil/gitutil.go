@@ -2,7 +2,7 @@ package gitutil
 
 import "context"
 
-import base "github.com/tasuku43/gionx/internal/gitutil"
+import base "github.com/tasuku43/kra/internal/gitutil"
 
 func EnsureGitInPath() error { return base.EnsureGitInPath() }
 

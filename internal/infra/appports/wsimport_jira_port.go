@@ -4,8 +4,8 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/tasuku43/gionx/internal/app/wsimport"
-	"github.com/tasuku43/gionx/internal/infra/jira"
+	"github.com/tasuku43/kra/internal/app/wsimport"
+	"github.com/tasuku43/kra/internal/infra/jira"
 )
 
 type WSImportJiraPort struct {
@@ -13,7 +13,11 @@ type WSImportJiraPort struct {
 }
 
 func NewWSImportJiraPort() *WSImportJiraPort {
-	return &WSImportJiraPort{client: jira.NewClient()}
+	return NewWSImportJiraPortWithBaseURL("")
+}
+
+func NewWSImportJiraPortWithBaseURL(baseURL string) *WSImportJiraPort {
+	return &WSImportJiraPort{client: jira.NewClientWithBaseURL(baseURL)}
 }
 
 func (p *WSImportJiraPort) SearchIssuesByJQL(ctx context.Context, jql string, maxResults int) ([]wsimport.JiraIssue, error) {

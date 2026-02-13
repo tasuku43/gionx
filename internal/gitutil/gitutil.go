@@ -8,8 +8,8 @@ import (
 	"os/exec"
 	"strings"
 
-	"github.com/tasuku43/gionx/internal/core/gitparse"
-	"github.com/tasuku43/gionx/internal/core/gitref"
+	"github.com/tasuku43/kra/internal/core/gitparse"
+	"github.com/tasuku43/kra/internal/core/gitref"
 )
 
 func EnsureGitInPath() error {

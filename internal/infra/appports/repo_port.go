@@ -3,8 +3,8 @@ package appports
 import (
 	"fmt"
 
-	"github.com/tasuku43/gionx/internal/gitutil"
-	"github.com/tasuku43/gionx/internal/paths"
+	"github.com/tasuku43/kra/internal/gitutil"
+	"github.com/tasuku43/kra/internal/paths"
 )
 
 type RepoPort struct {
@@ -32,7 +32,7 @@ func (p *RepoPort) EnsureGitInPath() error {
 func (p *RepoPort) ResolveRoot(cwd string) (string, error) {
 	root, err := paths.ResolveExistingRoot(cwd)
 	if err != nil {
-		return "", fmt.Errorf("resolve GIONX_ROOT: %w", err)
+		return "", fmt.Errorf("resolve KRA_ROOT: %w", err)
 	}
 	return root, nil
 }

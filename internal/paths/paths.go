@@ -8,11 +8,11 @@ import (
 	"strings"
 )
 
-const gionxHomeEnv = "GIONX_HOME"
+const kraHomeEnv = "KRA_HOME"
 
 // DefaultRepoPoolPath returns the default location for the bare repo pool.
 func DefaultRepoPoolPath() (string, error) {
-	home, err := GionxHomeDir()
+	home, err := KraHomeDir()
 	if err != nil {
 		return "", err
 	}
@@ -21,7 +21,7 @@ func DefaultRepoPoolPath() (string, error) {
 
 // RegistryPath returns the global registry metadata path.
 func RegistryPath() (string, error) {
-	home, err := GionxHomeDir()
+	home, err := KraHomeDir()
 	if err != nil {
 		return "", err
 	}
@@ -30,7 +30,7 @@ func RegistryPath() (string, error) {
 
 // CurrentContextPath returns the active context pointer file path.
 func CurrentContextPath() (string, error) {
-	home, err := GionxHomeDir()
+	home, err := KraHomeDir()
 	if err != nil {
 		return "", err
 	}
@@ -39,7 +39,7 @@ func CurrentContextPath() (string, error) {
 
 // ConfigPath returns the global config path.
 func ConfigPath() (string, error) {
-	home, err := GionxHomeDir()
+	home, err := KraHomeDir()
 	if err != nil {
 		return "", err
 	}
@@ -48,26 +48,26 @@ func ConfigPath() (string, error) {
 
 // RootConfigPath returns the root-local config path.
 func RootConfigPath(root string) string {
-	return filepath.Join(root, ".gionx", "config.yaml")
+	return filepath.Join(root, ".kra", "config.yaml")
 }
 
-// GionxHomeDir resolves $GIONX_HOME or falls back to ~/.gionx.
-func GionxHomeDir() (string, error) {
-	if v := strings.TrimSpace(os.Getenv(gionxHomeEnv)); v != "" {
+// KraHomeDir resolves $KRA_HOME or falls back to ~/.kra.
+func KraHomeDir() (string, error) {
+	if v := strings.TrimSpace(os.Getenv(kraHomeEnv)); v != "" {
 		return cleanAbs(v)
 	}
 	home, err := os.UserHomeDir()
 	if err != nil {
-		return "", fmt.Errorf("resolve home dir for %s fallback: %w", gionxHomeEnv, err)
+		return "", fmt.Errorf("resolve home dir for %s fallback: %w", kraHomeEnv, err)
 	}
-	return filepath.Join(home, ".gionx"), nil
+	return filepath.Join(home, ".kra"), nil
 }
 
 // ResolveExistingRoot resolves the current root.
 //
 // Resolution order:
-//  1. current-context file (must look like a gionx root)
-//  2. Walk up from startDir looking for a gionx root
+//  1. current-context file (must look like a kra root)
+//  2. Walk up from startDir looking for a kra root
 func ResolveExistingRoot(startDir string) (string, error) {
 	contextRoot, ok, err := ReadCurrentContext()
 	if err != nil {
@@ -75,7 +75,7 @@ func ResolveExistingRoot(startDir string) (string, error) {
 	}
 	if ok {
 		if !LooksLikeRoot(contextRoot) {
-			return "", fmt.Errorf("current context does not look like a gionx root: %s", contextRoot)
+			return "", fmt.Errorf("current context does not look like a kra root: %s", contextRoot)
 		}
 		return contextRoot, nil
 	}
@@ -84,7 +84,7 @@ func ResolveExistingRoot(startDir string) (string, error) {
 }
 
 // FindRoot walks up from startDir and returns the nearest directory that
-// "looks like" a gionx root.
+// "looks like" a kra root.
 func FindRoot(startDir string) (string, error) {
 	start, err := cleanAbs(startDir)
 	if err != nil {
@@ -99,13 +99,13 @@ func FindRoot(startDir string) (string, error) {
 
 		parent := filepath.Dir(dir)
 		if parent == dir {
-			return "", errors.New("GIONX_ROOT not found (walked up to filesystem root)")
+			return "", errors.New("KRA_ROOT not found (walked up to filesystem root)")
 		}
 		dir = parent
 	}
 }
 
-// LooksLikeRoot returns true when dir appears to be a gionx root directory.
+// LooksLikeRoot returns true when dir appears to be a kra root directory.
 //
 // Current heuristic: both "workspaces/" and "archive/" exist and are directories.
 func LooksLikeRoot(dir string) bool {
@@ -160,7 +160,7 @@ func ReadCurrentContext() (string, bool, error) {
 		return "", false, fmt.Errorf("resolve current-context root in %s: %w", contextPath, err)
 	}
 	if !isDir(root) {
-		return "", false, fmt.Errorf("current-context points to missing directory: %s (run 'gionx context use <root>' or remove %s)", root, contextPath)
+		return "", false, fmt.Errorf("current-context points to missing directory: %s (run 'kra context use <root>' or remove %s)", root, contextPath)
 	}
 	return root, true, nil
 }

@@ -1,4 +1,4 @@
-module github.com/tasuku43/gionx
+module github.com/tasuku43/kra
 
 go 1.24.0
 

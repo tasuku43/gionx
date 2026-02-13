@@ -25,6 +25,7 @@ workspace:
     template: "  custom "
 integration:
   jira:
+    base_url: " https://jira.example.com "
     defaults:
       space: " abc "
       type: " JQL "
@@ -38,6 +39,9 @@ integration:
 	}
 	if cfg.Workspace.Defaults.Template != "custom" {
 		t.Fatalf("workspace.defaults.template = %q, want %q", cfg.Workspace.Defaults.Template, "custom")
+	}
+	if cfg.Integration.Jira.BaseURL != "https://jira.example.com" {
+		t.Fatalf("integration.jira.base_url = %q, want %q", cfg.Integration.Jira.BaseURL, "https://jira.example.com")
 	}
 	if cfg.Integration.Jira.Defaults.Space != "ABC" {
 		t.Fatalf("integration.jira.defaults.space = %q, want %q", cfg.Integration.Jira.Defaults.Space, "ABC")
@@ -88,11 +92,31 @@ integration:
 	}
 }
 
+func TestLoadFile_InvalidJiraBaseURLFails(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "config.yaml")
+	if err := os.WriteFile(path, []byte(`
+integration:
+  jira:
+    base_url: jira.example.com
+`), 0o644); err != nil {
+		t.Fatalf("write config: %v", err)
+	}
+
+	_, err := LoadFile(path)
+	if err == nil {
+		t.Fatalf("LoadFile() error = nil, want non-nil")
+	}
+	if !strings.Contains(err.Error(), "integration.jira.base_url") {
+		t.Fatalf("error = %q, want base_url hint", err)
+	}
+}
+
 func TestMerge_RootOverridesGlobal(t *testing.T) {
 	global := Config{
 		Workspace: WorkspaceConfig{Defaults: WorkspaceDefaults{Template: "default"}},
 		Integration: IntegrationConfig{
 			Jira: JiraConfig{
+				BaseURL: "https://jira.global.example.com",
 				Defaults: JiraDefaults{
 					Space: "TEAM",
 					Type:  JiraTypeSprint,
@@ -104,6 +128,7 @@ func TestMerge_RootOverridesGlobal(t *testing.T) {
 		Workspace: WorkspaceConfig{Defaults: WorkspaceDefaults{Template: "custom"}},
 		Integration: IntegrationConfig{
 			Jira: JiraConfig{
+				BaseURL: "https://jira.root.example.com",
 				Defaults: JiraDefaults{
 					Project: "APP",
 					Type:    JiraTypeJQL,
@@ -115,6 +140,9 @@ func TestMerge_RootOverridesGlobal(t *testing.T) {
 	got := Merge(global, root)
 	if got.Workspace.Defaults.Template != "custom" {
 		t.Fatalf("workspace.defaults.template = %q, want %q", got.Workspace.Defaults.Template, "custom")
+	}
+	if got.Integration.Jira.BaseURL != "https://jira.root.example.com" {
+		t.Fatalf("integration.jira.base_url = %q, want %q", got.Integration.Jira.BaseURL, "https://jira.root.example.com")
 	}
 	if got.Integration.Jira.Defaults.Project != "APP" {
 		t.Fatalf("integration.jira.defaults.project = %q, want %q", got.Integration.Jira.Defaults.Project, "APP")

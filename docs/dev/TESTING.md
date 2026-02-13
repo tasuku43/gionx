@@ -7,10 +7,10 @@ status: implemented
 
 ## Goals
 
-`gionx` is a workspace lifecycle tool that coordinates:
-- filesystem metadata (`.gionx.meta.json`)
+`kra` is a workspace lifecycle tool that coordinates:
+- filesystem metadata (`.kra.meta.json`)
 - optional/rebuildable root index
-- the filesystem under `GIONX_ROOT`
+- the filesystem under `KRA_ROOT`
 - Git repositories (bare repo pool + worktrees)
 
 The most common failures are not happy-path logic bugs, but drift / inconsistency between these layers.
@@ -22,7 +22,7 @@ This spec exists so an agent (e.g. Agen2MD) can extract test requirements and ke
 - Always include non-happy-path tests.
 - Prefer table-driven tests for drift scenarios.
 - Keep side effects bounded:
-  - use temporary directories for `GIONX_ROOT`
+  - use temporary directories for `KRA_ROOT`
   - use isolated root metadata/index files for each test
   - avoid relying on global user environment
 - When a command performs multiple phases (index + FS + Git), ensure tests cover partial failure behavior.
@@ -39,7 +39,7 @@ They are not exhaustive, but should have explicit tests because they are common 
 
 ### Metadata/index vs filesystem
 
-- Workspace exists in metadata/index, but `GIONX_ROOT/workspaces/<id>/` is missing.
+- Workspace exists in metadata/index, but `KRA_ROOT/workspaces/<id>/` is missing.
 - Workspace exists on disk, but metadata/index is stale or missing (import/reconcile path).
 - Repo binding exists in metadata/index, but `workspaces/<id>/repos/<alias>` is missing.
 - Files exist in `archive/<id>` but metadata says workspace is open (or vice versa).

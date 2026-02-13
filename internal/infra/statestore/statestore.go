@@ -4,7 +4,7 @@ import (
 	"context"
 	"database/sql"
 
-	base "github.com/tasuku43/gionx/internal/statestore"
+	base "github.com/tasuku43/kra/internal/statestore"
 )
 
 type EnsureRepoInput = base.EnsureRepoInput

@@ -1,9 +1,9 @@
 ---
-title: "`gionx template validate`"
+title: "`kra template validate`"
 status: implemented
 ---
 
-# `gionx template validate`
+# `kra template validate`
 
 ## Purpose
 
@@ -21,7 +21,7 @@ Validate workspace templates under the current root before `ws create`.
 - Reuse the same template validation rules as `ws create`.
 - Validation rules:
   - template name must follow workspace ID rules
-  - reserved top-level paths are forbidden (`repos/`, `.git/`, `.gionx.meta.json`)
+  - reserved top-level paths are forbidden (`repos/`, `.git/`, `.kra.meta.json`)
   - symlinks are forbidden
   - unsupported special file types are forbidden
 - Collect and print all violations (not fail-fast on first violation).

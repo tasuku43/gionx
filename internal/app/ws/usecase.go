@@ -66,7 +66,7 @@ type WorkspaceResolverPort interface {
 	ResolveByID(ctx context.Context, id string) (WorkspaceRef, bool, error)
 }
 
-// LauncherUseCase is the app-layer orchestration contract for `gionx ws`.
+// LauncherUseCase is the app-layer orchestration contract for `kra ws`.
 type LauncherUseCase interface {
 	Run(ctx context.Context, req LauncherRequest) (LauncherResult, error)
 }

@@ -6,9 +6,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/tasuku43/gionx/internal/core/repospec"
-	"github.com/tasuku43/gionx/internal/core/repostore"
-	"github.com/tasuku43/gionx/internal/testutil"
+	"github.com/tasuku43/kra/internal/core/repospec"
+	"github.com/tasuku43/kra/internal/core/repostore"
+	"github.com/tasuku43/kra/internal/testutil"
 )
 
 func TestParseMultiSelectIndices_DeduplicatesAndPreservesOrder(t *testing.T) {
@@ -38,15 +38,15 @@ func TestParseMultiSelectIndices_InvalidInputs(t *testing.T) {
 
 func TestFilterAddRepoPoolCandidates_CaseInsensitive(t *testing.T) {
 	cands := []addRepoPoolCandidate{
-		{RepoKey: "tasuku43/GIONX"},
+		{RepoKey: "tasuku43/KRA"},
 		{RepoKey: "tasuku43/gion-core"},
 		{RepoKey: "tasuku43/other"},
 	}
-	got := filterAddRepoPoolCandidates(cands, "gion")
-	if len(got) != 2 {
-		t.Fatalf("len(filtered)=%d, want=2", len(got))
+	got := filterAddRepoPoolCandidates(cands, "ra")
+	if len(got) != 1 {
+		t.Fatalf("len(filtered)=%d, want=1", len(got))
 	}
-	if got[0].RepoKey != "tasuku43/GIONX" || got[1].RepoKey != "tasuku43/gion-core" {
+	if got[0].RepoKey != "tasuku43/KRA" {
 		t.Fatalf("unexpected filtered order/content: %+v", got)
 	}
 }
@@ -105,7 +105,7 @@ func TestPrintAddRepoPlan_ShowsConciseTree(t *testing.T) {
 	var out bytes.Buffer
 	plan := []addRepoPlanItem{
 		{
-			Candidate:     addRepoPoolCandidate{RepoKey: "tasuku43/gionx"},
+			Candidate:     addRepoPoolCandidate{RepoKey: "tasuku43/kra"},
 			FetchDecision: "required (stale, age=6m1s)",
 		},
 		{
@@ -121,7 +121,7 @@ func TestPrintAddRepoPlan_ShowsConciseTree(t *testing.T) {
 		"Plan:",
 		"add 2 repos (worktrees) to workspace TEST-010",
 		"repos:",
-		"├─ tasuku43/gionx",
+		"├─ tasuku43/kra",
 		"fetch: required (stale, age=6m1s)",
 		"└─ tasuku43/gion-core",
 		"fetch: skipped (fresh, age=2m0s <= 5m)",
@@ -148,7 +148,7 @@ func TestPrintAddRepoPlan_HidesFetchLineWhenDecisionIsEmpty(t *testing.T) {
 }
 
 func TestMissingLocalFileRemotePath(t *testing.T) {
-	missing := "file:///tmp/this-path-should-not-exist-gionx-test"
+	missing := "file:///tmp/this-path-should-not-exist-kra-test"
 	if p, ok := missingLocalFileRemotePath(missing); !ok || p == "" {
 		t.Fatalf("missingLocalFileRemotePath(%q) = (%q, %v), want missing path", missing, p, ok)
 	}
@@ -200,7 +200,7 @@ func TestRenderAddRepoApplyPrompt_UsesBulletedPlanAlignment(t *testing.T) {
 func TestPrintAddRepoResult_NoLeadingBlankLine(t *testing.T) {
 	var out bytes.Buffer
 	applied := []addRepoAppliedItem{
-		{Plan: addRepoPlanItem{Candidate: addRepoPoolCandidate{RepoKey: "tasuku43/gionx"}}},
+		{Plan: addRepoPlanItem{Candidate: addRepoPoolCandidate{RepoKey: "tasuku43/kra"}}},
 		{Plan: addRepoPlanItem{Candidate: addRepoPoolCandidate{RepoKey: "tasuku43/gion-core"}}},
 	}
 
@@ -213,7 +213,7 @@ func TestPrintAddRepoResult_NoLeadingBlankLine(t *testing.T) {
 	for _, want := range []string{
 		"Result:",
 		"  • Added 2 / 2",
-		"  • ✔ tasuku43/gionx",
+		"  • ✔ tasuku43/kra",
 		"  • ✔ tasuku43/gion-core",
 	} {
 		if !strings.Contains(got, want) {

@@ -10,9 +10,10 @@ import (
 	"strings"
 
 	"github.com/mattn/go-isatty"
-	"github.com/tasuku43/gionx/internal/app/wscreate"
-	"github.com/tasuku43/gionx/internal/infra/appports"
-	"github.com/tasuku43/gionx/internal/infra/paths"
+	"github.com/tasuku43/kra/internal/app/wscreate"
+	"github.com/tasuku43/kra/internal/config"
+	"github.com/tasuku43/kra/internal/infra/appports"
+	"github.com/tasuku43/kra/internal/infra/paths"
 )
 
 func (c *CLI) runWSCreate(args []string) int {
@@ -103,7 +104,7 @@ func (c *CLI) runWSCreate(args []string) int {
 	}
 	root, err := paths.ResolveExistingRoot(wd)
 	if err != nil {
-		fmt.Fprintf(c.Err, "resolve GIONX_ROOT: %v\n", err)
+		fmt.Fprintf(c.Err, "resolve KRA_ROOT: %v\n", err)
 		return exitError
 	}
 	if err := c.ensureDebugLog(root, "ws-create"); err != nil {
@@ -111,7 +112,13 @@ func (c *CLI) runWSCreate(args []string) int {
 	}
 	c.debugf("run ws create noPrompt=%t jira=%t", noPrompt, jiraTicketURL != "")
 
-	templateName, err := c.resolveWSCreateTemplateName(root, templateNameFlag)
+	cfg, err := c.loadMergedConfig(root)
+	if err != nil {
+		fmt.Fprintf(c.Err, "load config: %v\n", err)
+		return exitError
+	}
+
+	templateName, err := c.resolveWSCreateTemplateName(cfg, templateNameFlag)
 	if err != nil {
 		fmt.Fprintf(c.Err, "resolve template: %v\n", err)
 		return exitError
@@ -122,7 +129,7 @@ func (c *CLI) runWSCreate(args []string) int {
 	title := ""
 	sourceURL := ""
 	if jiraTicketURL != "" {
-		svc := wscreate.NewService(appports.NewWSCreateJiraPort())
+		svc := wscreate.NewService(appports.NewWSCreateJiraPortWithBaseURL(cfg.Integration.Jira.BaseURL))
 		in, err := svc.ResolveJiraWorkspaceInput(ctx, jiraTicketURL)
 		if err != nil {
 			fmt.Fprintf(c.Err, "resolve jira issue: %v\n", err)
@@ -176,14 +183,9 @@ func (c *CLI) runWSCreate(args []string) int {
 	return exitOK
 }
 
-func (c *CLI) resolveWSCreateTemplateName(root string, templateNameFlag string) (string, error) {
+func (c *CLI) resolveWSCreateTemplateName(cfg config.Config, templateNameFlag string) (string, error) {
 	if templateName := strings.TrimSpace(templateNameFlag); templateName != "" {
 		return templateName, nil
-	}
-
-	cfg, err := c.loadMergedConfig(root)
-	if err != nil {
-		return "", err
 	}
 	if templateName := strings.TrimSpace(cfg.Workspace.Defaults.Template); templateName != "" {
 		return templateName, nil

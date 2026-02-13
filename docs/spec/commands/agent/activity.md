@@ -1,9 +1,9 @@
 ---
-title: "`gionx agent` activity tracking"
+title: "`kra agent` activity tracking"
 status: planned
 ---
 
-# `gionx agent` activity tracking (baseline)
+# `kra agent` activity tracking (baseline)
 
 ## Purpose
 
@@ -16,7 +16,7 @@ This spec is planning-only. No implementation commitment is implied until backlo
 
 ## Scope (baseline)
 
-- Define command boundary under `gionx agent ...`.
+- Define command boundary under `kra agent ...`.
 - Define minimal tracked fields:
   - `workspace_id`
   - `agent_kind`
@@ -29,12 +29,12 @@ This spec is planning-only. No implementation commitment is implied until backlo
 ## Out of scope (baseline)
 
 - Strong process supervision guarantees (PID ownership, hard crash recovery)
-- External process discovery for agents launched outside `gionx`
+- External process discovery for agents launched outside `kra`
 - Long-term retention policy and log redaction policy
 
 ## Open questions to resolve before implementation
 
-- Execution model (`gionx` launcher only vs partial external detection)
+- Execution model (`kra` launcher only vs partial external detection)
 - Heartbeat mechanism and stale/unknown threshold
 - Persistence location and recovery strategy under partial failures
 - Security/privacy constraints for log handling

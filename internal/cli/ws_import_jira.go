@@ -14,10 +14,10 @@ import (
 	"strings"
 
 	"github.com/mattn/go-isatty"
-	"github.com/tasuku43/gionx/internal/app/wsimport"
-	"github.com/tasuku43/gionx/internal/config"
-	"github.com/tasuku43/gionx/internal/infra/appports"
-	"github.com/tasuku43/gionx/internal/infra/paths"
+	"github.com/tasuku43/kra/internal/app/wsimport"
+	"github.com/tasuku43/kra/internal/config"
+	"github.com/tasuku43/kra/internal/infra/appports"
+	"github.com/tasuku43/kra/internal/infra/paths"
 )
 
 const (
@@ -106,7 +106,7 @@ func (c *CLI) runWSImportJira(args []string) int {
 	}
 	root, err := paths.ResolveExistingRoot(wd)
 	if err != nil {
-		fmt.Fprintf(c.Err, "resolve GIONX_ROOT: %v\n", err)
+		fmt.Fprintf(c.Err, "resolve KRA_ROOT: %v\n", err)
 		return exitError
 	}
 	if err := c.ensureDebugLog(root, "ws-import-jira"); err != nil {
@@ -127,7 +127,7 @@ func (c *CLI) runWSImportJira(args []string) int {
 	}
 
 	ctx := context.Background()
-	svc := wsimport.NewService(appports.NewWSImportJiraPort())
+	svc := wsimport.NewService(appports.NewWSImportJiraPortWithBaseURL(cfg.Integration.Jira.BaseURL))
 	jql := ""
 	source := wsImportJiraSource{Type: "jira", Mode: "jql"}
 	if opts.sprintSet {

@@ -1,14 +1,14 @@
 ---
-title: "`gionx repo discover`"
+title: "`kra repo discover`"
 status: implemented
 ---
 
-# `gionx repo discover`
+# `kra repo discover`
 
 ## Usage
 
 ```sh
-gionx repo discover --org <org> [--provider github]
+kra repo discover --org <org> [--provider github]
 ```
 
 ## Purpose
@@ -17,10 +17,10 @@ Discover repositories from provider API and bulk-add selected repos into the sha
 
 ## Root resolution
 
-`gionx repo discover` resolves root in this order:
+`kra repo discover` resolves root in this order:
 
-1. `GIONX_ROOT`
-2. current context (`~/.gionx/state/current-context`)
+1. `KRA_ROOT`
+2. current context (`~/.kra/state/current-context`)
 3. walk-up discovery from cwd
 
 ## Provider model

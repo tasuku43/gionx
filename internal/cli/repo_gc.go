@@ -11,11 +11,11 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/tasuku43/gionx/internal/app/repocmd"
-	"github.com/tasuku43/gionx/internal/core/repospec"
-	"github.com/tasuku43/gionx/internal/infra/appports"
-	"github.com/tasuku43/gionx/internal/infra/gitutil"
-	"github.com/tasuku43/gionx/internal/infra/stateregistry"
+	"github.com/tasuku43/kra/internal/app/repocmd"
+	"github.com/tasuku43/kra/internal/core/repospec"
+	"github.com/tasuku43/kra/internal/infra/appports"
+	"github.com/tasuku43/kra/internal/infra/gitutil"
+	"github.com/tasuku43/kra/internal/infra/stateregistry"
 )
 
 type repoGCCandidate struct {

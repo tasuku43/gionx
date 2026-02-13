@@ -3,7 +3,7 @@ package main
 import (
 	"os"
 
-	"github.com/tasuku43/gionx/internal/cli"
+	"github.com/tasuku43/kra/internal/cli"
 )
 
 var version = "dev"

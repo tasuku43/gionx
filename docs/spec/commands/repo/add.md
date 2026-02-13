@@ -1,14 +1,14 @@
 ---
-title: "`gionx repo add`"
+title: "`kra repo add`"
 status: implemented
 ---
 
-# `gionx repo add`
+# `kra repo add`
 
 ## Usage
 
 ```sh
-gionx repo add <repo-spec>...
+kra repo add <repo-spec>...
 ```
 
 ## Purpose
@@ -17,10 +17,10 @@ Register repositories into the shared bare repo pool and the current root index.
 
 ## Root resolution
 
-`gionx repo add` resolves root in this order:
+`kra repo add` resolves root in this order:
 
-1. `GIONX_ROOT`
-2. current context (`~/.gionx/state/current-context`)
+1. `KRA_ROOT`
+2. current context (`~/.kra/state/current-context`)
 3. walk-up discovery from cwd
 
 ## Inputs

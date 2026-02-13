@@ -12,11 +12,11 @@ import (
 	"strings"
 	"time"
 
-	"github.com/tasuku43/gionx/internal/core/repospec"
-	"github.com/tasuku43/gionx/internal/core/workspacerisk"
-	"github.com/tasuku43/gionx/internal/infra/gitutil"
-	"github.com/tasuku43/gionx/internal/infra/paths"
-	"github.com/tasuku43/gionx/internal/infra/statestore"
+	"github.com/tasuku43/kra/internal/core/repospec"
+	"github.com/tasuku43/kra/internal/core/workspacerisk"
+	"github.com/tasuku43/kra/internal/infra/gitutil"
+	"github.com/tasuku43/kra/internal/infra/paths"
+	"github.com/tasuku43/kra/internal/infra/statestore"
 )
 
 var errNoActiveWorkspaces = errors.New("no active workspaces available")
@@ -91,7 +91,7 @@ func (c *CLI) runWSClose(args []string) int {
 	}
 	root, err := paths.ResolveExistingRoot(wd)
 	if err != nil {
-		fmt.Fprintf(c.Err, "resolve GIONX_ROOT: %v\n", err)
+		fmt.Fprintf(c.Err, "resolve KRA_ROOT: %v\n", err)
 		return exitError
 	}
 	if err := c.ensureDebugLog(root, "ws-close"); err != nil {
@@ -146,7 +146,7 @@ func (c *CLI) runWSClose(args []string) int {
 	shouldShiftCWD := isPathInside(filepath.Join(root, "workspaces", directWorkspaceID), wd)
 	if shouldShiftCWD {
 		if err := os.Chdir(root); err != nil {
-			fmt.Fprintf(c.Err, "shift process cwd to GIONX_ROOT: %v\n", err)
+			fmt.Fprintf(c.Err, "shift process cwd to KRA_ROOT: %v\n", err)
 			return exitError
 		}
 	}
@@ -227,7 +227,7 @@ func (c *CLI) runWSCloseJSON(workspaceID string, force bool, wd string, root str
 				WorkspaceID: workspaceID,
 				Error: &cliJSONError{
 					Code:    "internal_error",
-					Message: fmt.Sprintf("shift process cwd to GIONX_ROOT: %v", err),
+					Message: fmt.Sprintf("shift process cwd to KRA_ROOT: %v", err),
 				},
 			})
 			return exitError
@@ -795,7 +795,7 @@ func resolveBarePathFromWorktreeGitdir(worktreePath string) (string, error) {
 func ensureRootGitWorktree(ctx context.Context, root string) error {
 	out, err := gitutil.Run(ctx, root, "rev-parse", "--show-toplevel")
 	if err != nil {
-		return fmt.Errorf("GIONX_ROOT must be a git working tree: %w", err)
+		return fmt.Errorf("KRA_ROOT must be a git working tree: %w", err)
 	}
 
 	got := filepath.Clean(strings.TrimSpace(out))
@@ -810,7 +810,7 @@ func ensureRootGitWorktree(ctx context.Context, root string) error {
 
 	rel, relErr := filepath.Rel(got, want)
 	if relErr != nil || rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
-		return fmt.Errorf("GIONX_ROOT must be inside the git worktree: toplevel=%s root=%s", strings.TrimSpace(out), root)
+		return fmt.Errorf("KRA_ROOT must be inside the git worktree: toplevel=%s root=%s", strings.TrimSpace(out), root)
 	}
 	return nil
 }

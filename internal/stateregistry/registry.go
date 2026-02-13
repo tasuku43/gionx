@@ -10,7 +10,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/tasuku43/gionx/internal/paths"
+	"github.com/tasuku43/kra/internal/paths"
 )
 
 type Entry struct {

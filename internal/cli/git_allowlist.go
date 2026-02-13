@@ -5,10 +5,10 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/tasuku43/gionx/internal/infra/gitutil"
+	"github.com/tasuku43/kra/internal/infra/gitutil"
 )
 
-// toGitTopLevelPath converts a path relative to GIONX_ROOT into a path
+// toGitTopLevelPath converts a path relative to KRA_ROOT into a path
 // relative to the enclosing git toplevel (the path domain of `git diff --name-only`).
 func toGitTopLevelPath(ctx context.Context, root string, rootRelativePath string) (string, error) {
 	topRaw, err := gitutil.Run(ctx, root, "rev-parse", "--show-toplevel")

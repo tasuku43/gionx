@@ -31,7 +31,7 @@ Single-select:
   - keep frame visible briefly (`0.2s`)
   - lock cursor/input during the transition
   - then proceed to next stage
-  - when `GIONX_REDUCED_MOTION=1`, skip delay and proceed immediately
+  - when `KRA_REDUCED_MOTION=1`, skip delay and proceed immediately
 
 ## Visual model
 

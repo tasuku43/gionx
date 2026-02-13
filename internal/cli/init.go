@@ -8,10 +8,10 @@ import (
 	"strings"
 
 	"github.com/mattn/go-isatty"
-	"github.com/tasuku43/gionx/internal/app/initcmd"
-	"github.com/tasuku43/gionx/internal/infra/appports"
-	"github.com/tasuku43/gionx/internal/infra/gitutil"
-	"github.com/tasuku43/gionx/internal/infra/paths"
+	"github.com/tasuku43/kra/internal/app/initcmd"
+	"github.com/tasuku43/kra/internal/infra/appports"
+	"github.com/tasuku43/kra/internal/infra/gitutil"
+	"github.com/tasuku43/kra/internal/infra/paths"
 )
 
 const (
@@ -160,7 +160,7 @@ func defaultInitRootSuggestion() (abs string, label string, err error) {
 	if err != nil {
 		return "", "", err
 	}
-	return filepath.Join(home, "gionx"), "~/gionx", nil
+	return filepath.Join(home, "kra"), "~/kra", nil
 }
 
 func defaultContextNameSuggestion() (string, error) {
@@ -269,7 +269,7 @@ func ensureRootGitignore(root string) error {
 
 	var out string
 	if len(b) == 0 {
-		out = "# gionx\n" + pattern + "\n"
+		out = "# kra\n" + pattern + "\n"
 	} else {
 		out = string(b)
 		if !strings.HasSuffix(out, "\n") {
@@ -311,7 +311,7 @@ func ensureGitInit(root string) (bool, error) {
 }
 
 func commitInitFiles(root string) error {
-	const commitMessage = "init: add gionx bootstrap files"
+	const commitMessage = "init: add kra bootstrap files"
 	ctx := context.Background()
 	allowGitignore, err := toGitTopLevelPath(ctx, root, gitignoreFilename)
 	if err != nil {
@@ -322,7 +322,7 @@ func commitInitFiles(root string) error {
 		return err
 	}
 	defaultTemplateAgentsRel := filepath.Join(workspaceTemplatesDirName, defaultWorkspaceTemplateName, rootAgentsFilename)
-	rootConfigRel := filepath.Join(".gionx", "config.yaml")
+	rootConfigRel := filepath.Join(".kra", "config.yaml")
 	allowlist := map[string]struct{}{
 		allowGitignore: {},
 		allowAgents:    {},
@@ -395,12 +395,12 @@ func ensureDir(path string) error {
 }
 
 func defaultRootAgentsContent() string {
-	return `# gionx AGENTS guide
+	return `# kra AGENTS guide
 
 ## Purpose
 
-This repository root is managed by gionx.
-gionx helps you keep task workspaces organized and safely archived.
+This repository root is managed by kra.
+kra helps you keep task workspaces organized and safely archived.
 
 ## Directory map
 
@@ -415,10 +415,10 @@ Notes vs artifacts:
 
 ## Workflow (typical)
 
-1) gionx ws create
-2) gionx ws --act add-repo
+1) kra ws create
+2) kra ws --act add-repo
 3) work inside workspaces/<id>/repos/<alias>/
-4) gionx ws --act close
+4) kra ws --act close
 
 ## Git policy
 
@@ -448,11 +448,11 @@ func ensureRootConfig(root string) error {
 }
 
 func defaultRootConfigContent() string {
-	return `# gionx root config
+	return `# kra root config
 # Precedence (high -> low):
 #   1) CLI flags
-#   2) this file: <GIONX_ROOT>/.gionx/config.yaml
-#   3) global: ~/.gionx/config.yaml
+#   2) this file: <KRA_ROOT>/.kra/config.yaml
+#   3) global: ~/.kra/config.yaml
 #   4) built-in defaults
 #
 # Empty string values are treated as unset.
@@ -463,6 +463,7 @@ workspace:
 
 integration:
   jira:
+    # base_url: https://jira.example.com
     # defaults:
     #   space: SRE
     #   type: sprint # sprint | jql
@@ -504,7 +505,7 @@ func defaultWorkspaceTemplateAgentsContent() string {
 
 - notes/: investigation notes, decisions, TODOs, links
 - artifacts/: files and evidence (screenshots, logs, dumps, PoCs)
-- repos/: git worktrees (NOT Git-tracked; added via gionx ws --act add-repo)
+- repos/: git worktrees (NOT Git-tracked; added via kra ws --act add-repo)
 
 Notes vs artifacts:
 - notes/: write what you learned and decided
@@ -513,6 +514,6 @@ Notes vs artifacts:
 ## Closing
 
 When you are done, run:
-  gionx ws --act close <workspace-id>
+  kra ws --act close <workspace-id>
 `
 }

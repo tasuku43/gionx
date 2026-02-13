@@ -8,8 +8,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/tasuku43/gionx/internal/core/workspacerisk"
-	"github.com/tasuku43/gionx/internal/testutil"
+	"github.com/tasuku43/kra/internal/core/workspacerisk"
+	"github.com/tasuku43/kra/internal/testutil"
 )
 
 func TestCLI_WS_RemoveRepo_Help(t *testing.T) {
@@ -24,7 +24,7 @@ func TestCLI_WS_RemoveRepo_Help(t *testing.T) {
 	if code != exitOK {
 		t.Fatalf("ws remove-repo help exit code = %d, want %d", code, exitOK)
 	}
-	if !strings.Contains(out.String(), "gionx ws --act remove-repo") {
+	if !strings.Contains(out.String(), "kra ws --act remove-repo") {
 		t.Fatalf("stdout missing ws remove-repo usage: %q", out.String())
 	}
 	if err.Len() != 0 {

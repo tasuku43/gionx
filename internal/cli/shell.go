@@ -72,42 +72,42 @@ func renderShellInitScript(shellName string) (string, error) {
 }
 
 func renderPOSIXShellInitScript(shellName string) string {
-	return fmt.Sprintf(`# gionx shell integration (%s)
+	return fmt.Sprintf(`# kra shell integration (%s)
 # Add this line to your shell rc file (~/.%src), then restart shell:
-#   eval "$(gionx shell init %s)"
-gionx() {
-  local __gionx_action_file __gionx_status
-  __gionx_action_file="$(mktemp "${TMPDIR:-/tmp}/gionx-action.XXXXXX")" || return 1
-  GIONX_SHELL_ACTION_FILE="$__gionx_action_file" command gionx "$@"
-  __gionx_status=$?
-  if [ $__gionx_status -ne 0 ]; then
-    rm -f "$__gionx_action_file"
-    return $__gionx_status
+#   eval "$(kra shell init %s)"
+kra() {
+  local __kra_action_file __kra_status
+  __kra_action_file="$(mktemp "${TMPDIR:-/tmp}/kra-action.XXXXXX")" || return 1
+  KRA_SHELL_ACTION_FILE="$__kra_action_file" command kra "$@"
+  __kra_status=$?
+  if [ $__kra_status -ne 0 ]; then
+    rm -f "$__kra_action_file"
+    return $__kra_status
   fi
-  if [ -s "$__gionx_action_file" ]; then
-    eval "$(cat "$__gionx_action_file")"
+  if [ -s "$__kra_action_file" ]; then
+    eval "$(cat "$__kra_action_file")"
   fi
-  rm -f "$__gionx_action_file"
+  rm -f "$__kra_action_file"
 }
 `, shellName, shellName, shellName)
 }
 
 func renderFishShellInitScript() string {
-	return `# gionx shell integration (fish)
+	return `# kra shell integration (fish)
 # Add this line to your config.fish, then restart shell:
-#   eval (gionx shell init fish)
-function gionx
-  set -l __gionx_action_file (mktemp "/tmp/gionx-action.XXXXXX"); or return 1
-  env GIONX_SHELL_ACTION_FILE="$__gionx_action_file" command gionx $argv
-  set -l __gionx_status $status
-  if test $__gionx_status -ne 0
-    rm -f "$__gionx_action_file"
-    return $__gionx_status
+#   eval (kra shell init fish)
+function kra
+  set -l __kra_action_file (mktemp "/tmp/kra-action.XXXXXX"); or return 1
+  env KRA_SHELL_ACTION_FILE="$__kra_action_file" command kra $argv
+  set -l __kra_status $status
+  if test $__kra_status -ne 0
+    rm -f "$__kra_action_file"
+    return $__kra_status
   end
-  if test -s "$__gionx_action_file"
-    eval (cat "$__gionx_action_file")
+  if test -s "$__kra_action_file"
+    eval (cat "$__kra_action_file")
   end
-  rm -f "$__gionx_action_file"
+  rm -f "$__kra_action_file"
 end
 `
 }

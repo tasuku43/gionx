@@ -14,7 +14,7 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/mattn/go-isatty"
-	"github.com/tasuku43/gionx/internal/core/workspacerisk"
+	"github.com/tasuku43/kra/internal/core/workspacerisk"
 )
 
 var errSelectorCanceled = errors.New("selector canceled")
@@ -792,7 +792,7 @@ func renderActionSelectorRow(markerText string, mark string, actionRaw string, i
 }
 
 func isReducedMotionEnabled() bool {
-	switch strings.ToLower(strings.TrimSpace(os.Getenv("GIONX_REDUCED_MOTION"))) {
+	switch strings.ToLower(strings.TrimSpace(os.Getenv("KRA_REDUCED_MOTION"))) {
 	case "1", "true", "yes", "on":
 		return true
 	default:

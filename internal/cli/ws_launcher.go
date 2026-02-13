@@ -9,8 +9,8 @@ import (
 	"strings"
 	"time"
 
-	appws "github.com/tasuku43/gionx/internal/app/ws"
-	"github.com/tasuku43/gionx/internal/infra/paths"
+	appws "github.com/tasuku43/kra/internal/app/ws"
+	"github.com/tasuku43/kra/internal/infra/paths"
 )
 
 type workspaceContextSelection struct {
@@ -135,7 +135,7 @@ parseFlags:
 	}
 	root, err := paths.ResolveExistingRoot(wd)
 	if err != nil {
-		fmt.Fprintf(c.Err, "resolve GIONX_ROOT: %v\n", err)
+		fmt.Fprintf(c.Err, "resolve KRA_ROOT: %v\n", err)
 		return exitError
 	}
 	if err := c.ensureDebugLog(root, "ws-launcher"); err != nil {
@@ -166,7 +166,7 @@ parseFlags:
 		}
 		switch {
 		case errors.Is(err, appws.ErrWorkspaceNotSelected):
-			fmt.Fprintln(c.Err, "ws requires --id <id> or workspace context (use: gionx ws select)")
+			fmt.Fprintln(c.Err, "ws requires --id <id> or workspace context (use: kra ws select)")
 		case errors.Is(err, appws.ErrWorkspaceNotFound):
 			fmt.Fprintf(c.Err, "workspace not found: %s\n", workspaceID)
 		case errors.Is(err, appws.ErrActionNotAllowed):

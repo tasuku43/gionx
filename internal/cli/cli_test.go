@@ -9,8 +9,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/tasuku43/gionx/internal/paths"
-	"github.com/tasuku43/gionx/internal/testutil"
+	"github.com/tasuku43/kra/internal/paths"
+	"github.com/tasuku43/kra/internal/testutil"
 )
 
 func TestCLI_Root_NoArgs_ShowsUsage(t *testing.T) {
@@ -68,7 +68,7 @@ func TestCLI_WS_NoArgs_ShowsWSUsage(t *testing.T) {
 	var out bytes.Buffer
 	var err bytes.Buffer
 	c := New(&out, &err)
-	setGionxHomeForTest(t)
+	setKraHomeForTest(t)
 
 	code := c.Run([]string{"ws"})
 	if code != exitError {
@@ -77,7 +77,7 @@ func TestCLI_WS_NoArgs_ShowsWSUsage(t *testing.T) {
 	if out.Len() != 0 {
 		t.Fatalf("stdout not empty: %q", out.String())
 	}
-	if !strings.Contains(err.String(), "resolve GIONX_ROOT:") {
+	if !strings.Contains(err.String(), "resolve KRA_ROOT:") {
 		t.Fatalf("stderr missing root resolution error: %q", err.String())
 	}
 }
@@ -90,7 +90,7 @@ func TestCLI_WS_ListAlias_LS_DelegatesToList(t *testing.T) {
 	if err := os.MkdirAll(filepath.Join(root, "archive"), 0o755); err != nil {
 		t.Fatalf("create archive/: %v", err)
 	}
-	setGionxHomeForTest(t)
+	setKraHomeForTest(t)
 	if err := paths.WriteCurrentContext(root); err != nil {
 		t.Fatalf("WriteCurrentContext() error: %v", err)
 	}
@@ -187,7 +187,7 @@ func TestCLI_WS_Create_NotImplemented(t *testing.T) {
 	if code != exitUsage {
 		t.Fatalf("exit code = %d, want %d", code, exitUsage)
 	}
-	if !strings.Contains(err.String(), "gionx ws create") {
+	if !strings.Contains(err.String(), "kra ws create") {
 		t.Fatalf("stderr missing ws create usage: %q", err.String())
 	}
 }
@@ -201,7 +201,7 @@ func TestCLI_Init_Help_ShowsUsage(t *testing.T) {
 	if code != exitOK {
 		t.Fatalf("exit code = %d, want %d", code, exitOK)
 	}
-	if !strings.Contains(out.String(), "gionx init") {
+	if !strings.Contains(out.String(), "kra init") {
 		t.Fatalf("stdout missing init usage: %q", out.String())
 	}
 	if err.Len() != 0 {
@@ -217,7 +217,7 @@ func TestCLI_Init_CreatesLayoutGitignoreGitRepoAndSettings(t *testing.T) {
 
 	root := t.TempDir()
 
-	setGionxHomeForTest(t)
+	setKraHomeForTest(t)
 	if err := paths.WriteCurrentContext(root); err != nil {
 		t.Fatalf("WriteCurrentContext() error: %v", err)
 	}
@@ -255,7 +255,7 @@ func TestCLI_Init_CreatesLayoutGitignoreGitRepoAndSettings(t *testing.T) {
 	if _, statErr := os.Stat(filepath.Join(root, "templates", "default", "AGENTS.md")); statErr != nil {
 		t.Fatalf("default template AGENTS.md not created: %v", statErr)
 	}
-	rootConfigPath := filepath.Join(root, ".gionx", "config.yaml")
+	rootConfigPath := filepath.Join(root, ".kra", "config.yaml")
 	rootConfigBytes, statErr := os.ReadFile(rootConfigPath)
 	if statErr != nil {
 		t.Fatalf("root config not created: %v", statErr)
@@ -280,7 +280,7 @@ func TestCLI_Init_CreatesLayoutGitignoreGitRepoAndSettings(t *testing.T) {
 	tracked := strings.Fields(runGit(t, root, "ls-files"))
 	wantTracked := map[string]bool{
 		".gitignore":                  true,
-		".gionx/config.yaml":          true,
+		".kra/config.yaml":            true,
 		"AGENTS.md":                   true,
 		"templates/default/AGENTS.md": true,
 	}
@@ -302,16 +302,16 @@ func TestCLI_Init_CreatesLayoutGitignoreGitRepoAndSettings(t *testing.T) {
 
 }
 
-func TestCLI_Init_CreatesMissingGIONXRootDirectory(t *testing.T) {
+func TestCLI_Init_CreatesMissingKRARootDirectory(t *testing.T) {
 	if _, err := exec.LookPath("git"); err != nil {
 		t.Skip("git not found in PATH")
 	}
 	setGitIdentity(t)
 
 	parent := t.TempDir()
-	root := filepath.Join(parent, "new-gionx-root")
+	root := filepath.Join(parent, "new-kra-root")
 
-	setGionxHomeForTest(t)
+	setKraHomeForTest(t)
 
 	var out bytes.Buffer
 	var err bytes.Buffer
@@ -346,9 +346,9 @@ func TestCLI_Init_DoesNotOverwriteRootConfig(t *testing.T) {
 	setGitIdentity(t)
 
 	root := t.TempDir()
-	setGionxHomeForTest(t)
+	setKraHomeForTest(t)
 
-	rootConfigPath := filepath.Join(root, ".gionx", "config.yaml")
+	rootConfigPath := filepath.Join(root, ".kra", "config.yaml")
 	if err := os.MkdirAll(filepath.Dir(rootConfigPath), 0o755); err != nil {
 		t.Fatalf("create root config dir: %v", err)
 	}
@@ -375,7 +375,7 @@ func TestCLI_Init_DoesNotOverwriteRootConfig(t *testing.T) {
 }
 
 func TestCLI_Init_NonTTYWithoutRootOrEnv_Fails(t *testing.T) {
-	setGionxHomeForTest(t)
+	setKraHomeForTest(t)
 
 	var out bytes.Buffer
 	var err bytes.Buffer
@@ -398,7 +398,7 @@ func TestCLI_Init_WithRootFlag_NonTTY_SucceedsAndUpdatesCurrentContext(t *testin
 	setGitIdentity(t)
 
 	root := filepath.Join(t.TempDir(), "explicit-root")
-	setGionxHomeForTest(t)
+	setKraHomeForTest(t)
 
 	var out bytes.Buffer
 	var err bytes.Buffer
@@ -431,10 +431,10 @@ func runGit(t *testing.T, dir string, args ...string) string {
 
 func setGitIdentity(t *testing.T) {
 	t.Helper()
-	t.Setenv("GIT_AUTHOR_NAME", "gionx-test")
-	t.Setenv("GIT_AUTHOR_EMAIL", "gionx-test@example.com")
-	t.Setenv("GIT_COMMITTER_NAME", "gionx-test")
-	t.Setenv("GIT_COMMITTER_EMAIL", "gionx-test@example.com")
+	t.Setenv("GIT_AUTHOR_NAME", "kra-test")
+	t.Setenv("GIT_AUTHOR_EMAIL", "kra-test@example.com")
+	t.Setenv("GIT_COMMITTER_NAME", "kra-test")
+	t.Setenv("GIT_COMMITTER_EMAIL", "kra-test@example.com")
 }
 
 func seedDefaultTemplate(t *testing.T, root string) {
@@ -461,7 +461,7 @@ func TestCLI_WS_Create_CreatesScaffoldAndStateStoreRows(t *testing.T) {
 	}
 	seedDefaultTemplate(t, root)
 
-	setGionxHomeForTest(t)
+	setKraHomeForTest(t)
 	if err := paths.WriteCurrentContext(root); err != nil {
 		t.Fatalf("WriteCurrentContext() error: %v", err)
 	}
@@ -539,7 +539,7 @@ func TestCLI_WS_Create_ArchivedCollision_GuidesReopen(t *testing.T) {
 	}
 	seedDefaultTemplate(t, root)
 
-	setGionxHomeForTest(t)
+	setKraHomeForTest(t)
 	if err := paths.WriteCurrentContext(root); err != nil {
 		t.Fatalf("WriteCurrentContext() error: %v", err)
 	}
@@ -573,7 +573,7 @@ func TestCLI_WS_Create_ActiveCollision_Errors(t *testing.T) {
 	}
 	seedDefaultTemplate(t, root)
 
-	setGionxHomeForTest(t)
+	setKraHomeForTest(t)
 	if err := paths.WriteCurrentContext(root); err != nil {
 		t.Fatalf("WriteCurrentContext() error: %v", err)
 	}
@@ -633,7 +633,7 @@ func TestCLI_WS_AddRepo_CreatesWorktreeAndRecordsState(t *testing.T) {
 	repoSpec := "file://" + remoteBare
 
 	root := t.TempDir()
-	gionxHome := setGionxHomeForTest(t)
+	kraHome := setKraHomeForTest(t)
 
 	if err := os.MkdirAll(filepath.Join(root, "workspaces"), 0o755); err != nil {
 		t.Fatalf("create workspaces/: %v", err)
@@ -646,7 +646,7 @@ func TestCLI_WS_AddRepo_CreatesWorktreeAndRecordsState(t *testing.T) {
 	if err := paths.WriteCurrentContext(root); err != nil {
 		t.Fatalf("WriteCurrentContext() error: %v", err)
 	}
-	env := testutil.Env{Root: root, GionxHome: gionxHome}
+	env := testutil.Env{Root: root, KraHome: kraHome}
 
 	{
 		var out bytes.Buffer
@@ -746,7 +746,7 @@ func TestCLI_WS_AddRepo_DBUnavailable_FallsBackToFilesystem(t *testing.T) {
 	repoSpec := "file://" + remoteBare
 
 	root := t.TempDir()
-	gionxHome := setGionxHomeForTest(t)
+	kraHome := setKraHomeForTest(t)
 
 	if err := os.MkdirAll(filepath.Join(root, "workspaces"), 0o755); err != nil {
 		t.Fatalf("create workspaces/: %v", err)
@@ -759,7 +759,7 @@ func TestCLI_WS_AddRepo_DBUnavailable_FallsBackToFilesystem(t *testing.T) {
 	if err := paths.WriteCurrentContext(root); err != nil {
 		t.Fatalf("WriteCurrentContext() error: %v", err)
 	}
-	env := testutil.Env{Root: root, GionxHome: gionxHome}
+	env := testutil.Env{Root: root, KraHome: kraHome}
 
 	{
 		var out bytes.Buffer

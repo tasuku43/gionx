@@ -7,12 +7,12 @@ status: implemented
 
 ## Canonical model (filesystem)
 
-`gionx` data model is defined by filesystem + workspace metadata file.
+`kra` data model is defined by filesystem + workspace metadata file.
 
 Per workspace, canonical data lives in:
 
-- `workspaces/<id>/.gionx.meta.json` (active)
-- `archive/<id>/.gionx.meta.json` (archived)
+- `workspaces/<id>/.kra.meta.json` (active)
+- `archive/<id>/.kra.meta.json` (archived)
 
 Metadata schema (v1):
 

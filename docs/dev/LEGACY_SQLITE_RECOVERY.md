@@ -11,7 +11,7 @@ status: implemented
 
 ## 方針
 
-- 真実は `GIONX_ROOT` 配下のディレクトリと `.gionx.meta.json`。
+- 真実は `KRA_ROOT` 配下のディレクトリと `.kra.meta.json`。
 - SQLite state store は廃止済み。旧 `state.db` が残っていても runtime は参照しない。
 - まずバックアップを作成し、段階的に切り替える。
 
@@ -19,22 +19,22 @@ status: implemented
 
 1. 対象 root を確定する
 ```sh
-gionx context current
+kra context current
 ```
 
 2. 旧データをバックアップする
 ```sh
-mkdir -p .gionx-recovery-backup
-cp -a workspaces archive .gionx-recovery-backup/
+mkdir -p .kra-recovery-backup
+cp -a workspaces archive .kra-recovery-backup/
 ```
 
 3. 旧 SQLite ファイルを退避する（存在する場合）
 ```sh
-LEGACY_SQLITE_FILES="$(find "${XDG_DATA_HOME:-$HOME/.local/share}/gionx" -name '*.db' 2>/dev/null)"
+LEGACY_SQLITE_FILES="$(find "${XDG_DATA_HOME:-$HOME/.local/share}/kra" -name '*.db' 2>/dev/null)"
 if [ -n "$LEGACY_SQLITE_FILES" ]; then
-  mkdir -p .gionx-recovery-backup/legacy-index
+  mkdir -p .kra-recovery-backup/legacy-index
   while IFS= read -r f; do
-    [ -n "$f" ] && cp -a "$f" .gionx-recovery-backup/legacy-index/
+    [ -n "$f" ] && cp -a "$f" .kra-recovery-backup/legacy-index/
   done <<EOF
 $LEGACY_SQLITE_FILES
 EOF
@@ -47,8 +47,8 @@ fi
 
 5. 動作確認
 ```sh
-gionx ws list
-gionx ws select --act go
+kra ws list
+kra ws select --act go
 ```
 
 6. 問題なければ旧 SQLite ファイルを削除（任意）
@@ -65,7 +65,7 @@ fi
 ## トラブル時
 
 - `registry.json` 破損エラーが出る場合:
-  - `XDG_DATA_HOME/gionx/registry.json` をバックアップして削除し、再実行。
+  - `XDG_DATA_HOME/kra/registry.json` をバックアップして削除し、再実行。
 - `ws --act reopen` が失敗する場合:
-  - 対象 `archive/<id>/.gionx.meta.json` の `repos_restore` を確認。
-  - bare repo が不足している場合は `gionx repo add` で再登録してから再実行。
+  - 対象 `archive/<id>/.kra.meta.json` の `repos_restore` を確認。
+  - bare repo が不足している場合は `kra repo add` で再登録してから再実行。

@@ -1,4 +1,4 @@
-$ gionx init --root <ROOT> --context ui-e2e
+$ kra init --root <ROOT> --context ui-e2e
 exit: 0
 stdout:
 
@@ -7,7 +7,7 @@ Result:
   Context selected: ui-e2e
 
 
-$ gionx ws list
+$ kra ws list
 exit: 0
 stdout:
 Workspaces(active):
@@ -15,7 +15,7 @@ Workspaces(active):
   (none)
 
 
-$ gionx ws create --no-prompt UI-100
+$ kra ws create --no-prompt UI-100
 exit: 0
 stdout:
 
@@ -25,7 +25,7 @@ Result:
   path: <ROOT>/workspaces/UI-100
 
 
-$ gionx ws list
+$ kra ws list
 exit: 0
 stdout:
 Workspaces(active):
@@ -33,10 +33,10 @@ Workspaces(active):
   • UI-100: (no title)
 
 
-$ gionx ws --act go UI-100
+$ kra ws --act go UI-100
 exit: 0
 
-$ gionx ws --act close UI-100
+$ kra ws --act close UI-100
 exit: 0
 stdout:
 Result:
@@ -44,7 +44,7 @@ Result:
   ✔ UI-100
 
 
-$ gionx ws list --archived
+$ kra ws list --archived
 exit: 0
 stdout:
 Workspaces(archived):

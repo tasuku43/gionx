@@ -1,9 +1,9 @@
 ---
-title: "`gionx ws import jira`"
+title: "`kra ws import jira`"
 status: implemented
 ---
 
-# `gionx ws import jira`
+# `kra ws import jira`
 
 ## Purpose
 
@@ -12,17 +12,17 @@ This command is for workspace creation (0..N), not for actions on existing works
 
 ## Command forms
 
-- `gionx ws import jira [--sprint [<id|name>] [--space <key>|--project <key>] | --jql [<expr>]] [--limit <n>] [--apply] [--no-prompt] [--json]`
-- `gionx ws import jira --sprint [<id|name>] --space <key> [--limit <n>] [--apply] [--no-prompt] [--json]`
-- `gionx ws import jira --sprint [<id|name>] --project <key> [--limit <n>] [--apply] [--no-prompt] [--json]`
-- `gionx ws import jira --jql "<expr>" [--limit <n>] [--apply] [--no-prompt] [--json]`
+- `kra ws import jira [--sprint [<id|name>] [--space <key>|--project <key>] | --jql [<expr>]] [--limit <n>] [--apply] [--no-prompt] [--json]`
+- `kra ws import jira --sprint [<id|name>] --space <key> [--limit <n>] [--apply] [--no-prompt] [--json]`
+- `kra ws import jira --sprint [<id|name>] --project <key> [--limit <n>] [--apply] [--no-prompt] [--json]`
+- `kra ws import jira --jql "<expr>" [--limit <n>] [--apply] [--no-prompt] [--json]`
 
 ## Input rules
 
 - `--sprint` and `--jql` are mutually exclusive.
 - If both are omitted, resolve mode from config:
-  - `<current-root>/.gionx/config.yaml` -> `integration.jira.defaults.type`
-  - `~/.gionx/config.yaml` -> `integration.jira.defaults.type`
+  - `<current-root>/.kra/config.yaml` -> `integration.jira.defaults.type`
+  - `~/.kra/config.yaml` -> `integration.jira.defaults.type`
   - fallback `sprint`
 - `--space` is the primary scope key option for sprint mode.
 - `--project` is an alias of `--space` (same behavior).
@@ -30,6 +30,11 @@ This command is for workspace creation (0..N), not for actions on existing works
 - `--space` and `--project` must not be combined.
 - `--board` is not supported with `--sprint`.
 - `--limit` default is `30` and valid range is `1..200`.
+- Jira base URL resolution order:
+  1. `KRA_JIRA_BASE_URL` (if set)
+  2. `<current-root>/.kra/config.yaml` -> `integration.jira.base_url`
+  3. `~/.kra/config.yaml` -> `integration.jira.base_url`
+- Jira credentials are env-only: `KRA_JIRA_EMAIL`, `KRA_JIRA_API_TOKEN`.
 - With `--no-prompt`:
   - if `--apply` is set, execute apply.
   - if `--apply` is not set, print plan only and exit with success.

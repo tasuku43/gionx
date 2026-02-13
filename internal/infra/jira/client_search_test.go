@@ -23,9 +23,9 @@ func TestClient_SearchIssuesByJQL_Success(t *testing.T) {
 	}))
 	t.Cleanup(server.Close)
 
-	t.Setenv("GIONX_JIRA_BASE_URL", server.URL)
-	t.Setenv("GIONX_JIRA_EMAIL", "dev@example.com")
-	t.Setenv("GIONX_JIRA_API_TOKEN", "token-123")
+	t.Setenv("KRA_JIRA_BASE_URL", server.URL)
+	t.Setenv("KRA_JIRA_EMAIL", "dev@example.com")
+	t.Setenv("KRA_JIRA_API_TOKEN", "token-123")
 
 	client := NewClient()
 	issues, err := client.SearchIssuesByJQL(context.Background(), `assignee=currentUser()`, 10)
@@ -59,9 +59,9 @@ func TestClient_ListScrumBoards_Success(t *testing.T) {
 	}))
 	t.Cleanup(server.Close)
 
-	t.Setenv("GIONX_JIRA_BASE_URL", server.URL)
-	t.Setenv("GIONX_JIRA_EMAIL", "dev@example.com")
-	t.Setenv("GIONX_JIRA_API_TOKEN", "token-123")
+	t.Setenv("KRA_JIRA_BASE_URL", server.URL)
+	t.Setenv("KRA_JIRA_EMAIL", "dev@example.com")
+	t.Setenv("KRA_JIRA_API_TOKEN", "token-123")
 
 	client := NewClient()
 	boards, err := client.ListScrumBoards(context.Background())
@@ -85,9 +85,9 @@ func TestClient_ListBoardSprintsActiveFuture_Success(t *testing.T) {
 	}))
 	t.Cleanup(server.Close)
 
-	t.Setenv("GIONX_JIRA_BASE_URL", server.URL)
-	t.Setenv("GIONX_JIRA_EMAIL", "dev@example.com")
-	t.Setenv("GIONX_JIRA_API_TOKEN", "token-123")
+	t.Setenv("KRA_JIRA_BASE_URL", server.URL)
+	t.Setenv("KRA_JIRA_EMAIL", "dev@example.com")
+	t.Setenv("KRA_JIRA_API_TOKEN", "token-123")
 
 	client := NewClient()
 	sprints, err := client.ListBoardSprintsActiveFuture(context.Background(), 10)
@@ -115,9 +115,9 @@ func TestClient_ListProjectOpenSprints_UsesJQL(t *testing.T) {
 	}))
 	t.Cleanup(server.Close)
 
-	t.Setenv("GIONX_JIRA_BASE_URL", server.URL)
-	t.Setenv("GIONX_JIRA_EMAIL", "dev@example.com")
-	t.Setenv("GIONX_JIRA_API_TOKEN", "token-123")
+	t.Setenv("KRA_JIRA_BASE_URL", server.URL)
+	t.Setenv("KRA_JIRA_EMAIL", "dev@example.com")
+	t.Setenv("KRA_JIRA_API_TOKEN", "token-123")
 
 	client := NewClient()
 	sprints, err := client.ListProjectOpenSprints(context.Background(), "DEMO", 50)
@@ -138,9 +138,9 @@ func TestClient_ListProjectOpenSprints_ParsesCustomFieldSprint(t *testing.T) {
 	}))
 	t.Cleanup(server.Close)
 
-	t.Setenv("GIONX_JIRA_BASE_URL", server.URL)
-	t.Setenv("GIONX_JIRA_EMAIL", "dev@example.com")
-	t.Setenv("GIONX_JIRA_API_TOKEN", "token-123")
+	t.Setenv("KRA_JIRA_BASE_URL", server.URL)
+	t.Setenv("KRA_JIRA_EMAIL", "dev@example.com")
+	t.Setenv("KRA_JIRA_API_TOKEN", "token-123")
 
 	client := NewClient()
 	sprints, err := client.ListProjectOpenSprints(context.Background(), "DEMO", 50)
@@ -161,9 +161,9 @@ func TestClient_ListProjectOpenSprints_ParsesLegacySprintString(t *testing.T) {
 	}))
 	t.Cleanup(server.Close)
 
-	t.Setenv("GIONX_JIRA_BASE_URL", server.URL)
-	t.Setenv("GIONX_JIRA_EMAIL", "dev@example.com")
-	t.Setenv("GIONX_JIRA_API_TOKEN", "token-123")
+	t.Setenv("KRA_JIRA_BASE_URL", server.URL)
+	t.Setenv("KRA_JIRA_EMAIL", "dev@example.com")
+	t.Setenv("KRA_JIRA_API_TOKEN", "token-123")
 
 	client := NewClient()
 	sprints, err := client.ListProjectOpenSprints(context.Background(), "DEMO", 50)
@@ -184,9 +184,9 @@ func TestClient_ListProjectOpenSprints_ParsesStringIDAndBoardID(t *testing.T) {
 	}))
 	t.Cleanup(server.Close)
 
-	t.Setenv("GIONX_JIRA_BASE_URL", server.URL)
-	t.Setenv("GIONX_JIRA_EMAIL", "dev@example.com")
-	t.Setenv("GIONX_JIRA_API_TOKEN", "token-123")
+	t.Setenv("KRA_JIRA_BASE_URL", server.URL)
+	t.Setenv("KRA_JIRA_EMAIL", "dev@example.com")
+	t.Setenv("KRA_JIRA_API_TOKEN", "token-123")
 
 	client := NewClient()
 	sprints, err := client.ListProjectOpenSprints(context.Background(), "DEMO", 50)
@@ -204,9 +204,9 @@ func TestClient_SearchIssuesByJQL_AuthFailure(t *testing.T) {
 	}))
 	t.Cleanup(server.Close)
 
-	t.Setenv("GIONX_JIRA_BASE_URL", server.URL)
-	t.Setenv("GIONX_JIRA_EMAIL", "dev@example.com")
-	t.Setenv("GIONX_JIRA_API_TOKEN", "token-123")
+	t.Setenv("KRA_JIRA_BASE_URL", server.URL)
+	t.Setenv("KRA_JIRA_EMAIL", "dev@example.com")
+	t.Setenv("KRA_JIRA_API_TOKEN", "token-123")
 
 	client := NewClient()
 	_, err := client.SearchIssuesByJQL(context.Background(), `assignee=currentUser()`, 10)
@@ -215,5 +215,56 @@ func TestClient_SearchIssuesByJQL_AuthFailure(t *testing.T) {
 	}
 	if !strings.Contains(err.Error(), "jira authentication failed") {
 		t.Fatalf("error = %v", err)
+	}
+}
+
+func TestClient_SearchIssuesByJQL_UsesConfiguredBaseURL(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/rest/api/3/search/jql" {
+			t.Fatalf("path = %q, want %q", r.URL.Path, "/rest/api/3/search/jql")
+		}
+		_, _ = w.Write([]byte(`{"issues":[{"key":"PROJ-1","fields":{"summary":"From config"}}]}`))
+	}))
+	t.Cleanup(server.Close)
+
+	t.Setenv("KRA_JIRA_BASE_URL", "")
+	t.Setenv("KRA_JIRA_EMAIL", "dev@example.com")
+	t.Setenv("KRA_JIRA_API_TOKEN", "token-123")
+
+	client := NewClientWithBaseURL(server.URL)
+	issues, err := client.SearchIssuesByJQL(context.Background(), `assignee=currentUser()`, 10)
+	if err != nil {
+		t.Fatalf("SearchIssuesByJQL() error: %v", err)
+	}
+	if len(issues) != 1 || issues[0].Key != "PROJ-1" {
+		t.Fatalf("issues = %#v", issues)
+	}
+}
+
+func TestClient_SearchIssuesByJQL_EnvBaseURLOverridesConfiguredBaseURL(t *testing.T) {
+	configServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		t.Fatalf("config base URL should not be called when env is set")
+	}))
+	t.Cleanup(configServer.Close)
+
+	envServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/rest/api/3/search/jql" {
+			t.Fatalf("path = %q, want %q", r.URL.Path, "/rest/api/3/search/jql")
+		}
+		_, _ = w.Write([]byte(`{"issues":[{"key":"PROJ-2","fields":{"summary":"From env"}}]}`))
+	}))
+	t.Cleanup(envServer.Close)
+
+	t.Setenv("KRA_JIRA_BASE_URL", envServer.URL)
+	t.Setenv("KRA_JIRA_EMAIL", "dev@example.com")
+	t.Setenv("KRA_JIRA_API_TOKEN", "token-123")
+
+	client := NewClientWithBaseURL(configServer.URL)
+	issues, err := client.SearchIssuesByJQL(context.Background(), `assignee=currentUser()`, 10)
+	if err != nil {
+		t.Fatalf("SearchIssuesByJQL() error: %v", err)
+	}
+	if len(issues) != 1 || issues[0].Key != "PROJ-2" {
+		t.Fatalf("issues = %#v", issues)
 	}
 }

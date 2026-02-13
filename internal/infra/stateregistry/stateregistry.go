@@ -3,7 +3,7 @@ package stateregistry
 import (
 	"time"
 
-	base "github.com/tasuku43/gionx/internal/stateregistry"
+	base "github.com/tasuku43/kra/internal/stateregistry"
 )
 
 type Entry = base.Entry

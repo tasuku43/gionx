@@ -1,9 +1,9 @@
 ---
-title: "`gionx ws --act close`"
+title: "`kra ws --act close`"
 status: implemented
 ---
 
-# `gionx ws --act close [--id <id>] [--force] [--format human|json] [<id>]`
+# `kra ws --act close [--id <id>] [--force] [--format human|json] [<id>]`
 
 ## Purpose
 
@@ -11,22 +11,22 @@ Close a workspace:
 - keep investigation notes and artifacts as an archive
 - remove Git worktrees to keep the working area clean
 
-This is the primary "task completed" flow in `gionx`.
+This is the primary "task completed" flow in `kra`.
 
 ## Behavior (MVP)
 
 ### Preconditions
 
-- `GIONX_ROOT` must be a Git working tree (or `gionx init` must have been run).
+- `KRA_ROOT` must be a Git working tree (or `kra init` must have been run).
 - Workspace `<id>` must exist as workspace metadata and be active.
 - If current process cwd is inside the target workspace path (`workspaces/<id>/...`), the command must
-  shift process cwd to `GIONX_ROOT` before worktree removal starts.
+  shift process cwd to `KRA_ROOT` before worktree removal starts.
 
 ### Steps
 
 1) Inspect repo risk (live)
 
-- For each repo under `GIONX_ROOT/workspaces/<id>/repos/<alias>`:
+- For each repo under `KRA_ROOT/workspaces/<id>/repos/<alias>`:
   - compute risk similar to `gion` (dirty / unpushed / diverged / unknown / clean)
 - If any repo is not clean, prompt for confirmation before continuing.
 
@@ -38,8 +38,8 @@ This is the primary "task completed" flow in `gionx`.
 
 3) Archive the workspace contents
 
-- Move `GIONX_ROOT/workspaces/<id>/` to `GIONX_ROOT/archive/<id>/` using an atomic rename.
-- After this step, `GIONX_ROOT/workspaces/<id>/` should not exist.
+- Move `KRA_ROOT/workspaces/<id>/` to `KRA_ROOT/archive/<id>/` using an atomic rename.
+- After this step, `KRA_ROOT/workspaces/<id>/` should not exist.
 
 4) Update workspace metadata/index
 
@@ -66,8 +66,8 @@ If the Git working tree has unrelated changes, this command must not include the
 
 ### Shell synchronization for close
 
-- When process cwd was shifted to `GIONX_ROOT` due to target-workspace containment, successful close must emit
-  shell action `cd '<GIONX_ROOT>'` via action-file protocol.
+- When process cwd was shifted to `KRA_ROOT` due to target-workspace containment, successful close must emit
+  shell action `cd '<KRA_ROOT>'` via action-file protocol.
 - On failure, parent-shell cwd must not be modified.
 
 ## Notes
@@ -79,7 +79,7 @@ If the Git working tree has unrelated changes, this command must not include the
 
 - This command accepts explicit target by `--id` or positional `<id>`.
 - If no id is provided, resolve from current path under `workspaces/<id>/...`.
-- Interactive selection should use `gionx ws select --act close`.
+- Interactive selection should use `kra ws select --act close`.
 - Selector and follow-up output should use section headings:
   - `Workspaces(active):`
   - `Plan:`
@@ -123,7 +123,7 @@ If the Git working tree has unrelated changes, this command must not include the
 
 ## FS metadata behavior
 
-- Before removing worktrees, refresh `workspaces/<id>/.gionx.meta.json.repos_restore` from live repo state.
+- Before removing worktrees, refresh `workspaces/<id>/.kra.meta.json.repos_restore` from live repo state.
 - `repos_restore` becomes the canonical reopen input after close.
-- `workspace.status` in `.gionx.meta.json` must be updated to `archived` before moving to `archive/<id>/`.
+- `workspace.status` in `.kra.meta.json` must be updated to `archived` before moving to `archive/<id>/`.
 - Metadata updates must use atomic replace.

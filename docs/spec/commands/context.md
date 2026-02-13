@@ -1,9 +1,9 @@
 ---
-title: "`gionx context`"
+title: "`kra context`"
 status: implemented
 ---
 
-# `gionx context`
+# `kra context`
 
 ## Purpose
 
@@ -11,9 +11,9 @@ Manage named contexts (`name -> path`) and current selection.
 
 ## Resolution order
 
-`gionx` resolves root in this order:
+`kra` resolves root in this order:
 
-1. current-context file (`~/.gionx/state/current-context`)
+1. current-context file (`~/.kra/state/current-context`)
 2. command-specific fallback (for commands that allow cwd-based discovery)
 
 Notes:
@@ -22,16 +22,16 @@ Notes:
 
 ## Commands (MVP)
 
-- `gionx context current`
+- `kra context current`
   - print current context name
   - fallback: print current path when name is unavailable (legacy entry)
-- `gionx context list`
+- `kra context list`
   - show known contexts from registry (`name`, `path`, `last_used_at`)
-- `gionx context create <name> --path <path> [--use]`
+- `kra context create <name> --path <path> [--use]`
   - validate path
   - persist name/path relation into registry
   - `--use` is specified, also select it as current context
-- `gionx context use [name]`
+- `kra context use [name]`
   - when `<name>` is provided:
     - resolve context by name
     - write `current-context` atomically
@@ -39,10 +39,10 @@ Notes:
     - open shared single-select UI and choose context interactively
   - non-TTY without `<name>` must fail fast with usage guidance.
   - print success in shared section style (`Result:`)
-- `gionx context rename <old> <new>`
+- `kra context rename <old> <new>`
   - rename context name in registry
   - fail when destination name already exists
-- `gionx context rm [name]`
+- `kra context rm [name]`
   - when `<name>` is provided:
     - remove context name from registry
   - when `<name>` is omitted in TTY:

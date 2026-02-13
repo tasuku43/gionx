@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"testing"
 
-	"github.com/tasuku43/gionx/internal/core/workspacerisk"
+	"github.com/tasuku43/kra/internal/core/workspacerisk"
 )
 
 func TestGolden_WSSection_FlowResult(t *testing.T) {

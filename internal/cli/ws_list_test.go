@@ -7,8 +7,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/tasuku43/gionx/internal/paths"
-	"github.com/tasuku43/gionx/internal/testutil"
+	"github.com/tasuku43/kra/internal/paths"
+	"github.com/tasuku43/kra/internal/testutil"
 )
 
 func TestCLI_WS_List_Help_ShowsUsage(t *testing.T) {
@@ -20,7 +20,7 @@ func TestCLI_WS_List_Help_ShowsUsage(t *testing.T) {
 	if code != exitOK {
 		t.Fatalf("exit code = %d, want %d", code, exitOK)
 	}
-	if !strings.Contains(out.String(), "gionx ws list") {
+	if !strings.Contains(out.String(), "kra ws list") {
 		t.Fatalf("stdout missing ws list usage: %q", out.String())
 	}
 	if err.Len() != 0 {
@@ -55,7 +55,7 @@ func TestCLI_WS_List_ImportsWorkspaceDirAndPrintsIt(t *testing.T) {
 		t.Fatalf("create imported ws dir: %v", err)
 	}
 
-	setGionxHomeForTest(t)
+	setKraHomeForTest(t)
 	if err := paths.WriteCurrentContext(root); err != nil {
 		t.Fatalf("WriteCurrentContext() error: %v", err)
 	}
@@ -100,7 +100,7 @@ func TestCLI_WS_List_MarksMissingRepoWorktree(t *testing.T) {
 		t.Fatalf("write workspace meta: %v", err)
 	}
 
-	setGionxHomeForTest(t)
+	setKraHomeForTest(t)
 	if err := paths.WriteCurrentContext(root); err != nil {
 		t.Fatalf("WriteCurrentContext() error: %v", err)
 	}

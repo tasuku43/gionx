@@ -5,9 +5,9 @@ status: planned
 
 # CONFIG Backlog
 
-- [x] CONFIG-001: Global runtime/state paths under `~/.gionx`
-  - What: relocate global runtime paths to `~/.gionx` (`state/current-context`,
-    `state/root-registry.json`, `repo-pool/`) and keep tests isolated via `GIONX_HOME`.
+- [x] CONFIG-001: Global runtime/state paths under `~/.kra`
+  - What: relocate global runtime paths to `~/.kra` (`state/current-context`,
+    `state/root-registry.json`, `repo-pool/`) and keep tests isolated via `KRA_HOME`.
   - Specs:
     - `docs/spec/concepts/state-store.md`
     - `docs/spec/commands/context.md`
@@ -28,7 +28,7 @@ status: planned
   - Serial: yes
 
 - [x] CONFIG-003: `init` root-config bootstrap
-  - What: generate `<root>/.gionx/config.yaml` on first init without overwrite.
+  - What: generate `<root>/.kra/config.yaml` on first init without overwrite.
   - Specs:
     - `docs/spec/commands/init.md`
     - `docs/spec/concepts/config.md`
@@ -54,7 +54,7 @@ status: planned
   - Serial: yes
 
 - [x] CONFIG-006: global config scaffold bootstrap + config header comments
-  - What: create `~/.gionx/config.yaml` scaffold on first state-changing command
+  - What: create `~/.kra/config.yaml` scaffold on first state-changing command
     and include precedence/order comments in global/root generated configs.
   - Specs:
     - `docs/spec/concepts/config.md`
