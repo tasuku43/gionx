@@ -22,6 +22,18 @@ const (
 func (c *CLI) runInit(args []string) int {
 	rootFromFlag := ""
 	contextFromFlag := ""
+	outputFormat := "human"
+	writeJSONError := func(code string, message string, exitCode int) int {
+		_ = writeCLIJSON(c.Out, cliJSONResponse{
+			OK:     false,
+			Action: "init",
+			Error: &cliJSONError{
+				Code:    code,
+				Message: message,
+			},
+		})
+		return exitCode
+	}
 	for len(args) > 0 {
 		switch args[0] {
 		case "-h", "--help", "help":
@@ -37,11 +49,22 @@ func (c *CLI) runInit(args []string) int {
 			args = args[2:]
 		case "--context":
 			if len(args) < 2 {
+				if outputFormat == "json" {
+					return writeJSONError("invalid_argument", "--context requires a value", exitUsage)
+				}
 				fmt.Fprintln(c.Err, "--context requires a value")
 				c.printInitUsage(c.Err)
 				return exitUsage
 			}
 			contextFromFlag = strings.TrimSpace(args[1])
+			args = args[2:]
+		case "--format":
+			if len(args) < 2 {
+				fmt.Fprintln(c.Err, "--format requires a value")
+				c.printInitUsage(c.Err)
+				return exitUsage
+			}
+			outputFormat = strings.TrimSpace(args[1])
 			args = args[2:]
 		default:
 			if strings.HasPrefix(args[0], "--root=") {
@@ -54,14 +77,37 @@ func (c *CLI) runInit(args []string) int {
 				args = args[1:]
 				continue
 			}
+			if strings.HasPrefix(args[0], "--format=") {
+				outputFormat = strings.TrimSpace(strings.TrimPrefix(args[0], "--format="))
+				args = args[1:]
+				continue
+			}
 			fmt.Fprintf(c.Err, "unexpected args for init: %q\n", strings.Join(args, " "))
 			c.printInitUsage(c.Err)
 			return exitUsage
 		}
 	}
+	switch outputFormat {
+	case "human", "json":
+	default:
+		fmt.Fprintf(c.Err, "unsupported --format: %q (supported: human, json)\n", outputFormat)
+		c.printInitUsage(c.Err)
+		return exitUsage
+	}
+	if outputFormat == "json" {
+		if strings.TrimSpace(rootFromFlag) == "" {
+			return writeJSONError("invalid_argument", "--root is required in --format json mode", exitUsage)
+		}
+		if strings.TrimSpace(contextFromFlag) == "" {
+			return writeJSONError("invalid_argument", "--context is required in --format json mode", exitUsage)
+		}
+	}
 
 	root, contextName, err := c.resolveInitInputs(rootFromFlag, contextFromFlag)
 	if err != nil {
+		if outputFormat == "json" {
+			return writeJSONError("invalid_argument", fmt.Sprintf("resolve init inputs: %v", err), exitUsage)
+		}
 		fmt.Fprintf(c.Err, "resolve init inputs: %v\n", err)
 		return exitError
 	}
@@ -74,6 +120,9 @@ func (c *CLI) runInit(args []string) int {
 	svc := initcmd.NewService(appports.NewInitPort(ensureInitLayout, c.touchStateRegistry))
 	result, err := svc.Run(ctx, initcmd.Request{Root: root, ContextName: contextName})
 	if err != nil {
+		if outputFormat == "json" {
+			return writeJSONError("internal_error", fmt.Sprintf("run init usecase: %v", err), exitError)
+		}
 		switch {
 		case strings.HasPrefix(err.Error(), "init layout:"):
 			fmt.Fprintf(c.Err, "%v\n", err)
@@ -87,8 +136,23 @@ func (c *CLI) runInit(args []string) int {
 		return exitError
 	}
 	if err := paths.WriteCurrentContext(result.Root); err != nil {
+		if outputFormat == "json" {
+			return writeJSONError("internal_error", fmt.Sprintf("update current context: %v", err), exitError)
+		}
 		fmt.Fprintf(c.Err, "update current context: %v\n", err)
 		return exitError
+	}
+	if outputFormat == "json" {
+		_ = writeCLIJSON(c.Out, cliJSONResponse{
+			OK:     true,
+			Action: "init",
+			Result: map[string]any{
+				"root":         result.Root,
+				"context_name": contextName,
+			},
+		})
+		c.debugf("init completed root=%s", result.Root)
+		return exitOK
 	}
 
 	useColorOut := writerSupportsColor(c.Out)
