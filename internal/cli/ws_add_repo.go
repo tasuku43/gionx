@@ -1618,7 +1618,8 @@ func renderAddRepoInputsProgress(out io.Writer, workspaceID string, rows []addRe
 			if i < len(lines) {
 				line = lines[i]
 			}
-			fmt.Fprintf(out, "\x1b[2K%s\n", line)
+			// Ensure each redraw starts from column 1; inline prompt may leave cursor mid-line.
+			fmt.Fprintf(out, "\r\x1b[2K%s\n", line)
 		}
 		if oldRows > len(lines) {
 			fmt.Fprintf(out, "\x1b[%dA", oldRows-len(lines))
