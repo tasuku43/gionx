@@ -377,6 +377,7 @@ func (c *CLI) printAgentUsage(w io.Writer) {
 Subcommands:
   run               Start an agent activity
   stop              Stop a running agent activity
+  logs              Show logs for an agent activity
   list              List agent activities
   ls                Alias of list
   help              Show this help
@@ -418,5 +419,18 @@ List tracked agent activities managed by kra in current KRA_ROOT.
 Options:
   --workspace       Filter by workspace ID
   --format          Output format (default: human)
+`)
+}
+
+func (c *CLI) printAgentLogsUsage(w io.Writer) {
+	fmt.Fprint(w, `Usage:
+  kra agent logs --workspace <id> [--tail <n>] [--follow]
+
+Show logs for one workspace's current tracked agent activity.
+
+Options:
+  --workspace       Workspace ID (required)
+  --tail            Show only the last N lines (default: 100)
+  --follow          Keep streaming appended lines
 `)
 }

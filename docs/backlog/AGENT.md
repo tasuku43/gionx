@@ -32,7 +32,7 @@ status: planned
   - Depends: AGENT-010
   - Serial: yes
 
-- [ ] AGENT-030: `kra agent logs` baseline
+- [x] AGENT-030: `kra agent logs` baseline
   - What: add a log viewing command to inspect recent/streaming logs by workspace
     and/or agent session, aligned with existing output contract conventions.
   - Specs:

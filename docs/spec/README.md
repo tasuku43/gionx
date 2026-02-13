@@ -40,6 +40,7 @@ Implementation should reference these specs. When behavior changes, update the s
   - `concepts/output-contract.md`: Shared machine-readable output envelope and error code policy
 - Commands
   - `commands/agent/activity.md`: `kra agent` activity tracking baseline
+  - `commands/agent/logs.md`: `kra agent logs`
   - `commands/agent/run.md`: `kra agent run`
   - `commands/agent/stop.md`: `kra agent stop`
   - `commands/doctor.md`: `kra doctor`

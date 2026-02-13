@@ -18,6 +18,7 @@ Provide a baseline command and data contract to observe agent execution across w
 - Baseline command surface:
   - `kra agent run`
   - `kra agent stop`
+  - `kra agent logs`
   - `kra agent list` (`ls` alias)
 - Discoverability policy:
   - `kra agent` is executable directly.

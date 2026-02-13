@@ -299,3 +299,96 @@ func TestCLI_AgentStop_UpdatesStatusAndHeartbeat(t *testing.T) {
 		t.Fatalf("last_heartbeat_at should increase, got=%d", rows[0].LastHeartbeatAt)
 	}
 }
+
+func TestCLI_AgentLogs_RequiresWorkspace(t *testing.T) {
+	prepareCurrentRootForTest(t)
+	var out bytes.Buffer
+	var err bytes.Buffer
+	c := New(&out, &err)
+
+	code := c.Run([]string{"agent", "logs"})
+	if code != exitUsage {
+		t.Fatalf("exit code = %d, want %d", code, exitUsage)
+	}
+	if !strings.Contains(err.String(), "--workspace is required") {
+		t.Fatalf("stderr should include missing workspace error: %q", err.String())
+	}
+}
+
+func TestCLI_AgentLogs_FailsWhenWorkspaceRecordMissing(t *testing.T) {
+	prepareCurrentRootForTest(t)
+	var out bytes.Buffer
+	var err bytes.Buffer
+	c := New(&out, &err)
+
+	code := c.Run([]string{"agent", "logs", "--workspace", "WS-1"})
+	if code != exitError {
+		t.Fatalf("exit code = %d, want %d", code, exitError)
+	}
+	if !strings.Contains(err.String(), "agent activity not found for workspace: WS-1") {
+		t.Fatalf("stderr should include not found error: %q", err.String())
+	}
+}
+
+func TestCLI_AgentLogs_FailsWhenLogPathEmpty(t *testing.T) {
+	root := prepareCurrentRootForTest(t)
+	stateDir := filepath.Join(root, ".kra", "state")
+	if err := os.MkdirAll(stateDir, 0o755); err != nil {
+		t.Fatalf("mkdir state dir: %v", err)
+	}
+	content := `[
+  {"workspace_id":"WS-1","agent_kind":"codex","started_at":100,"last_heartbeat_at":100,"status":"running","log_path":""}
+]`
+	if err := os.WriteFile(filepath.Join(stateDir, agentActivitiesFilename), []byte(content), 0o644); err != nil {
+		t.Fatalf("write activity file: %v", err)
+	}
+
+	var out bytes.Buffer
+	var err bytes.Buffer
+	c := New(&out, &err)
+	code := c.Run([]string{"agent", "logs", "--workspace", "WS-1"})
+	if code != exitError {
+		t.Fatalf("exit code = %d, want %d", code, exitError)
+	}
+	if !strings.Contains(err.String(), "log_path is empty for workspace: WS-1") {
+		t.Fatalf("stderr should include empty log path error: %q", err.String())
+	}
+}
+
+func TestCLI_AgentLogs_ShowsTailLines(t *testing.T) {
+	root := prepareCurrentRootForTest(t)
+	stateDir := filepath.Join(root, ".kra", "state")
+	if err := os.MkdirAll(stateDir, 0o755); err != nil {
+		t.Fatalf("mkdir state dir: %v", err)
+	}
+	logRelPath := filepath.Join("logs", "ws1.log")
+	logAbsPath := filepath.Join(root, logRelPath)
+	if err := os.MkdirAll(filepath.Dir(logAbsPath), 0o755); err != nil {
+		t.Fatalf("mkdir logs dir: %v", err)
+	}
+	logContent := "line1\nline2\nline3\nline4\n"
+	if err := os.WriteFile(logAbsPath, []byte(logContent), 0o644); err != nil {
+		t.Fatalf("write log file: %v", err)
+	}
+	content := `[
+  {"workspace_id":"WS-1","agent_kind":"codex","started_at":100,"last_heartbeat_at":100,"status":"running","log_path":"` + filepath.ToSlash(logRelPath) + `"}
+]`
+	if err := os.WriteFile(filepath.Join(stateDir, agentActivitiesFilename), []byte(content), 0o644); err != nil {
+		t.Fatalf("write activity file: %v", err)
+	}
+
+	var out bytes.Buffer
+	var err bytes.Buffer
+	c := New(&out, &err)
+	code := c.Run([]string{"agent", "logs", "--workspace", "WS-1", "--tail", "2"})
+	if code != exitOK {
+		t.Fatalf("exit code = %d, want %d (stderr=%q)", code, exitOK, err.String())
+	}
+	got := out.String()
+	if strings.Contains(got, "line1") || strings.Contains(got, "line2") {
+		t.Fatalf("unexpected old lines in output: %q", got)
+	}
+	if !strings.Contains(got, "line3\nline4\n") {
+		t.Fatalf("tail output mismatch: %q", got)
+	}
+}
