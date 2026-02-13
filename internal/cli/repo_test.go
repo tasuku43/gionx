@@ -61,6 +61,93 @@ func TestCLI_RepoAdd_AddsPoolAndRegistersRepo(t *testing.T) {
 	}
 }
 
+func TestCLI_RepoAdd_JSON_Success(t *testing.T) {
+	testutil.RequireCommand(t, "git")
+
+	runGit := func(dir string, args ...string) {
+		t.Helper()
+		cmd := exec.Command("git", args...)
+		if dir != "" {
+			cmd.Dir = dir
+		}
+		out, err := cmd.CombinedOutput()
+		if err != nil {
+			t.Fatalf("git %s failed: %v (output=%s)", strings.Join(args, " "), err, strings.TrimSpace(string(out)))
+		}
+	}
+
+	env := testutil.NewEnv(t)
+	env.EnsureRootLayout(t)
+	repoSpec := prepareRemoteRepoSpecWithName(t, runGit, "github.com", "example-org", "json-add")
+
+	var out bytes.Buffer
+	var err bytes.Buffer
+	c := New(&out, &err)
+	code := c.Run([]string{"repo", "add", "--format", "json", repoSpec})
+	if code != exitOK {
+		t.Fatalf("repo add --format json exit code = %d, want %d (stderr=%q)", code, exitOK, err.String())
+	}
+	resp := decodeJSONResponse(t, out.String())
+	if !resp.OK || resp.Action != "repo.add" {
+		t.Fatalf("unexpected json response: %+v", resp)
+	}
+	if got := int(resp.Result["added"].(float64)); got != 1 {
+		t.Fatalf("result.added = %d, want 1", got)
+	}
+}
+
+func TestCLI_RepoAdd_JSON_RequiresRepoSpec(t *testing.T) {
+	env := testutil.NewEnv(t)
+	env.EnsureRootLayout(t)
+
+	var out bytes.Buffer
+	var err bytes.Buffer
+	c := New(&out, &err)
+	code := c.Run([]string{"repo", "add", "--format", "json"})
+	if code != exitUsage {
+		t.Fatalf("repo add --format json exit code = %d, want %d", code, exitUsage)
+	}
+	resp := decodeJSONResponse(t, out.String())
+	if resp.OK || resp.Action != "repo.add" || resp.Error.Code != "invalid_argument" {
+		t.Fatalf("unexpected json response: %+v", resp)
+	}
+}
+
+func TestCLI_RepoAdd_JSON_PartialFailure(t *testing.T) {
+	testutil.RequireCommand(t, "git")
+
+	runGit := func(dir string, args ...string) {
+		t.Helper()
+		cmd := exec.Command("git", args...)
+		if dir != "" {
+			cmd.Dir = dir
+		}
+		out, err := cmd.CombinedOutput()
+		if err != nil {
+			t.Fatalf("git %s failed: %v (output=%s)", strings.Join(args, " "), err, strings.TrimSpace(string(out)))
+		}
+	}
+
+	env := testutil.NewEnv(t)
+	env.EnsureRootLayout(t)
+	repoSpec := prepareRemoteRepoSpecWithName(t, runGit, "github.com", "example-org", "json-partial")
+
+	var out bytes.Buffer
+	var err bytes.Buffer
+	c := New(&out, &err)
+	code := c.Run([]string{"repo", "add", "--format", "json", repoSpec, "not-a-repo-spec"})
+	if code != exitError {
+		t.Fatalf("repo add --format json exit code = %d, want %d", code, exitError)
+	}
+	resp := decodeJSONResponse(t, out.String())
+	if resp.OK || resp.Action != "repo.add" || resp.Error.Code != "conflict" {
+		t.Fatalf("unexpected json response: %+v", resp)
+	}
+	if got := int(resp.Result["added"].(float64)); got != 1 {
+		t.Fatalf("result.added = %d, want 1", got)
+	}
+}
+
 func TestCLI_RepoAdd_RemoteMismatchFails(t *testing.T) {
 	testutil.RequireCommand(t, "git")
 
