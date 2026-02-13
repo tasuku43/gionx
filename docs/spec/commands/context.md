@@ -25,12 +25,15 @@ Notes:
 - `kra context current`
   - print current context name
   - fallback: print current path when name is unavailable (legacy entry)
+  - `--format json` supported (`action=context.current`)
 - `kra context list`
   - show known contexts from registry (`name`, `path`, `last_used_at`)
+  - `--format json` supported (`action=context.list`)
 - `kra context create <name> --path <path> [--use]`
   - validate path
   - persist name/path relation into registry
   - `--use` is specified, also select it as current context
+  - `--format json` supported (`action=context.create`)
 - `kra context use [name]`
   - when `<name>` is provided:
     - resolve context by name
@@ -38,16 +41,19 @@ Notes:
   - when `<name>` is omitted in TTY:
     - open shared single-select UI and choose context interactively
   - non-TTY without `<name>` must fail fast with usage guidance.
+  - `--format json` is non-interactive and requires explicit `<name>` (`action=context.use`)
   - print success in shared section style (`Result:`)
 - `kra context rename <old> <new>`
   - rename context name in registry
   - fail when destination name already exists
+  - `--format json` supported (`action=context.rename`)
 - `kra context rm [name]`
   - when `<name>` is provided:
     - remove context name from registry
   - when `<name>` is omitted in TTY:
     - open shared single-select UI and choose context interactively
   - non-TTY without `<name>` must fail fast with usage guidance.
+  - `--format json` is non-interactive and requires explicit `<name>` (`action=context.remove`)
   - fail when target is current context (safety guard)
 
 ## Error handling

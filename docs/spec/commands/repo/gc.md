@@ -8,7 +8,7 @@ status: implemented
 ## Usage
 
 ```sh
-kra repo gc [<repo-key|repo-uid>...]
+kra repo gc [--format human|json] [--yes] [<repo-key|repo-uid>...]
 ```
 
 ## Purpose
@@ -42,6 +42,12 @@ If any gate fails, that repo is not included in gc candidates.
 - `Risk:` section with permanent deletion warning
 - explicit confirmation prompt (`y/yes` only)
 - `Result:` summary (`Removed <n> / <m>`)
+
+JSON mode:
+- `--format json` requires explicit targets and `--yes` (no interactive prompt)
+- action: `repo.gc`
+- success result includes `removed`, `total`, `items[]`
+- ineligible selection returns `ok=false`, `error.code=conflict`
 
 ## Exit code
 

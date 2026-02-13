@@ -1,6 +1,6 @@
 ---
 title: "CLI output contract (human/json)"
-status: planned
+status: implemented
 ---
 
 # Output Contract
@@ -9,7 +9,7 @@ status: planned
 
 Define one shared machine-readable response envelope for commands that support `--format json`.
 
-## JSON envelope (target)
+## JSON envelope
 
 - `ok` (`bool`): overall command success.
 - `action` (`string`): stable action identifier (for example: `ws.add-repo`, `repo.gc`).
@@ -29,14 +29,22 @@ Define one shared machine-readable response envelope for commands that support `
   - `internal_error`
 - Keep `message` detailed, but clients should branch on `error.code`.
 
+Implemented code classes in this phase:
+- `invalid_argument`
+- `not_found`
+- `conflict`
+- `internal_error`
+
 ## Human mode relation
 
 - Human `Result:` sections are not required to mirror JSON field names.
 - Semantics (success/failure totals and target IDs) should remain equivalent.
 
-## Rollout plan
+## Applied commands (OPS-003)
 
-1. Document current deviations per command.
-2. Align selected high-traffic commands first.
-3. Backward-compat policy:
-  - preserve existing keys for one transition window when needed.
+- `init`
+- `context` (`current`, `list`, `create`, `use`, `rename`, `rm`)
+- `repo add`
+- `repo remove`
+- `repo gc`
+- `ws list`

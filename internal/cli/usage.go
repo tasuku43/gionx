@@ -29,15 +29,22 @@ func (c *CLI) printContextUsage(w io.Writer) {
   kra context <subcommand> [args]
 
 Subcommands:
-  current           Print current context name (or path fallback)
-  list              List contexts (name/path) from root registry
-  create <name> --path <path> [--use]
+  current [--format human|json]
+                   Print current context name (or path fallback)
+  list [--format human|json]
+                   List contexts (name/path) from root registry
+  create <name> --path <path> [--use] [--format human|json]
                    Create a named context
-  use [name]        Select context by name (or interactive selector)
-  rename <old> <new>
+  use [name] [--format human|json]
+                   Select context by name (or interactive selector)
+  rename <old> <new> [--format human|json]
                    Rename context
-  rm [name]         Remove context (or interactive selector; cannot remove current context)
+  rm [name] [--format human|json]
+                   Remove context (or interactive selector; cannot remove current context)
   help              Show this help
+
+Notes:
+  - context use/rm in --format json mode require explicit <name> (non-interactive)
 `)
 }
 
@@ -104,7 +111,7 @@ Options:
 
 func (c *CLI) printInitUsage(w io.Writer) {
 	fmt.Fprint(w, `Usage:
-  kra init [--root <path>] [--context <name>]
+  kra init [--root <path>] [--context <name>] [--format human|json]
 
 Initialize KRA_ROOT and set current context.
 
@@ -117,6 +124,9 @@ Context name:
 - --context <name> (explicit)
 - interactive prompt in TTY (default: cwd basename)
 - non-TTY without --context: fail
+
+JSON mode:
+- requires --root and --context (no interactive prompt)
 `)
 }
 
@@ -200,7 +210,7 @@ Rules:
 
 func (c *CLI) printRepoAddUsage(w io.Writer) {
 	fmt.Fprint(w, `Usage:
-  kra repo add <repo-spec>...
+  kra repo add [--format human|json] <repo-spec>...
 
 Add one or more repositories into the shared repo pool and register them in the current root index.
 
@@ -225,7 +235,7 @@ Options:
 
 func (c *CLI) printRepoRemoveUsage(w io.Writer) {
 	fmt.Fprint(w, `Usage:
-  kra repo remove [<repo-key>...]
+  kra repo remove [--format human|json] [<repo-key>...]
 
 Remove repositories from the current root registry (logical detach from this root only).
 
@@ -236,12 +246,13 @@ Modes:
 Notes:
   - Physical bare repos in the shared pool are NOT deleted by this command.
   - Repos still bound to any workspace in this root cannot be removed.
+  - --format json mode requires one or more repo keys.
 `)
 }
 
 func (c *CLI) printRepoGCUsage(w io.Writer) {
 	fmt.Fprint(w, `Usage:
-  kra repo gc [<repo-key|repo-uid>...]
+  kra repo gc [--format human|json] [--yes] [<repo-key|repo-uid>...]
 
 Garbage-collect bare repositories from shared repo pool when safety gates pass.
 
@@ -254,13 +265,16 @@ Safety gates:
   - not referenced by current root workspace metadata
   - not referenced by other known roots (root registry scan)
   - no linked worktrees in bare repository
+
+Notes:
+  - --format json mode requires explicit targets and --yes.
 `)
 }
 
 func (c *CLI) printWSListUsage(w io.Writer) {
 	fmt.Fprint(w, `Usage:
-  kra ws list [--archived] [--tree] [--format human|tsv]
-  kra ws ls [--archived] [--tree] [--format human|tsv]
+  kra ws list [--archived] [--tree] [--format human|tsv|json]
+  kra ws ls [--archived] [--tree] [--format human|tsv|json]
 
 List workspaces from filesystem metadata and repair basic drift.
 

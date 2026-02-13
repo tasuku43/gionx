@@ -3,7 +3,7 @@ title: "`kra init`"
 status: implemented
 ---
 
-# `kra init [--root <path>] [--context <name>]`
+# `kra init [--root <path>] [--context <name>] [--format human|json]`
 
 ## Purpose
 
@@ -26,6 +26,15 @@ Initialize a kra root and filesystem-first runtime metadata.
   - default suggestion: current directory basename
   - non-TTY: fail fast and require `--context`.
 - `init` always selects the context on success (no `use now?` confirmation).
+
+## JSON mode (`--format json`)
+
+- non-interactive only:
+  - `--root` required
+  - `--context` required
+- output envelope follows `docs/spec/concepts/output-contract.md`:
+  - success: `ok=true`, `action="init"`, `result.root`, `result.context_name`
+  - failure: `ok=false`, `error.code`, `error.message`
 
 ## Behavior
 

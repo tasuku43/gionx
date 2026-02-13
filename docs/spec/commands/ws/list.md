@@ -3,7 +3,7 @@ title: "`kra ws list`"
 status: implemented
 ---
 
-# `kra ws list [--archived] [--tree] [--format human|tsv]`
+# `kra ws list [--archived] [--tree] [--format human|tsv|json]`
 
 Alias:
 - `kra ws ls` (same semantics as `ws list`)
@@ -54,15 +54,17 @@ List workspaces with status and summary fields, similar in spirit to `gion manif
 
 ## Machine-readable output policy
 
-- `ws list` is specified as human-oriented task-list output in this UX phase.
-- Machine-readable output is explicit via `--format tsv`.
-- Default format is `human`.
+- default format is `human`.
+- machine-readable output is available via `--format tsv` and `--format json`.
 - TSV columns are fixed as:
   - `id`
   - `status`
   - `updated_at`
   - `repo_count`
   - `title`
+- JSON envelope follows `docs/spec/concepts/output-contract.md`:
+  - action: `ws.list`
+  - result: `scope`, `tree`, `items[]`
 
 ## Display fields (MVP)
 

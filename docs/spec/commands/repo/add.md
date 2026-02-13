@@ -8,7 +8,7 @@ status: implemented
 ## Usage
 
 ```sh
-kra repo add <repo-spec>...
+kra repo add [--format human|json] <repo-spec>...
 ```
 
 ## Purpose
@@ -62,3 +62,13 @@ Conflict policy:
 
 - all success: `exitOK`
 - one or more failures: `exitError`
+
+## JSON mode (`--format json`)
+
+- output envelope follows `docs/spec/concepts/output-contract.md`
+- action: `repo.add`
+- success result:
+  - `added`
+  - `total`
+  - `items[]` (`repo_key`, `success`, `reason`)
+- failure returns `ok=false` with `error.code=conflict` and includes partial result counts.

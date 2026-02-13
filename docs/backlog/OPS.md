@@ -23,7 +23,7 @@ status: planned
   - Depends: OPS-001
   - Serial: yes
 
-- [ ] OPS-003: Machine-readable output parity across major commands
+- [x] OPS-003: Machine-readable output parity across major commands
   - What: align `--format json` contracts across core commands so automation can rely on common envelope and error semantics.
   - Specs:
     - `docs/spec/concepts/output-contract.md`

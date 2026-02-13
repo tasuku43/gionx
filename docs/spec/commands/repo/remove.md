@@ -3,7 +3,7 @@ title: "`kra repo remove`"
 status: implemented
 ---
 
-# `kra repo remove [<repo-key>...]`
+# `kra repo remove [--format human|json] [<repo-key>...]`
 
 ## Purpose
 
@@ -29,6 +29,7 @@ It does not delete physical bare repositories from the shared repo pool.
 - Direct mode (non-interactive friendly):
   - pass one or more `repo-key` args
   - selected set is resolved from current root `repos`
+  - `--format json` requires direct mode (one or more repo keys)
 
 ## Removal policy
 
@@ -53,3 +54,13 @@ It does not delete physical bare repositories from the shared repo pool.
 
 - Physical bare repo directories under repo pool are kept.
 - Physical cleanup is handled by a separate `repo gc` flow.
+
+## JSON mode (`--format json`)
+
+- output envelope follows `docs/spec/concepts/output-contract.md`
+- action: `repo.remove`
+- success result:
+  - `removed`
+  - `total`
+  - `repos[]`
+- blocked removal (workspace refs) returns `ok=false`, `error.code=conflict`.
