@@ -369,3 +369,29 @@ func TestPrintWSListHuman_EmptyRowsUsesIndentedNone(t *testing.T) {
 		t.Fatalf("empty state should be indented with shared indent: %q", got)
 	}
 }
+
+func TestCountWorkspaceReposFromFilesystem_DeduplicatesMetaAndDirs(t *testing.T) {
+	root := t.TempDir()
+	wsID := "WS1"
+	reposPath := filepath.Join(root, "workspaces", wsID, "repos")
+	if err := os.MkdirAll(filepath.Join(reposPath, "repo-a"), 0o755); err != nil {
+		t.Fatalf("mkdir repo-a: %v", err)
+	}
+	if err := os.MkdirAll(filepath.Join(reposPath, "repo-c"), 0o755); err != nil {
+		t.Fatalf("mkdir repo-c: %v", err)
+	}
+
+	meta := workspaceMetaFile{
+		ReposRestore: []workspaceMetaRepoRestore{
+			{Alias: "repo-a"},
+			{Alias: "repo-b"},
+		},
+	}
+	got, err := countWorkspaceReposFromFilesystem(root, "active", wsID, meta)
+	if err != nil {
+		t.Fatalf("countWorkspaceReposFromFilesystem() error = %v, want nil", err)
+	}
+	if got != 3 {
+		t.Fatalf("repo count = %d, want 3", got)
+	}
+}

@@ -2,19 +2,16 @@ package cli
 
 import (
 	"context"
-	"database/sql"
 	"errors"
 	"fmt"
 	"io"
 	"os"
 	"path/filepath"
 	"strings"
-	"time"
 
-	"github.com/tasuku43/gion-core/workspacerisk"
+	"github.com/tasuku43/gionx/internal/core/workspacerisk"
 	"github.com/tasuku43/gionx/internal/infra/gitutil"
 	"github.com/tasuku43/gionx/internal/infra/paths"
-	"github.com/tasuku43/gionx/internal/infra/statestore"
 )
 
 type purgeWorkspaceMeta struct {
@@ -83,12 +80,6 @@ func (c *CLI) runWSPurge(args []string) int {
 	c.debugf("run ws purge args=%q noPrompt=%t force=%t", args, noPrompt, force)
 
 	ctx := context.Background()
-	repoPoolPath, err := paths.DefaultRepoPoolPath()
-	if err != nil {
-		fmt.Fprintf(c.Err, "resolve repo pool path: %v\n", err)
-		return exitError
-	}
-	var db *sql.DB = nil
 
 	if err := ensureRootGitWorktree(ctx, root); err != nil {
 		fmt.Fprintf(c.Err, "%v\n", err)
@@ -116,7 +107,7 @@ func (c *CLI) runWSPurge(args []string) int {
 			riskMeta = make(map[string]purgeWorkspaceMeta, len(items))
 			hasActiveRisk = false
 			for _, id := range selectedIDs {
-				meta, err := collectPurgeWorkspaceMeta(ctx, db, root, id)
+				meta, err := collectPurgeWorkspaceMeta(ctx, root, id)
 				if err != nil {
 					return workspaceFlowRiskStage{}, err
 				}
@@ -159,7 +150,7 @@ func (c *CLI) runWSPurge(args []string) int {
 		},
 		ApplyOne: func(item workspaceFlowSelection) error {
 			c.debugf("ws purge start workspace=%s", item.ID)
-			if err := c.purgeWorkspace(ctx, db, root, repoPoolPath, item.ID); err != nil {
+			if err := c.purgeWorkspace(ctx, root, item.ID); err != nil {
 				return err
 			}
 			c.debugf("ws purge completed workspace=%s", item.ID)
@@ -192,35 +183,24 @@ func (c *CLI) runWSPurge(args []string) int {
 	return exitOK
 }
 
-func collectPurgeWorkspaceMeta(ctx context.Context, db *sql.DB, root string, workspaceID string) (purgeWorkspaceMeta, error) {
+func collectPurgeWorkspaceMeta(ctx context.Context, root string, workspaceID string) (purgeWorkspaceMeta, error) {
 	status := ""
-	if db != nil {
-		s, ok, err := statestore.LookupWorkspaceStatus(ctx, db, workspaceID)
-		if err != nil {
-			return purgeWorkspaceMeta{}, fmt.Errorf("load workspace: %w", err)
-		}
-		if !ok {
-			return purgeWorkspaceMeta{}, fmt.Errorf("workspace not found: %s", workspaceID)
-		}
-		status = s
-	} else {
-		activePath := filepath.Join(root, "workspaces", workspaceID)
-		archivePath := filepath.Join(root, "archive", workspaceID)
-		if fi, err := os.Stat(activePath); err == nil && fi.IsDir() {
-			status = "active"
+	activePath := filepath.Join(root, "workspaces", workspaceID)
+	archivePath := filepath.Join(root, "archive", workspaceID)
+	if fi, err := os.Stat(activePath); err == nil && fi.IsDir() {
+		status = "active"
+	} else if err != nil && !os.IsNotExist(err) {
+		return purgeWorkspaceMeta{}, fmt.Errorf("stat workspace dir: %w", err)
+	}
+	if status == "" {
+		if fi, err := os.Stat(archivePath); err == nil && fi.IsDir() {
+			status = "archived"
 		} else if err != nil && !os.IsNotExist(err) {
-			return purgeWorkspaceMeta{}, fmt.Errorf("stat workspace dir: %w", err)
+			return purgeWorkspaceMeta{}, fmt.Errorf("stat archive dir: %w", err)
 		}
-		if status == "" {
-			if fi, err := os.Stat(archivePath); err == nil && fi.IsDir() {
-				status = "archived"
-			} else if err != nil && !os.IsNotExist(err) {
-				return purgeWorkspaceMeta{}, fmt.Errorf("stat archive dir: %w", err)
-			}
-		}
-		if status == "" {
-			return purgeWorkspaceMeta{}, fmt.Errorf("workspace not found: %s", workspaceID)
-		}
+	}
+	if status == "" {
+		return purgeWorkspaceMeta{}, fmt.Errorf("workspace not found: %s", workspaceID)
 	}
 	if status != "active" && status != "archived" {
 		return purgeWorkspaceMeta{}, fmt.Errorf("workspace cannot be purged (status=%s): %s", status, workspaceID)
@@ -231,13 +211,7 @@ func collectPurgeWorkspaceMeta(ctx context.Context, db *sql.DB, root string, wor
 		return meta, nil
 	}
 
-	var repos []statestore.WorkspaceRepo
-	var err error
-	if db != nil {
-		repos, err = statestore.ListWorkspaceRepos(ctx, db, workspaceID)
-	} else {
-		repos, err = listWorkspaceReposForClose(ctx, nil, root, workspaceID)
-	}
+	repos, err := listWorkspaceReposForClose(ctx, root, workspaceID)
 	if err != nil {
 		return purgeWorkspaceMeta{}, fmt.Errorf("list workspace repos: %w", err)
 	}
@@ -280,49 +254,32 @@ func printPurgeRiskSection(out io.Writer, selectedIDs []string, riskMeta map[str
 	})
 }
 
-func (c *CLI) purgeWorkspace(ctx context.Context, db *sql.DB, root string, repoPoolPath string, workspaceID string) error {
+func (c *CLI) purgeWorkspace(ctx context.Context, root string, workspaceID string) error {
 	status := ""
-	if db != nil {
-		s, ok, err := statestore.LookupWorkspaceStatus(ctx, db, workspaceID)
-		if err != nil {
-			return fmt.Errorf("load workspace: %w", err)
-		}
-		if !ok {
-			return fmt.Errorf("workspace not found: %s", workspaceID)
-		}
-		status = s
-	} else {
-		if fi, err := os.Stat(filepath.Join(root, "workspaces", workspaceID)); err == nil && fi.IsDir() {
-			status = "active"
+	if fi, err := os.Stat(filepath.Join(root, "workspaces", workspaceID)); err == nil && fi.IsDir() {
+		status = "active"
+	} else if err != nil && !os.IsNotExist(err) {
+		return fmt.Errorf("stat workspace dir: %w", err)
+	}
+	if status == "" {
+		if fi, err := os.Stat(filepath.Join(root, "archive", workspaceID)); err == nil && fi.IsDir() {
+			status = "archived"
 		} else if err != nil && !os.IsNotExist(err) {
-			return fmt.Errorf("stat workspace dir: %w", err)
+			return fmt.Errorf("stat archive dir: %w", err)
 		}
-		if status == "" {
-			if fi, err := os.Stat(filepath.Join(root, "archive", workspaceID)); err == nil && fi.IsDir() {
-				status = "archived"
-			} else if err != nil && !os.IsNotExist(err) {
-				return fmt.Errorf("stat archive dir: %w", err)
-			}
-		}
-		if status == "" {
-			return fmt.Errorf("workspace not found: %s", workspaceID)
-		}
+	}
+	if status == "" {
+		return fmt.Errorf("workspace not found: %s", workspaceID)
 	}
 	if status != "active" && status != "archived" {
 		return fmt.Errorf("workspace cannot be purged (status=%s): %s", status, workspaceID)
 	}
 
-	var repos []statestore.WorkspaceRepo
-	var err error
-	if db != nil {
-		repos, err = statestore.ListWorkspaceRepos(ctx, db, workspaceID)
-	} else {
-		repos, err = listWorkspaceReposForClose(ctx, nil, root, workspaceID)
-	}
+	repos, err := listWorkspaceReposForClose(ctx, root, workspaceID)
 	if err != nil {
 		return fmt.Errorf("list workspace repos: %w", err)
 	}
-	if err := removeWorkspaceWorktrees(ctx, db, root, repoPoolPath, workspaceID, repos); err != nil {
+	if err := removeWorkspaceWorktrees(ctx, root, workspaceID, repos); err != nil {
 		return fmt.Errorf("remove worktrees: %w", err)
 	}
 
@@ -339,15 +296,6 @@ func (c *CLI) purgeWorkspace(ctx context.Context, db *sql.DB, root string, repoP
 		return fmt.Errorf("commit purge change: %w", err)
 	}
 
-	if db != nil {
-		now := time.Now().Unix()
-		if err := statestore.PurgeWorkspace(ctx, db, statestore.PurgeWorkspaceInput{
-			ID:  workspaceID,
-			Now: now,
-		}); err != nil {
-			return fmt.Errorf("update state store: %w", err)
-		}
-	}
 	return nil
 }
 

@@ -14,7 +14,7 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/mattn/go-isatty"
-	"github.com/tasuku43/gion-core/workspacerisk"
+	"github.com/tasuku43/gionx/internal/core/workspacerisk"
 )
 
 var errSelectorCanceled = errors.New("selector canceled")
@@ -238,6 +238,7 @@ func (m workspaceSelectorModel) View() string {
 		false,
 		m.single,
 		m.confirming,
+		!(m.confirming || m.done),
 		m.useColor,
 		m.width,
 		m.height,
@@ -445,10 +446,10 @@ func renderWorkspaceSelectorLines(status string, action string, candidates []wor
 }
 
 func renderWorkspaceSelectorLinesWithOptions(status string, title string, action string, candidates []workspaceSelectorCandidate, selected map[int]bool, cursor int, message string, msgLevel selectorMessageLevel, filter string, showDesc bool, showCaret bool, single bool, confirming bool, useColor bool, termWidth int) []string {
-	return renderWorkspaceSelectorLinesWithFilterView("", status, title, action, candidates, selected, cursor, message, msgLevel, filter, filter, showDesc, showCaret, single, confirming, useColor, termWidth, 0)
+	return renderWorkspaceSelectorLinesWithFilterView("", status, title, action, candidates, selected, cursor, message, msgLevel, filter, filter, showDesc, showCaret, single, confirming, true, useColor, termWidth, 0)
 }
 
-func renderWorkspaceSelectorLinesWithFilterView(itemLabel string, status string, title string, action string, candidates []workspaceSelectorCandidate, selected map[int]bool, cursor int, message string, msgLevel selectorMessageLevel, filter string, filterView string, showDesc bool, showCaret bool, single bool, confirming bool, useColor bool, termWidth int, termHeight int) []string {
+func renderWorkspaceSelectorLinesWithFilterView(itemLabel string, status string, title string, action string, candidates []workspaceSelectorCandidate, selected map[int]bool, cursor int, message string, msgLevel selectorMessageLevel, filter string, filterView string, showDesc bool, showCaret bool, single bool, confirming bool, showAssist bool, useColor bool, termWidth int, termHeight int) []string {
 	idWidth := len("workspace")
 	for _, it := range candidates {
 		if n := len(it.ID); n > idWidth {
@@ -564,23 +565,29 @@ func renderWorkspaceSelectorLinesWithFilterView(itemLabel string, status string,
 		if useColor {
 			bodyStyled := bodyRaw
 			if confirming && !selected[sourceIdx] {
-				bodyStyled = styleMuted(bodyRaw, true)
+				// Apply muted style to the full rendered row (including title),
+				// avoiding nested ANSI resets from inner semantic tokens.
+				bodyStyled = styleMuted(stripANSISequences(bodyRaw), true)
 			}
 			if !single && selected[sourceIdx] {
 				bodyStyled = lipgloss.NewStyle().Bold(true).Render(bodyRaw)
 			}
 			if visiblePos == cursor {
-				// Keep cursor emphasis visible but subtle across light/dark terminal themes.
-				// Strip inline ANSI first so background highlight spans the full row text,
-				// including title segments that might otherwise reset attributes.
-				if rowStyle == selectorRowStyleWorkspace {
-					bodyStyled = stripANSISequences(bodyStyled)
+				if rowStyle == selectorRowStyleWorkspace && !(confirming && !selected[sourceIdx]) {
+					bodyStyled = renderWorkspaceSelectorRowFocused(mark, idRaw, it, maxCols, useColor, selected[sourceIdx])
 				}
-				bodyStyled = lipgloss.NewStyle().
-					Background(lipgloss.AdaptiveColor{Light: "252", Dark: "236"}).
-					Render(bodyStyled)
-				focusAccent := styleBold(styleTokenize(">", tokenFocus, true), true) + " "
-				line = focusAccent + bodyStyled
+				if confirming {
+					// In confirm phase, keep rows stable and avoid extra cursor highlight.
+					line = focus + " " + bodyStyled
+				} else {
+					// Keep cursor emphasis visible but subtle across light/dark terminal themes.
+					// Preserve existing semantic emphasis (e.g. bold workspace ID) while focused.
+					bodyStyled = lipgloss.NewStyle().
+						Background(lipgloss.AdaptiveColor{Light: "252", Dark: "236"}).
+						Render(bodyStyled)
+					focusAccent := styleBold(styleTokenize(">", tokenFocus, true), true) + " "
+					line = focusAccent + bodyStyled
+				}
 			} else {
 				line = focus + " " + bodyStyled
 			}
@@ -590,35 +597,39 @@ func renderWorkspaceSelectorLinesWithFilterView(itemLabel string, status string,
 
 	sectionBody := make([]string, 0, len(bodyLines)+4)
 	sectionBody = append(sectionBody, bodyLines...)
-	sectionBody = append(sectionBody, "")
-	if useColor {
-		prefix := styleMuted(fmt.Sprintf("%sfilter: ", uiIndent), true)
-		sectionBody = append(sectionBody, prefix+filterView)
-	} else {
-		availableFilterCols := maxCols - displayWidth(uiIndent+"filter: ") - 1
-		if availableFilterCols < 1 {
-			availableFilterCols = 1
-		}
-		filterBody := truncateDisplay(filterView, availableFilterCols)
-		sectionBody = append(sectionBody, fmt.Sprintf("%sfilter: %s", uiIndent, filterBody))
-	}
-	sectionBody = append(sectionBody, footer)
-
-	if strings.TrimSpace(message) == "" {
+	if showAssist {
 		sectionBody = append(sectionBody, "")
-	} else {
-		msgCols := maxCols - displayWidth(uiIndent)
-		if msgCols < 1 {
-			msgCols = 1
-		}
-		msgLine := uiIndent + truncateDisplay(message, msgCols)
-		if useColor && msgLevel == selectorMessageLevelError {
-			sectionBody = append(sectionBody, styleError(msgLine, true))
-		} else if useColor {
-			sectionBody = append(sectionBody, styleMuted(msgLine, true))
+		if useColor {
+			prefix := styleMuted(fmt.Sprintf("%sfilter: ", uiIndent), true)
+			sectionBody = append(sectionBody, prefix+filterView)
 		} else {
-			sectionBody = append(sectionBody, msgLine)
+			availableFilterCols := maxCols - displayWidth(uiIndent+"filter: ") - 1
+			if availableFilterCols < 1 {
+				availableFilterCols = 1
+			}
+			filterBody := truncateDisplay(filterView, availableFilterCols)
+			sectionBody = append(sectionBody, fmt.Sprintf("%sfilter: %s", uiIndent, filterBody))
 		}
+		sectionBody = append(sectionBody, footer)
+
+		if strings.TrimSpace(message) == "" {
+			sectionBody = append(sectionBody, "")
+		} else {
+			msgCols := maxCols - displayWidth(uiIndent)
+			if msgCols < 1 {
+				msgCols = 1
+			}
+			msgLine := uiIndent + truncateDisplay(message, msgCols)
+			if useColor && msgLevel == selectorMessageLevelError {
+				sectionBody = append(sectionBody, styleError(msgLine, true))
+			} else if useColor {
+				sectionBody = append(sectionBody, styleMuted(msgLine, true))
+			} else {
+				sectionBody = append(sectionBody, msgLine)
+			}
+		}
+	} else {
+		sectionBody = append(sectionBody, "")
 	}
 
 	return renderSectionAtoms(newSectionAtom(titleLine, sectionBody, sectionRenderOptions{
@@ -718,7 +729,7 @@ func renderWorkspaceSelectorRow(markerText string, mark string, idRaw string, it
 	descText := truncateDisplay(desc, availableDescCols)
 	descStyled := descText
 	separatorStyled := separatorPlain
-	idStyled := styleBold(colorizeRiskID(idRaw, it.Risk, useColor), useColor)
+	idStyled := colorizeRiskID(idRaw, it.Risk, useColor)
 	if useColor {
 		separatorStyled = styleMuted(separatorPlain, true)
 		if emptyTitle {
@@ -726,6 +737,37 @@ func renderWorkspaceSelectorRow(markerText string, mark string, idRaw string, it
 		}
 	}
 	return fmt.Sprintf("%s %s%s%s", markerText, idStyled, separatorStyled, descStyled), prefixPlain
+}
+
+func renderWorkspaceSelectorRowFocused(mark string, idRaw string, it workspaceSelectorCandidate, maxCols int, useColor bool, selected bool) string {
+	desc := it.secondaryText()
+	emptyTitle := false
+	if desc == "" {
+		desc = "(no title)"
+		emptyTitle = true
+	}
+	separatorPlain := ": "
+	prefixPlain := fmt.Sprintf("%s %s%s", mark, idRaw, separatorPlain)
+	availableDescCols := maxCols - displayWidth(prefixPlain) - 2 // include focus + space
+	if availableDescCols < 8 {
+		availableDescCols = 8
+	}
+
+	descText := truncateDisplay(desc, availableDescCols)
+	descStyled := descText
+	separatorStyled := separatorPlain
+	markerStyled := mark
+	if useColor {
+		if selected {
+			markerStyled = styleAccentKeepBG(mark, true)
+		}
+		separatorStyled = styleMutedKeepBG(separatorPlain, true)
+		if emptyTitle {
+			descStyled = styleMutedKeepBG(descText, true)
+		}
+	}
+	idStyled := styleBoldKeepBG(colorizeRiskIDKeepBG(idRaw, it.Risk, useColor), useColor)
+	return fmt.Sprintf("%s %s%s%s", markerStyled, idStyled, separatorStyled, descStyled)
 }
 
 func renderActionSelectorRow(markerText string, mark string, actionRaw string, it workspaceSelectorCandidate, idWidth int, maxCols int, useColor bool) (string, string) {
@@ -903,6 +945,20 @@ func colorizeRiskID(id string, risk workspacerisk.WorkspaceRisk, useColor bool) 
 		return styleError(id, true)
 	case workspacerisk.WorkspaceRiskDiverged, workspacerisk.WorkspaceRiskUnpushed:
 		return styleWarn(id, true)
+	default:
+		return id
+	}
+}
+
+func colorizeRiskIDKeepBG(id string, risk workspacerisk.WorkspaceRisk, useColor bool) string {
+	if !useColor {
+		return id
+	}
+	switch risk {
+	case workspacerisk.WorkspaceRiskDirty, workspacerisk.WorkspaceRiskUnknown:
+		return styleTokenizeKeepBG(id, tokenStatusError, true)
+	case workspacerisk.WorkspaceRiskDiverged, workspacerisk.WorkspaceRiskUnpushed:
+		return styleTokenizeKeepBG(id, tokenStatusWarning, true)
 	default:
 		return id
 	}

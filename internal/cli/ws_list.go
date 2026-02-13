@@ -66,7 +66,7 @@ func (c *CLI) runWSList(args []string) int {
 	}
 
 	now := time.Now().Unix()
-	rows, usedFSFallback, err := buildWSListRows(ctx, root, opts.scope, now)
+	rows, usedFSFallback, err := buildWSListRows(ctx, root, opts.scope, now, opts.tree)
 	if err != nil {
 		fmt.Fprintf(c.Err, "list workspaces: %v\n", err)
 		return exitError
@@ -86,16 +86,16 @@ func (c *CLI) runWSList(args []string) int {
 	return exitOK
 }
 
-func buildWSListRows(ctx context.Context, root string, scope string, now int64) ([]wsListRow, bool, error) {
+func buildWSListRows(ctx context.Context, root string, scope string, now int64, includeRepos bool) ([]wsListRow, bool, error) {
 	_ = now
-	rows, err := listRowsFromFilesystem(ctx, root, scope)
+	rows, err := listRowsFromFilesystem(ctx, root, scope, includeRepos)
 	if err != nil {
 		return nil, false, err
 	}
 	return rows, false, nil
 }
 
-func listRowsFromFilesystem(ctx context.Context, root string, scope string) ([]wsListRow, error) {
+func listRowsFromFilesystem(ctx context.Context, root string, scope string, includeRepos bool) ([]wsListRow, error) {
 	baseDir := filepath.Join(root, "workspaces")
 	if scope == "archived" {
 		baseDir = filepath.Join(root, "archive")
@@ -128,15 +128,27 @@ func listRowsFromFilesystem(ctx context.Context, root string, scope string) ([]w
 				updatedAt = fi.ModTime().Unix()
 			}
 		}
-		repos, err := listWorkspaceReposFromFilesystem(ctx, root, scope, id, meta)
-		if err != nil {
-			return nil, err
+		repoCount := 0
+		var repos []statestore.WorkspaceRepo
+		if includeRepos {
+			var listErr error
+			repos, listErr = listWorkspaceReposFromFilesystem(ctx, root, scope, id, meta)
+			if listErr != nil {
+				return nil, listErr
+			}
+			repoCount = len(repos)
+		} else {
+			var countErr error
+			repoCount, countErr = countWorkspaceReposFromFilesystem(root, scope, id, meta)
+			if countErr != nil {
+				return nil, countErr
+			}
 		}
 		rows = append(rows, wsListRow{
 			ID:        id,
 			Status:    scope,
 			UpdatedAt: updatedAt,
-			RepoCount: len(repos),
+			RepoCount: repoCount,
 			Title:     title,
 			Repos:     repos,
 		})
@@ -152,6 +164,38 @@ func listRowsFromFilesystem(ctx context.Context, root string, scope string) ([]w
 		return strings.Compare(a.ID, b.ID)
 	})
 	return rows, nil
+}
+
+func countWorkspaceReposFromFilesystem(root string, scope string, workspaceID string, meta workspaceMetaFile) (int, error) {
+	wsBase := filepath.Join(root, "workspaces", workspaceID)
+	if scope == "archived" {
+		wsBase = filepath.Join(root, "archive", workspaceID)
+	}
+	reposDir := filepath.Join(wsBase, "repos")
+	entries, err := os.ReadDir(reposDir)
+	if err != nil && !os.IsNotExist(err) {
+		return 0, err
+	}
+
+	aliases := make(map[string]struct{}, len(entries)+len(meta.ReposRestore))
+	for _, e := range entries {
+		if !e.IsDir() {
+			continue
+		}
+		alias := strings.TrimSpace(e.Name())
+		if alias == "" {
+			continue
+		}
+		aliases[alias] = struct{}{}
+	}
+	for _, r := range meta.ReposRestore {
+		alias := strings.TrimSpace(r.Alias)
+		if alias == "" {
+			continue
+		}
+		aliases[alias] = struct{}{}
+	}
+	return len(aliases), nil
 }
 
 func listWorkspaceReposFromFilesystem(ctx context.Context, root string, scope string, workspaceID string, meta workspaceMetaFile) ([]statestore.WorkspaceRepo, error) {

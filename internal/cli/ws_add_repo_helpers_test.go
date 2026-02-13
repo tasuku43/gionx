@@ -6,8 +6,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/tasuku43/gion-core/repospec"
-	"github.com/tasuku43/gion-core/repostore"
+	"github.com/tasuku43/gionx/internal/core/repospec"
+	"github.com/tasuku43/gionx/internal/core/repostore"
 	"github.com/tasuku43/gionx/internal/gitutil"
 	"github.com/tasuku43/gionx/internal/testutil"
 )

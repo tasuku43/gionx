@@ -11,8 +11,8 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/tasuku43/gion-core/repospec"
 	"github.com/tasuku43/gionx/internal/app/repocmd"
+	"github.com/tasuku43/gionx/internal/core/repospec"
 	"github.com/tasuku43/gionx/internal/infra/appports"
 	"github.com/tasuku43/gionx/internal/infra/gitutil"
 	"github.com/tasuku43/gionx/internal/infra/stateregistry"

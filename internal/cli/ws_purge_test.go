@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/tasuku43/gion-core/workspacerisk"
+	"github.com/tasuku43/gionx/internal/core/workspacerisk"
 	"github.com/tasuku43/gionx/internal/testutil"
 )
 

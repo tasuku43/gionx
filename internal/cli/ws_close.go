@@ -2,20 +2,18 @@ package cli
 
 import (
 	"context"
-	"database/sql"
 	"errors"
 	"fmt"
 	"io"
 	"io/fs"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"slices"
 	"strings"
 	"time"
 
-	"github.com/tasuku43/gion-core/repospec"
-	"github.com/tasuku43/gion-core/workspacerisk"
+	"github.com/tasuku43/gionx/internal/core/repospec"
+	"github.com/tasuku43/gionx/internal/core/workspacerisk"
 	"github.com/tasuku43/gionx/internal/infra/gitutil"
 	"github.com/tasuku43/gionx/internal/infra/paths"
 	"github.com/tasuku43/gionx/internal/infra/statestore"
@@ -102,12 +100,6 @@ func (c *CLI) runWSClose(args []string) int {
 	c.debugf("run ws close args=%q", args)
 
 	ctx := context.Background()
-	repoPoolPath, poolErr := paths.DefaultRepoPoolPath()
-	var db *sql.DB = nil
-	if poolErr != nil {
-		fmt.Fprintf(c.Err, "resolve repo pool path: %v\n", poolErr)
-		return exitError
-	}
 
 	if err := ensureRootGitWorktree(ctx, root); err != nil {
 		fmt.Fprintf(c.Err, "%v\n", err)
@@ -149,7 +141,7 @@ func (c *CLI) runWSClose(args []string) int {
 		directWorkspaceID = fromCWD.ID
 	}
 	if outputFormat == "json" {
-		return c.runWSCloseJSON(directWorkspaceID, force, wd, root, db, repoPoolPath)
+		return c.runWSCloseJSON(directWorkspaceID, force, wd, root)
 	}
 	shouldShiftCWD := isPathInside(filepath.Join(root, "workspaces", directWorkspaceID), wd)
 	if shouldShiftCWD {
@@ -167,7 +159,7 @@ func (c *CLI) runWSClose(args []string) int {
 			return selected, nil
 		},
 		CollectRiskStage: func(items []workspaceFlowSelection) (workspaceFlowRiskStage, error) {
-			riskItems, err := collectWorkspaceRiskDetails(ctx, db, root, workspaceFlowSelectionIDs(items))
+			riskItems, err := collectWorkspaceRiskDetails(ctx, root, workspaceFlowSelectionIDs(items))
 			if err != nil {
 				return workspaceFlowRiskStage{}, fmt.Errorf("inspect workspace risk: %w", err)
 			}
@@ -185,7 +177,7 @@ func (c *CLI) runWSClose(args []string) int {
 		ConfirmRisk: c.confirmRiskProceed,
 		ApplyOne: func(item workspaceFlowSelection) error {
 			c.debugf("ws close archive start workspace=%s", item.ID)
-			if err := c.closeWorkspace(ctx, db, root, repoPoolPath, item.ID); err != nil {
+			if err := c.closeWorkspace(ctx, root, item.ID); err != nil {
 				return err
 			}
 			c.debugf("ws close archive completed workspace=%s", item.ID)
@@ -224,7 +216,7 @@ func (c *CLI) runWSClose(args []string) int {
 	return exitOK
 }
 
-func (c *CLI) runWSCloseJSON(workspaceID string, force bool, wd string, root string, db *sql.DB, repoPoolPath string) int {
+func (c *CLI) runWSCloseJSON(workspaceID string, force bool, wd string, root string) int {
 	ctx := context.Background()
 	shouldShiftCWD := isPathInside(filepath.Join(root, "workspaces", workspaceID), wd)
 	if shouldShiftCWD {
@@ -242,7 +234,7 @@ func (c *CLI) runWSCloseJSON(workspaceID string, force bool, wd string, root str
 		}
 	}
 
-	riskItems, err := collectWorkspaceRiskDetails(ctx, db, root, []string{workspaceID})
+	riskItems, err := collectWorkspaceRiskDetails(ctx, root, []string{workspaceID})
 	if err != nil {
 		_ = writeCLIJSON(c.Out, cliJSONResponse{
 			OK:          false,
@@ -268,7 +260,7 @@ func (c *CLI) runWSCloseJSON(workspaceID string, force bool, wd string, root str
 		return exitError
 	}
 
-	if err := c.closeWorkspace(ctx, db, root, repoPoolPath, workspaceID); err != nil {
+	if err := c.closeWorkspace(ctx, root, workspaceID); err != nil {
 		code := "internal_error"
 		msg := err.Error()
 		switch {
@@ -339,16 +331,7 @@ func isPathInside(base string, target string) bool {
 	return true
 }
 
-func (c *CLI) closeWorkspace(ctx context.Context, db *sql.DB, root string, repoPoolPath string, workspaceID string) error {
-	if db != nil {
-		if status, ok, err := statestore.LookupWorkspaceStatus(ctx, db, workspaceID); err != nil {
-			return fmt.Errorf("load workspace: %w", err)
-		} else if !ok {
-			return fmt.Errorf("workspace not found: %s", workspaceID)
-		} else if status != "active" {
-			return fmt.Errorf("workspace is not active (status=%s): %s", status, workspaceID)
-		}
-	}
+func (c *CLI) closeWorkspace(ctx context.Context, root string, workspaceID string) error {
 	wsPath := filepath.Join(root, "workspaces", workspaceID)
 	if fi, err := os.Stat(wsPath); err != nil {
 		if errors.Is(err, os.ErrNotExist) {
@@ -369,11 +352,11 @@ func (c *CLI) closeWorkspace(ctx context.Context, db *sql.DB, root string, repoP
 		return fmt.Errorf("stat archive dir: %w", err)
 	}
 
-	repos, err := listWorkspaceReposForClose(ctx, db, root, workspaceID)
+	repos, err := listWorkspaceReposForClose(ctx, root, workspaceID)
 	if err != nil {
 		return fmt.Errorf("list workspace repos: %w", err)
 	}
-	originalMeta, updatedMeta, err := buildWorkspaceMetaForClose(ctx, db, root, repoPoolPath, workspaceID, repos)
+	originalMeta, updatedMeta, err := buildWorkspaceMetaForClose(ctx, root, workspaceID, repos)
 	if err != nil {
 		return fmt.Errorf("prepare %s for close: %w", workspaceMetaFilename, err)
 	}
@@ -381,7 +364,7 @@ func (c *CLI) closeWorkspace(ctx context.Context, db *sql.DB, root string, repoP
 		return fmt.Errorf("write %s: %w", workspaceMetaFilename, err)
 	}
 
-	if err := removeWorkspaceWorktrees(ctx, db, root, repoPoolPath, workspaceID, repos); err != nil {
+	if err := removeWorkspaceWorktrees(ctx, root, workspaceID, repos); err != nil {
 		_ = writeWorkspaceMetaFile(wsPath, originalMeta)
 		return fmt.Errorf("remove worktrees: %w", err)
 	}
@@ -399,28 +382,17 @@ func (c *CLI) closeWorkspace(ctx context.Context, db *sql.DB, root string, repoP
 		return fmt.Errorf("archive (rename): %w", err)
 	}
 
-	sha, err := commitArchiveChange(ctx, root, workspaceID, expectedFiles)
+	_, err = commitArchiveChange(ctx, root, workspaceID, expectedFiles)
 	if err != nil {
 		_ = os.Rename(archivePath, wsPath)
 		_ = writeWorkspaceMetaFile(wsPath, originalMeta)
 		return fmt.Errorf("commit archive change: %w", err)
 	}
 
-	if db != nil {
-		now := time.Now().Unix()
-		if err := statestore.ArchiveWorkspace(ctx, db, statestore.ArchiveWorkspaceInput{
-			ID:                workspaceID,
-			ArchivedCommitSHA: sha,
-			Now:               now,
-		}); err != nil {
-			return fmt.Errorf("update state store: %w", err)
-		}
-	}
-
 	return nil
 }
 
-func buildWorkspaceMetaForClose(ctx context.Context, db *sql.DB, root string, repoPoolPath string, workspaceID string, repos []statestore.WorkspaceRepo) (workspaceMetaFile, workspaceMetaFile, error) {
+func buildWorkspaceMetaForClose(ctx context.Context, root string, workspaceID string, repos []statestore.WorkspaceRepo) (workspaceMetaFile, workspaceMetaFile, error) {
 	wsPath := filepath.Join(root, "workspaces", workspaceID)
 	original, err := loadWorkspaceMetaFile(wsPath)
 	if err != nil {
@@ -433,20 +405,9 @@ func buildWorkspaceMetaForClose(ctx context.Context, db *sql.DB, root string, re
 	entries := make([]workspaceMetaRepoRestore, 0, len(repos))
 	for _, r := range repos {
 		remoteURL := ""
-		if db != nil {
-			u, ok, err := statestore.LookupRepoRemoteURL(ctx, db, r.RepoUID)
-			if err != nil {
-				return workspaceMetaFile{}, workspaceMetaFile{}, fmt.Errorf("lookup repo remote url: %w", err)
-			}
-			if !ok {
-				return workspaceMetaFile{}, workspaceMetaFile{}, fmt.Errorf("repo not found in repos table: %s", r.RepoUID)
-			}
-			remoteURL = u
-		} else {
-			worktreePath := filepath.Join(root, "workspaces", workspaceID, "repos", r.Alias)
-			if out, err := gitutil.Run(ctx, worktreePath, "remote", "get-url", "origin"); err == nil {
-				remoteURL = strings.TrimSpace(out)
-			}
+		worktreePath := filepath.Join(root, "workspaces", workspaceID, "repos", r.Alias)
+		if out, err := gitutil.Run(ctx, worktreePath, "remote", "get-url", "origin"); err == nil {
+			remoteURL = strings.TrimSpace(out)
 		}
 		if remoteURL == "" {
 			if prev, ok := existingByAlias[r.Alias]; ok {
@@ -460,7 +421,6 @@ func buildWorkspaceMetaForClose(ctx context.Context, db *sql.DB, root string, re
 		if err != nil {
 			return workspaceMetaFile{}, workspaceMetaFile{}, fmt.Errorf("normalize repo remote url: %w", err)
 		}
-		worktreePath := filepath.Join(root, "workspaces", workspaceID, "repos", r.Alias)
 		branch := detectBranchForClose(ctx, worktreePath, r.Branch)
 		baseRef := strings.TrimSpace(r.BaseRef)
 		if baseRef == "" {
@@ -469,17 +429,9 @@ func buildWorkspaceMetaForClose(ctx context.Context, db *sql.DB, root string, re
 			}
 		}
 		if baseRef == "" {
-			if db != nil {
-				barePath := resolveBarePathFromSpec(repoPoolPath, spec)
-				baseRef, err = detectDefaultBaseRefFromBare(ctx, barePath)
-				if err != nil {
-					return workspaceMetaFile{}, workspaceMetaFile{}, fmt.Errorf("detect default base_ref for %s: %w", spec.RepoKey, err)
-				}
-			} else {
-				baseRef = detectOriginHeadBaseRef(ctx, worktreePath)
-				if baseRef == "" {
-					return workspaceMetaFile{}, workspaceMetaFile{}, fmt.Errorf("detect default base_ref for %s", spec.RepoKey)
-				}
+			baseRef = detectOriginHeadBaseRef(ctx, worktreePath)
+			if baseRef == "" {
+				return workspaceMetaFile{}, workspaceMetaFile{}, fmt.Errorf("detect default base_ref for %s", spec.RepoKey)
 			}
 		}
 
@@ -564,15 +516,15 @@ type closeRepoPlanDetail struct {
 	worktreeOK bool
 }
 
-func collectWorkspaceRiskDetails(ctx context.Context, db *sql.DB, root string, workspaceIDs []string) ([]workspaceRiskDetail, error) {
+func collectWorkspaceRiskDetails(ctx context.Context, root string, workspaceIDs []string) ([]workspaceRiskDetail, error) {
 	out := make([]workspaceRiskDetail, 0, len(workspaceIDs))
 	for _, workspaceID := range workspaceIDs {
-		repos, err := listWorkspaceReposForClose(ctx, db, root, workspaceID)
+		repos, err := listWorkspaceReposForClose(ctx, root, workspaceID)
 		if err != nil {
 			return nil, fmt.Errorf("list workspace repos for %s: %w", workspaceID, err)
 		}
-		risk, perRepo := inspectWorkspaceRepoRisk(ctx, root, workspaceID, repos)
 		plans := collectCloseRepoPlanDetails(ctx, root, workspaceID, repos)
+		risk, perRepo := buildWorkspaceRiskFromPlans(plans)
 		out = append(out, workspaceRiskDetail{
 			id:        workspaceID,
 			risk:      risk,
@@ -581,6 +533,19 @@ func collectWorkspaceRiskDetails(ctx context.Context, db *sql.DB, root string, w
 		})
 	}
 	return out, nil
+}
+
+func buildWorkspaceRiskFromPlans(plans []closeRepoPlanDetail) (workspacerisk.WorkspaceRisk, []repoRiskItem) {
+	states := make([]workspacerisk.RepoState, 0, len(plans))
+	items := make([]repoRiskItem, 0, len(plans))
+	for _, p := range plans {
+		states = append(states, p.state)
+		items = append(items, repoRiskItem{
+			alias: p.alias,
+			state: p.state,
+		})
+	}
+	return workspacerisk.Aggregate(states), items
 }
 
 func hasNonCleanRisk(items []workspaceRiskDetail) bool {
@@ -634,7 +599,7 @@ func appendCloseRepoPlanBody(body *[]string, item workspaceRiskDetail, useColor 
 		}
 		branchSuffix := ""
 		if strings.TrimSpace(p.branch) != "" {
-			branchSuffix = fmt.Sprintf(" (%s%s)", styleMuted("branch: ", useColor), p.branch)
+			branchSuffix = fmt.Sprintf(" (%s%s)", styleMuted("branch: ", useColor), styleGitRefLocal(p.branch, useColor))
 		}
 		*body = append(*body, fmt.Sprintf("%s%s%s%s", uiIndent+uiIndent, styleMuted(connector, useColor), p.repoKey, branchSuffix))
 		*body = append(*body, fmt.Sprintf("%s%s%s %s", uiIndent+uiIndent, prefix, styleMuted("risk:", useColor), renderClosePlanRiskLabel(p, useColor)))
@@ -651,12 +616,8 @@ func appendCloseRepoPlanBody(body *[]string, item workspaceRiskDetail, useColor 
 		))
 		if len(p.files) > 0 {
 			*body = append(*body, fmt.Sprintf("%s%s%s", uiIndent+uiIndent, prefix, styleMuted("files:", useColor)))
-			renderLines := p.files
-			if useColor && len(p.filesANSI) == len(p.files) {
-				renderLines = p.filesANSI
-			}
-			for _, f := range renderLines {
-				*body = append(*body, fmt.Sprintf("%s%s  %s", uiIndent+uiIndent, prefix, f))
+			for _, f := range p.files {
+				*body = append(*body, fmt.Sprintf("%s%s  %s", uiIndent+uiIndent, prefix, styleGitStatusShortLine(f, useColor)))
 			}
 		}
 	}
@@ -693,24 +654,6 @@ func renderCloseRiskApplyPrompt(useColor bool) string {
 	return fmt.Sprintf("%s%s type %s to apply close on non-clean workspaces: ", uiIndent, bullet, styleAccent("yes", useColor))
 }
 
-func inspectWorkspaceRepoRisk(ctx context.Context, root string, workspaceID string, repos []statestore.WorkspaceRepo) (workspacerisk.WorkspaceRisk, []repoRiskItem) {
-	var states []workspacerisk.RepoState
-	var items []repoRiskItem
-	for _, r := range repos {
-		state := workspacerisk.RepoStateUnknown
-		if r.MissingAt.Valid {
-			state = workspacerisk.RepoStateUnknown
-		} else {
-			worktreePath := filepath.Join(root, "workspaces", workspaceID, "repos", r.Alias)
-			st := inspectGitRepoStatus(ctx, worktreePath)
-			state = workspacerisk.ClassifyRepoStatus(st)
-		}
-		states = append(states, state)
-		items = append(items, repoRiskItem{alias: r.Alias, state: state})
-	}
-	return workspacerisk.Aggregate(states), items
-}
-
 func collectCloseRepoPlanDetails(ctx context.Context, root string, workspaceID string, repos []statestore.WorkspaceRepo) []closeRepoPlanDetail {
 	details := make([]closeRepoPlanDetail, 0, len(repos))
 	for _, r := range repos {
@@ -726,13 +669,19 @@ func collectCloseRepoPlanDetails(ctx context.Context, root string, workspaceID s
 			state:   workspacerisk.RepoStateUnknown,
 		}
 		if !r.MissingAt.Valid {
-			status := inspectGitRepoStatus(ctx, worktreePath)
+			snapshot := inspectGitRepoSnapshot(ctx, worktreePath)
+			status := snapshot.Status
 			d.state = workspacerisk.ClassifyRepoStatus(status)
 			d.upstream = strings.TrimSpace(status.Upstream)
 			d.ahead = status.AheadCount
 			d.behind = status.BehindCount
-			d.branch = detectBranchForClose(ctx, worktreePath, d.branch)
-			d.staged, d.unstaged, d.untracked, d.files, d.filesANSI = collectGitShortStatusSummary(ctx, worktreePath)
+			if b := strings.TrimSpace(snapshot.Branch); b != "" {
+				d.branch = b
+			}
+			d.staged = snapshot.Staged
+			d.unstaged = snapshot.Unstaged
+			d.untracked = snapshot.Untracked
+			d.files = append([]string{}, snapshot.Files...)
 		}
 		details = append(details, d)
 	}
@@ -743,80 +692,6 @@ func collectCloseRepoPlanDetails(ctx context.Context, root string, workspaceID s
 		return strings.Compare(a.alias, b.alias)
 	})
 	return details
-}
-
-func inspectGitRepoStatus(ctx context.Context, dir string) workspacerisk.RepoStatus {
-	if _, err := os.Stat(dir); err != nil {
-		return workspacerisk.RepoStatus{Error: err}
-	}
-
-	if out, err := gitutil.Run(ctx, dir, "rev-parse", "--is-inside-work-tree"); err != nil || strings.TrimSpace(out) != "true" {
-		if err == nil {
-			err = fmt.Errorf("not a git worktree")
-		}
-		return workspacerisk.RepoStatus{Error: err}
-	}
-
-	dirty := false
-	if out, err := gitutil.Run(ctx, dir, "status", "--porcelain=v1"); err != nil {
-		return workspacerisk.RepoStatus{Error: err}
-	} else if strings.TrimSpace(out) != "" {
-		dirty = true
-	}
-
-	headMissing := false
-	if _, err := gitutil.Run(ctx, dir, "rev-parse", "--verify", "-q", "HEAD"); err != nil {
-		headMissing = true
-	}
-
-	detached := false
-	if _, err := gitutil.Run(ctx, dir, "symbolic-ref", "-q", "HEAD"); err != nil {
-		detached = true
-	}
-
-	upstream := ""
-	if out, err := gitutil.Run(ctx, dir, "rev-parse", "--abbrev-ref", "--symbolic-full-name", "@{u}"); err == nil {
-		upstream = strings.TrimSpace(out)
-	}
-
-	ahead := 0
-	behind := 0
-	if !detached && !headMissing && strings.TrimSpace(upstream) != "" {
-		out, err := gitutil.Run(ctx, dir, "rev-list", "--left-right", "--count", "HEAD...@{u}")
-		if err != nil {
-			return workspacerisk.RepoStatus{Error: err}
-		}
-		parts := strings.Fields(out)
-		if len(parts) != 2 {
-			return workspacerisk.RepoStatus{Error: fmt.Errorf("unexpected rev-list output: %q", out)}
-		}
-		var parseErr error
-		ahead, behind, parseErr = parseAheadBehind(parts[0], parts[1])
-		if parseErr != nil {
-			return workspacerisk.RepoStatus{Error: parseErr}
-		}
-	}
-
-	return workspacerisk.RepoStatus{
-		Upstream:    upstream,
-		AheadCount:  ahead,
-		BehindCount: behind,
-		Dirty:       dirty,
-		Detached:    detached,
-		HeadMissing: headMissing,
-	}
-}
-
-func parseAheadBehind(left string, right string) (ahead int, behind int, err error) {
-	var a, b int
-	if _, err := fmt.Sscanf(left, "%d", &a); err != nil {
-		return 0, 0, fmt.Errorf("parse ahead count: %w", err)
-	}
-	if _, err := fmt.Sscanf(right, "%d", &b); err != nil {
-		return 0, 0, fmt.Errorf("parse behind count: %w", err)
-	}
-	// HEAD...@{u} with --left-right yields left=ahead, right=behind.
-	return a, b, nil
 }
 
 func renderWorkspaceRiskBadge(risk workspacerisk.WorkspaceRisk, useColor bool) string {
@@ -843,7 +718,7 @@ func renderRepoRiskState(state workspacerisk.RepoState, useColor bool) string {
 	}
 }
 
-func removeWorkspaceWorktrees(ctx context.Context, db *sql.DB, root string, repoPoolPath string, workspaceID string, repos []statestore.WorkspaceRepo) error {
+func removeWorkspaceWorktrees(ctx context.Context, root string, workspaceID string, repos []statestore.WorkspaceRepo) error {
 	reposDir := filepath.Join(root, "workspaces", workspaceID, "repos")
 
 	for _, r := range repos {
@@ -855,26 +730,9 @@ func removeWorkspaceWorktrees(ctx context.Context, db *sql.DB, root string, repo
 			return err
 		}
 
-		barePath := ""
-		if db != nil {
-			remoteURL, ok, err := statestore.LookupRepoRemoteURL(ctx, db, r.RepoUID)
-			if err != nil {
-				return err
-			}
-			if !ok {
-				return fmt.Errorf("repo not found in repos table: %s", r.RepoUID)
-			}
-			spec, err := repospec.Normalize(remoteURL)
-			if err != nil {
-				return fmt.Errorf("normalize repo remote url: %w", err)
-			}
-			barePath = resolveBarePathFromSpec(repoPoolPath, spec)
-		} else {
-			var err error
-			barePath, err = resolveBarePathFromWorktreeGitdir(worktreePath)
-			if err != nil {
-				return err
-			}
+		barePath, err := resolveBarePathFromWorktreeGitdir(worktreePath)
+		if err != nil {
+			return err
 		}
 
 		if _, err := os.Stat(barePath); err == nil {
@@ -904,10 +762,7 @@ func removeWorkspaceWorktrees(ctx context.Context, db *sql.DB, root string, repo
 	return nil
 }
 
-func listWorkspaceReposForClose(ctx context.Context, db *sql.DB, root string, workspaceID string) ([]statestore.WorkspaceRepo, error) {
-	if db != nil {
-		return statestore.ListWorkspaceRepos(ctx, db, workspaceID)
-	}
+func listWorkspaceReposForClose(ctx context.Context, root string, workspaceID string) ([]statestore.WorkspaceRepo, error) {
 	wsPath := filepath.Join(root, "workspaces", workspaceID)
 	meta, _ := loadWorkspaceMetaFile(wsPath)
 	return listWorkspaceReposFromFilesystem(ctx, root, "active", workspaceID, meta)
@@ -1105,14 +960,9 @@ func commitArchiveChange(ctx context.Context, root string, workspaceID string, e
 
 func isGitIgnoredRelativeToRoot(root string, relPath string) (bool, error) {
 	relPath = filepath.ToSlash(filepath.Clean(relPath))
-	cmd := exec.Command("git", "check-ignore", "--quiet", "--", relPath)
-	cmd.Dir = root
-	if err := cmd.Run(); err != nil {
-		var exitErr *exec.ExitError
-		if errors.As(err, &exitErr) && exitErr.ExitCode() == 1 {
-			return false, nil
-		}
-		return false, fmt.Errorf("git check-ignore %s: %w", relPath, err)
+	ignored, err := gitutil.IsIgnored(context.Background(), root, relPath)
+	if err != nil {
+		return false, err
 	}
-	return true, nil
+	return ignored, nil
 }

@@ -9,8 +9,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/tasuku43/gion-core/repospec"
-	"github.com/tasuku43/gion-core/repostore"
+	"github.com/tasuku43/gionx/internal/core/repospec"
+	"github.com/tasuku43/gionx/internal/core/repostore"
 	"github.com/tasuku43/gionx/internal/infra/gitutil"
 )
 

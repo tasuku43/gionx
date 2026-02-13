@@ -29,3 +29,7 @@ func DefaultBranchFromRemote(ctx context.Context, repoSpecInput string) (string,
 func CheckRefFormat(ctx context.Context, ref string) error {
 	return base.CheckRefFormat(ctx, ref)
 }
+
+func IsIgnored(ctx context.Context, dir string, path string) (bool, error) {
+	return base.IsIgnored(ctx, dir, path)
+}

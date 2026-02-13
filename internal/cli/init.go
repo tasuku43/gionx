@@ -4,13 +4,13 @@ import (
 	"context"
 	"fmt"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 
 	"github.com/mattn/go-isatty"
 	"github.com/tasuku43/gionx/internal/app/initcmd"
 	"github.com/tasuku43/gionx/internal/infra/appports"
+	"github.com/tasuku43/gionx/internal/infra/gitutil"
 	"github.com/tasuku43/gionx/internal/infra/paths"
 )
 
@@ -301,15 +301,11 @@ func ensureGitInit(root string) (bool, error) {
 		return false, fmt.Errorf("stat .git: %w", err)
 	}
 
-	if _, err := exec.LookPath("git"); err != nil {
-		return false, fmt.Errorf("git not found in PATH: %w", err)
+	if err := gitutil.EnsureGitInPath(); err != nil {
+		return false, err
 	}
-
-	cmd := exec.Command("git", "init")
-	cmd.Dir = root
-	output, err := cmd.CombinedOutput()
-	if err != nil {
-		return false, fmt.Errorf("git init failed: %w (output=%s)", err, strings.TrimSpace(string(output)))
+	if _, err := gitutil.Run(context.Background(), root, "init"); err != nil {
+		return false, err
 	}
 	return true, nil
 }
@@ -354,22 +350,17 @@ func commitInitFiles(root string) error {
 		return fmt.Errorf("stat root config: %w", statErr)
 	}
 
-	addCmd := exec.Command("git", addArgs...)
-	addCmd.Dir = root
-	addOutput, err := addCmd.CombinedOutput()
-	if err != nil {
-		return fmt.Errorf("git add init files failed: %w (output=%s)", err, strings.TrimSpace(string(addOutput)))
+	if _, err := gitutil.Run(ctx, root, addArgs...); err != nil {
+		return err
 	}
 
-	listCmd := exec.Command("git", "diff", "--cached", "--name-only")
-	listCmd.Dir = root
-	listOutput, err := listCmd.CombinedOutput()
+	listOutput, err := gitutil.Run(ctx, root, "diff", "--cached", "--name-only")
 	if err != nil {
-		return fmt.Errorf("git diff --cached failed: %w (output=%s)", err, strings.TrimSpace(string(listOutput)))
+		return err
 	}
 
 	staged := 0
-	for _, line := range strings.Split(strings.TrimSpace(string(listOutput)), "\n") {
+	for _, line := range strings.Split(strings.TrimSpace(listOutput), "\n") {
 		p := strings.TrimSpace(line)
 		if p == "" {
 			continue
@@ -383,11 +374,8 @@ func commitInitFiles(root string) error {
 		return nil
 	}
 
-	commitCmd := exec.Command("git", "commit", "-m", commitMessage)
-	commitCmd.Dir = root
-	commitOutput, err := commitCmd.CombinedOutput()
-	if err != nil {
-		return fmt.Errorf("git commit init files failed: %w (output=%s)", err, strings.TrimSpace(string(commitOutput)))
+	if _, err := gitutil.Run(ctx, root, "commit", "-m", commitMessage); err != nil {
+		return err
 	}
 	return nil
 }

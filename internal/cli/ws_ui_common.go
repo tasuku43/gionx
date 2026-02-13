@@ -10,15 +10,21 @@ import (
 )
 
 const (
-	ansiReset  = "\x1b[0m"
-	ansiBold   = "\x1b[1m"
-	ansiBlack  = "\x1b[30m"
-	ansiRed    = "\x1b[31m"
-	ansiGreen  = "\x1b[32m"
-	ansiYellow = "\x1b[33m"
-	ansiBlue   = "\x1b[34m"
-	ansiCyan   = "\x1b[36m"
-	ansiMuted  = "\x1b[90m"
+	ansiReset   = "\x1b[0m"
+	ansiBold    = "\x1b[1m"
+	ansiBoldOff = "\x1b[22m"
+	ansiFGReset = "\x1b[39m"
+	ansiBlack   = "\x1b[30m"
+	ansiRed     = "\x1b[31m"
+	ansiGreen   = "\x1b[32m"
+	ansiYellow  = "\x1b[33m"
+	ansiBlue    = "\x1b[34m"
+	ansiCyan    = "\x1b[36m"
+	ansiMuted   = "\x1b[90m"
+	// 256-color accents for subdued git reference styling.
+	ansiGitRefLocalMuted  = "\x1b[2;38;5;65m"
+	ansiGitRefRemoteMuted = "\x1b[38;5;67m"
+	ansiErrorSubtle       = "\x1b[2;38;5;174m"
 
 	// Backward-compatible aliases for existing tests/callers.
 	ansiAccent = ansiCyan
@@ -35,16 +41,20 @@ const (
 	tokenTextMuted   styleToken = "text.muted"
 	tokenAccent      styleToken = "accent"
 
-	tokenStatusSuccess styleToken = "status.success"
-	tokenStatusWarning styleToken = "status.warning"
-	tokenStatusError   styleToken = "status.error"
-	tokenStatusInfo    styleToken = "status.info"
+	tokenStatusSuccess     styleToken = "status.success"
+	tokenStatusWarning     styleToken = "status.warning"
+	tokenStatusError       styleToken = "status.error"
+	tokenStatusErrorSubtle styleToken = "status.error.subtle"
+	tokenStatusInfo        styleToken = "status.info"
 
 	tokenFocus     styleToken = "focus"
 	tokenSelection styleToken = "selection"
 
 	tokenDiffAdd    styleToken = "diff.add"
 	tokenDiffRemove styleToken = "diff.remove"
+
+	tokenGitRefLocal  styleToken = "git.ref.local"
+	tokenGitRefRemote styleToken = "git.ref.remote"
 )
 
 func tokenANSI(token styleToken) string {
@@ -61,6 +71,8 @@ func tokenANSI(token styleToken) string {
 		return ansiYellow
 	case tokenStatusError:
 		return ansiRed
+	case tokenStatusErrorSubtle:
+		return ansiErrorSubtle
 	case tokenStatusInfo:
 		return ansiBlue
 	case tokenFocus:
@@ -71,6 +83,10 @@ func tokenANSI(token styleToken) string {
 		return ansiGreen
 	case tokenDiffRemove:
 		return ansiRed
+	case tokenGitRefLocal:
+		return ansiGitRefLocalMuted
+	case tokenGitRefRemote:
+		return ansiGitRefRemoteMuted
 	default:
 		return ""
 	}
@@ -95,6 +111,14 @@ func styleBold(text string, useColor bool) string {
 	return ansiBold + text + ansiReset
 }
 
+func styleBoldKeepBG(text string, useColor bool) string {
+	if !useColor {
+		return text
+	}
+	// Use bold on/off instead of full reset so outer background styling is preserved.
+	return ansiBold + text + ansiBoldOff
+}
+
 func styleTokenize(text string, token styleToken, useColor bool) string {
 	if !useColor {
 		return text
@@ -106,12 +130,32 @@ func styleTokenize(text string, token styleToken, useColor bool) string {
 	return ansi + text + ansiReset
 }
 
+func styleTokenizeKeepBG(text string, token styleToken, useColor bool) string {
+	if !useColor {
+		return text
+	}
+	ansi := tokenANSI(token)
+	if ansi == "" {
+		return text
+	}
+	// Reset only foreground so outer background styling remains intact.
+	return ansi + text + ansiFGReset
+}
+
 func styleMuted(text string, useColor bool) string {
 	return styleTokenize(text, tokenTextMuted, useColor)
 }
 
+func styleMutedKeepBG(text string, useColor bool) string {
+	return styleTokenizeKeepBG(text, tokenTextMuted, useColor)
+}
+
 func styleAccent(text string, useColor bool) string {
 	return styleTokenize(text, tokenAccent, useColor)
+}
+
+func styleAccentKeepBG(text string, useColor bool) string {
+	return styleTokenizeKeepBG(text, tokenAccent, useColor)
 }
 
 func styleWarn(text string, useColor bool) string {
@@ -122,12 +166,51 @@ func styleError(text string, useColor bool) string {
 	return styleTokenize(text, tokenStatusError, useColor)
 }
 
+func styleErrorSubtle(text string, useColor bool) string {
+	return styleTokenize(text, tokenStatusErrorSubtle, useColor)
+}
+
 func styleSuccess(text string, useColor bool) string {
 	return styleTokenize(text, tokenStatusSuccess, useColor)
 }
 
 func styleInfo(text string, useColor bool) string {
 	return styleTokenize(text, tokenStatusInfo, useColor)
+}
+
+func styleGitRefLocal(text string, useColor bool) string {
+	return styleTokenize(text, tokenGitRefLocal, useColor)
+}
+
+func styleGitRefRemote(text string, useColor bool) string {
+	return styleTokenize(text, tokenGitRefRemote, useColor)
+}
+
+func styleGitStatusShortLine(line string, useColor bool) string {
+	if !useColor {
+		return line
+	}
+	if len(line) < 2 {
+		return line
+	}
+
+	x := styleGitStatusShortChar(line[0], true, useColor)
+	y := styleGitStatusShortChar(line[1], false, useColor)
+	return x + y + line[2:]
+}
+
+func styleGitStatusShortChar(ch byte, staged bool, useColor bool) string {
+	switch ch {
+	case ' ':
+		return " "
+	case '?':
+		return styleTokenize("?", tokenDiffRemove, useColor)
+	default:
+		if staged {
+			return styleTokenize(string(ch), tokenDiffAdd, useColor)
+		}
+		return styleTokenize(string(ch), tokenDiffRemove, useColor)
+	}
 }
 
 func renderWorkspaceStatusLabel(status string, useColor bool) string {

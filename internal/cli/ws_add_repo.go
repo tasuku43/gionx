@@ -2,7 +2,6 @@ package cli
 
 import (
 	"context"
-	"database/sql"
 	"errors"
 	"fmt"
 	"io"
@@ -16,11 +15,10 @@ import (
 	"time"
 
 	"github.com/mattn/go-isatty"
-	"github.com/tasuku43/gion-core/repospec"
-	"github.com/tasuku43/gion-core/repostore"
+	"github.com/tasuku43/gionx/internal/core/repospec"
+	"github.com/tasuku43/gionx/internal/core/repostore"
 	"github.com/tasuku43/gionx/internal/infra/gitutil"
 	"github.com/tasuku43/gionx/internal/infra/paths"
-	"github.com/tasuku43/gionx/internal/infra/statestore"
 )
 
 type addRepoPoolCandidate struct {
@@ -187,7 +185,6 @@ func (c *CLI) runWSAddRepo(args []string) int {
 		fmt.Fprintf(c.Err, "resolve repo pool path: %v\n", err)
 		return exitError
 	}
-	var db *sql.DB = nil
 
 	workspaceID := ""
 	var resolveErr error
@@ -218,48 +215,22 @@ func (c *CLI) runWSAddRepo(args []string) int {
 		return exitUsage
 	}
 	if outputFormat == "json" {
-		return c.runWSAddRepoJSON(workspaceID, root, repoPoolPath, db, repoKeysFromFlag, baseRefFromFlag, branchFromFlag, forceApply)
+		return c.runWSAddRepoJSON(workspaceID, root, repoPoolPath, repoKeysFromFlag, baseRefFromFlag, branchFromFlag, forceApply)
 	}
 	c.debugf("run ws add-repo workspace=%s cwd=%s", workspaceID, wd)
 
-	if db != nil {
-		if status, ok, err := statestore.LookupWorkspaceStatus(ctx, db, workspaceID); err != nil {
-			fmt.Fprintf(c.Err, "load workspace: %v\n", err)
-			return exitError
-		} else if !ok {
-			existsFS, activeFS, fsErr := workspaceActiveOnFilesystem(root, workspaceID)
-			if fsErr != nil {
-				fmt.Fprintf(c.Err, "load workspace: %v\n", fsErr)
-				return exitError
-			}
-			if !existsFS {
-				fmt.Fprintf(c.Err, "workspace not found: %s\n", workspaceID)
-				return exitError
-			}
-			if !activeFS {
-				fmt.Fprintf(c.Err, "workspace is not active (status=archived): %s\n", workspaceID)
-				return exitError
-			}
-			c.debugf("ws add-repo: workspace not found in state store, fallback to filesystem: %s", workspaceID)
-			db = nil
-		} else if status != "active" {
-			fmt.Fprintf(c.Err, "workspace is not active (status=%s): %s\n", status, workspaceID)
-			return exitError
-		}
-	} else {
-		existsFS, activeFS, fsErr := workspaceActiveOnFilesystem(root, workspaceID)
-		if fsErr != nil {
-			fmt.Fprintf(c.Err, "load workspace: %v\n", fsErr)
-			return exitError
-		}
-		if !existsFS {
-			fmt.Fprintf(c.Err, "workspace not found: %s\n", workspaceID)
-			return exitError
-		}
-		if !activeFS {
-			fmt.Fprintf(c.Err, "workspace is not active (status=archived): %s\n", workspaceID)
-			return exitError
-		}
+	existsFS, activeFS, fsErr := workspaceActiveOnFilesystem(root, workspaceID)
+	if fsErr != nil {
+		fmt.Fprintf(c.Err, "load workspace: %v\n", fsErr)
+		return exitError
+	}
+	if !existsFS {
+		fmt.Fprintf(c.Err, "workspace not found: %s\n", workspaceID)
+		return exitError
+	}
+	if !activeFS {
+		fmt.Fprintf(c.Err, "workspace is not active (status=archived): %s\n", workspaceID)
+		return exitError
 	}
 
 	releaseLock, err := acquireWorkspaceAddRepoLock(root, workspaceID)
@@ -269,7 +240,7 @@ func (c *CLI) runWSAddRepo(args []string) int {
 	}
 	defer releaseLock()
 
-	candidates, err := listAddRepoPoolCandidates(ctx, db, root, repoPoolPath, workspaceID, time.Now(), c.debugf)
+	candidates, err := listAddRepoPoolCandidates(ctx, root, repoPoolPath, workspaceID, time.Now(), c.debugf)
 	if err != nil {
 		fmt.Fprintf(c.Err, "list repo pool candidates: %v\n", err)
 		return exitError
@@ -356,7 +327,7 @@ func (c *CLI) runWSAddRepo(args []string) int {
 		})
 	}
 
-	if err := preflightAddRepoPlan(ctx, db, root, workspaceID, plan); err != nil {
+	if err := preflightAddRepoPlan(ctx, root, workspaceID, plan); err != nil {
 		fmt.Fprintf(c.Err, "preflight add-repo: %v\n", err)
 		return exitError
 	}
@@ -374,7 +345,7 @@ func (c *CLI) runWSAddRepo(args []string) int {
 		return exitError
 	}
 
-	applied, err := applyAddRepoPlanAllOrNothing(ctx, db, workspaceID, plan, c.debugf)
+	applied, err := applyAddRepoPlanAllOrNothing(ctx, plan, c.debugf)
 	if err != nil {
 		fmt.Fprintf(c.Err, "apply add-repo: %v\n", err)
 		return exitError
@@ -382,25 +353,9 @@ func (c *CLI) runWSAddRepo(args []string) int {
 	wsPath := filepath.Join(root, "workspaces", workspaceID)
 	nowUnix := time.Now().Unix()
 	if err := upsertWorkspaceMetaReposRestore(wsPath, buildWorkspaceMetaReposRestore(applied), nowUnix); err != nil {
-		rollbackAddRepoApplied(ctx, db, workspaceID, applied, c.debugf)
+		rollbackAddRepoApplied(ctx, applied, c.debugf)
 		fmt.Fprintf(c.Err, "update %s: %v\n", workspaceMetaFilename, err)
 		return exitError
-	}
-
-	now := time.Now()
-	day := localDayKey(now)
-	nowUnix = now.Unix()
-	if db != nil {
-		for _, it := range applied {
-			if err := statestore.TouchRepoUpdatedAt(ctx, db, it.Plan.Candidate.RepoUID, nowUnix); err != nil {
-				fmt.Fprintf(c.Err, "touch repo updated_at: %v\n", err)
-				return exitError
-			}
-			if err := statestore.IncrementRepoUsageDaily(ctx, db, it.Plan.Candidate.RepoUID, day, nowUnix); err != nil {
-				fmt.Fprintf(c.Err, "update repo usage: %v\n", err)
-				return exitError
-			}
-		}
 	}
 
 	printAddRepoResult(c.Out, applied, useColorOut)
@@ -408,7 +363,7 @@ func (c *CLI) runWSAddRepo(args []string) int {
 	return exitOK
 }
 
-func (c *CLI) runWSAddRepoJSON(workspaceID string, root string, repoPoolPath string, db *sql.DB, repoKeys []string, baseRefInput string, branchInput string, yes bool) int {
+func (c *CLI) runWSAddRepoJSON(workspaceID string, root string, repoPoolPath string, repoKeys []string, baseRefInput string, branchInput string, yes bool) int {
 	ctx := context.Background()
 	if len(repoKeys) == 0 {
 		_ = writeCLIJSON(c.Out, cliJSONResponse{
@@ -435,108 +390,42 @@ func (c *CLI) runWSAddRepoJSON(workspaceID string, root string, repoPoolPath str
 		return exitUsage
 	}
 
-	if db != nil {
-		if status, ok, err := statestore.LookupWorkspaceStatus(ctx, db, workspaceID); err != nil {
-			_ = writeCLIJSON(c.Out, cliJSONResponse{
-				OK:          false,
-				Action:      "add-repo",
-				WorkspaceID: workspaceID,
-				Error: &cliJSONError{
-					Code:    "internal_error",
-					Message: fmt.Sprintf("load workspace: %v", err),
-				},
-			})
-			return exitError
-		} else if !ok {
-			existsFS, activeFS, fsErr := workspaceActiveOnFilesystem(root, workspaceID)
-			if fsErr != nil {
-				_ = writeCLIJSON(c.Out, cliJSONResponse{
-					OK:          false,
-					Action:      "add-repo",
-					WorkspaceID: workspaceID,
-					Error: &cliJSONError{
-						Code:    "internal_error",
-						Message: fmt.Sprintf("load workspace: %v", fsErr),
-					},
-				})
-				return exitError
-			}
-			if !existsFS {
-				_ = writeCLIJSON(c.Out, cliJSONResponse{
-					OK:          false,
-					Action:      "add-repo",
-					WorkspaceID: workspaceID,
-					Error: &cliJSONError{
-						Code:    "workspace_not_found",
-						Message: fmt.Sprintf("workspace not found: %s", workspaceID),
-					},
-				})
-				return exitError
-			}
-			if !activeFS {
-				_ = writeCLIJSON(c.Out, cliJSONResponse{
-					OK:          false,
-					Action:      "add-repo",
-					WorkspaceID: workspaceID,
-					Error: &cliJSONError{
-						Code:    "conflict",
-						Message: fmt.Sprintf("workspace is not active (status=archived): %s", workspaceID),
-					},
-				})
-				return exitError
-			}
-			c.debugf("ws add-repo(json): workspace not found in state store, fallback to filesystem: %s", workspaceID)
-			db = nil
-		} else if status != "active" {
-			_ = writeCLIJSON(c.Out, cliJSONResponse{
-				OK:          false,
-				Action:      "add-repo",
-				WorkspaceID: workspaceID,
-				Error: &cliJSONError{
-					Code:    "conflict",
-					Message: fmt.Sprintf("workspace is not active (status=%s): %s", status, workspaceID),
-				},
-			})
-			return exitError
-		}
-	} else {
-		existsFS, activeFS, fsErr := workspaceActiveOnFilesystem(root, workspaceID)
-		if fsErr != nil {
-			_ = writeCLIJSON(c.Out, cliJSONResponse{
-				OK:          false,
-				Action:      "add-repo",
-				WorkspaceID: workspaceID,
-				Error: &cliJSONError{
-					Code:    "internal_error",
-					Message: fmt.Sprintf("load workspace: %v", fsErr),
-				},
-			})
-			return exitError
-		}
-		if !existsFS {
-			_ = writeCLIJSON(c.Out, cliJSONResponse{
-				OK:          false,
-				Action:      "add-repo",
-				WorkspaceID: workspaceID,
-				Error: &cliJSONError{
-					Code:    "workspace_not_found",
-					Message: fmt.Sprintf("workspace not found: %s", workspaceID),
-				},
-			})
-			return exitError
-		}
-		if !activeFS {
-			_ = writeCLIJSON(c.Out, cliJSONResponse{
-				OK:          false,
-				Action:      "add-repo",
-				WorkspaceID: workspaceID,
-				Error: &cliJSONError{
-					Code:    "conflict",
-					Message: fmt.Sprintf("workspace is not active (status=archived): %s", workspaceID),
-				},
-			})
-			return exitError
-		}
+	existsFS, activeFS, fsErr := workspaceActiveOnFilesystem(root, workspaceID)
+	if fsErr != nil {
+		_ = writeCLIJSON(c.Out, cliJSONResponse{
+			OK:          false,
+			Action:      "add-repo",
+			WorkspaceID: workspaceID,
+			Error: &cliJSONError{
+				Code:    "internal_error",
+				Message: fmt.Sprintf("load workspace: %v", fsErr),
+			},
+		})
+		return exitError
+	}
+	if !existsFS {
+		_ = writeCLIJSON(c.Out, cliJSONResponse{
+			OK:          false,
+			Action:      "add-repo",
+			WorkspaceID: workspaceID,
+			Error: &cliJSONError{
+				Code:    "workspace_not_found",
+				Message: fmt.Sprintf("workspace not found: %s", workspaceID),
+			},
+		})
+		return exitError
+	}
+	if !activeFS {
+		_ = writeCLIJSON(c.Out, cliJSONResponse{
+			OK:          false,
+			Action:      "add-repo",
+			WorkspaceID: workspaceID,
+			Error: &cliJSONError{
+				Code:    "conflict",
+				Message: fmt.Sprintf("workspace is not active (status=archived): %s", workspaceID),
+			},
+		})
+		return exitError
 	}
 
 	releaseLock, err := acquireWorkspaceAddRepoLock(root, workspaceID)
@@ -554,7 +443,7 @@ func (c *CLI) runWSAddRepoJSON(workspaceID string, root string, repoPoolPath str
 	}
 	defer releaseLock()
 
-	candidates, err := listAddRepoPoolCandidates(ctx, db, root, repoPoolPath, workspaceID, time.Now(), c.debugf)
+	candidates, err := listAddRepoPoolCandidates(ctx, root, repoPoolPath, workspaceID, time.Now(), c.debugf)
 	if err != nil {
 		_ = writeCLIJSON(c.Out, cliJSONResponse{
 			OK:          false,
@@ -640,7 +529,7 @@ func (c *CLI) runWSAddRepoJSON(workspaceID string, root string, repoPoolPath str
 		})
 	}
 
-	if err := preflightAddRepoPlan(ctx, db, root, workspaceID, plan); err != nil {
+	if err := preflightAddRepoPlan(ctx, root, workspaceID, plan); err != nil {
 		_ = writeCLIJSON(c.Out, cliJSONResponse{
 			OK:          false,
 			Action:      "add-repo",
@@ -652,7 +541,7 @@ func (c *CLI) runWSAddRepoJSON(workspaceID string, root string, repoPoolPath str
 		})
 		return exitError
 	}
-	applied, err := applyAddRepoPlanAllOrNothing(ctx, db, workspaceID, plan, c.debugf)
+	applied, err := applyAddRepoPlanAllOrNothing(ctx, plan, c.debugf)
 	if err != nil {
 		_ = writeCLIJSON(c.Out, cliJSONResponse{
 			OK:          false,
@@ -668,7 +557,7 @@ func (c *CLI) runWSAddRepoJSON(workspaceID string, root string, repoPoolPath str
 	wsPath := filepath.Join(root, "workspaces", workspaceID)
 	nowUnix := time.Now().Unix()
 	if err := upsertWorkspaceMetaReposRestore(wsPath, buildWorkspaceMetaReposRestore(applied), nowUnix); err != nil {
-		rollbackAddRepoApplied(ctx, db, workspaceID, applied, c.debugf)
+		rollbackAddRepoApplied(ctx, applied, c.debugf)
 		_ = writeCLIJSON(c.Out, cliJSONResponse{
 			OK:          false,
 			Action:      "add-repo",
@@ -679,37 +568,6 @@ func (c *CLI) runWSAddRepoJSON(workspaceID string, root string, repoPoolPath str
 			},
 		})
 		return exitError
-	}
-	now := time.Now()
-	day := localDayKey(now)
-	nowUnix = now.Unix()
-	if db != nil {
-		for _, it := range applied {
-			if err := statestore.TouchRepoUpdatedAt(ctx, db, it.Plan.Candidate.RepoUID, nowUnix); err != nil {
-				_ = writeCLIJSON(c.Out, cliJSONResponse{
-					OK:          false,
-					Action:      "add-repo",
-					WorkspaceID: workspaceID,
-					Error: &cliJSONError{
-						Code:    "internal_error",
-						Message: fmt.Sprintf("touch repo updated_at: %v", err),
-					},
-				})
-				return exitError
-			}
-			if err := statestore.IncrementRepoUsageDaily(ctx, db, it.Plan.Candidate.RepoUID, day, nowUnix); err != nil {
-				_ = writeCLIJSON(c.Out, cliJSONResponse{
-					OK:          false,
-					Action:      "add-repo",
-					WorkspaceID: workspaceID,
-					Error: &cliJSONError{
-						Code:    "internal_error",
-						Message: fmt.Sprintf("update repo usage: %v", err),
-					},
-				})
-				return exitError
-			}
-		}
 	}
 	repos := make([]string, 0, len(applied))
 	for _, it := range applied {
@@ -878,38 +736,14 @@ func isProcessAlive(pid int) bool {
 	return true
 }
 
-func listAddRepoPoolCandidates(ctx context.Context, db *sql.DB, root string, repoPoolPath string, workspaceID string, now time.Time, debugf func(string, ...any)) ([]addRepoPoolCandidate, error) {
-	baseCandidates := make([]addRepoPoolCandidate, 0, 16)
-	if db != nil {
-		startDay := localDayKey(now.AddDate(0, 0, -29))
-		items, err := statestore.ListRepoPoolCandidates(ctx, db, startDay)
-		if err != nil {
-			return nil, err
-		}
-		for _, it := range items {
-			baseCandidates = append(baseCandidates, addRepoPoolCandidate{
-				RepoUID:   it.RepoUID,
-				RepoKey:   it.RepoKey,
-				RemoteURL: it.RemoteURL,
-				Alias:     deriveAliasFromRepoKey(it.RepoKey),
-			})
-		}
-	}
-	if len(baseCandidates) == 0 {
-		items, err := scanRepoPoolCandidatesFromFilesystem(ctx, repoPoolPath, debugf)
-		if err != nil {
-			return nil, err
-		}
-		baseCandidates = append(baseCandidates, items...)
+func listAddRepoPoolCandidates(ctx context.Context, root string, repoPoolPath string, workspaceID string, now time.Time, debugf func(string, ...any)) ([]addRepoPoolCandidate, error) {
+	_ = now
+	baseCandidates, err := scanRepoPoolCandidatesFromFilesystem(ctx, repoPoolPath, debugf)
+	if err != nil {
+		return nil, err
 	}
 
-	var bound []statestore.WorkspaceRepo
-	var err error
-	if db != nil {
-		bound, err = statestore.ListWorkspaceRepos(ctx, db, workspaceID)
-	} else {
-		bound, err = listWorkspaceReposForClose(ctx, nil, root, workspaceID)
-	}
+	bound, err := listWorkspaceReposForClose(ctx, root, workspaceID)
 	if err != nil && debugf != nil {
 		debugf("ws add-repo: bound repo lookup fallback err=%v", err)
 	}
@@ -1154,23 +988,14 @@ func detectDefaultBaseRefFromBare(ctx context.Context, barePath string) (string,
 	return "", fmt.Errorf("failed to detect default base_ref in bare repo")
 }
 
-func preflightAddRepoPlan(ctx context.Context, db *sql.DB, root string, workspaceID string, plan []addRepoPlanItem) error {
+func preflightAddRepoPlan(ctx context.Context, root string, workspaceID string, plan []addRepoPlanItem) error {
 	if len(plan) == 0 {
 		return fmt.Errorf("no repo selected")
 	}
 
-	var existingRepos []statestore.WorkspaceRepo
-	var err error
-	if db != nil {
-		existingRepos, err = statestore.ListWorkspaceRepos(ctx, db, workspaceID)
-		if err != nil {
-			return fmt.Errorf("list workspace repos: %w", err)
-		}
-	} else {
-		existingRepos, err = listWorkspaceReposForClose(ctx, nil, root, workspaceID)
-		if err != nil {
-			return fmt.Errorf("list workspace repos: %w", err)
-		}
+	existingRepos, err := listWorkspaceReposForClose(ctx, root, workspaceID)
+	if err != nil {
+		return fmt.Errorf("list workspace repos: %w", err)
 	}
 	aliasTaken := make(map[string]bool, len(existingRepos)+len(plan))
 	for _, r := range existingRepos {
@@ -1438,9 +1263,8 @@ func resolveBranchInput(rawInput string, defaultPrefix string) string {
 	return strings.TrimSpace(rawInput)
 }
 
-func applyAddRepoPlanAllOrNothing(ctx context.Context, db *sql.DB, workspaceID string, plan []addRepoPlanItem, debugf func(string, ...any)) ([]addRepoAppliedItem, error) {
+func applyAddRepoPlanAllOrNothing(ctx context.Context, plan []addRepoPlanItem, debugf func(string, ...any)) ([]addRepoAppliedItem, error) {
 	applied := make([]addRepoAppliedItem, 0, len(plan))
-	now := time.Now().Unix()
 
 	for _, p := range plan {
 		current := addRepoAppliedItem{Plan: p}
@@ -1448,12 +1272,12 @@ func applyAddRepoPlanAllOrNothing(ctx context.Context, db *sql.DB, workspaceID s
 		if !p.LocalBranchExists {
 			if p.RemoteBranchExists {
 				if _, err := gitutil.RunBare(ctx, p.Candidate.BarePath, "branch", "--track", p.Branch, "origin/"+p.Branch); err != nil {
-					rollbackAddRepoApplied(ctx, db, workspaceID, applied, debugf)
+					rollbackAddRepoApplied(ctx, applied, debugf)
 					return nil, fmt.Errorf("create tracking branch for %s: %w", p.Candidate.RepoKey, err)
 				}
 			} else {
 				if _, err := gitutil.RunBare(ctx, p.Candidate.BarePath, "branch", p.Branch, p.BaseRefUsed); err != nil {
-					rollbackAddRepoApplied(ctx, db, workspaceID, applied, debugf)
+					rollbackAddRepoApplied(ctx, applied, debugf)
 					return nil, fmt.Errorf("create branch from base_ref for %s: %w", p.Candidate.RepoKey, err)
 				}
 			}
@@ -1461,47 +1285,19 @@ func applyAddRepoPlanAllOrNothing(ctx context.Context, db *sql.DB, workspaceID s
 		}
 
 		if _, err := gitutil.RunBare(ctx, p.Candidate.BarePath, "worktree", "add", p.WorktreePath, p.Branch); err != nil {
-			rollbackAddRepoApplied(ctx, db, workspaceID, append(applied, current), debugf)
+			rollbackAddRepoApplied(ctx, append(applied, current), debugf)
 			return nil, fmt.Errorf("create worktree for %s: %w", p.Candidate.RepoKey, err)
 		}
 		current.CreatedWorktree = true
 
-		if db != nil {
-			if err := statestore.EnsureRepo(ctx, db, statestore.EnsureRepoInput{
-				RepoUID:   p.Candidate.RepoUID,
-				RepoKey:   p.Candidate.RepoKey,
-				RemoteURL: p.Candidate.RemoteURL,
-				Now:       now,
-			}); err != nil {
-				rollbackAddRepoApplied(ctx, db, workspaceID, append(applied, current), debugf)
-				return nil, fmt.Errorf("ensure repo for %s: %w", p.Candidate.RepoKey, err)
-			}
-			if err := statestore.AddWorkspaceRepo(ctx, db, statestore.AddWorkspaceRepoInput{
-				WorkspaceID:   workspaceID,
-				RepoUID:       p.Candidate.RepoUID,
-				RepoKey:       p.Candidate.RepoKey,
-				Alias:         p.Candidate.Alias,
-				Branch:        p.Branch,
-				BaseRef:       p.BaseRefInput,
-				RepoSpecInput: p.Candidate.RemoteURL,
-				Now:           now,
-			}); err != nil {
-				rollbackAddRepoApplied(ctx, db, workspaceID, append(applied, current), debugf)
-				return nil, fmt.Errorf("record workspace repo for %s: %w", p.Candidate.RepoKey, err)
-			}
-			current.AddedBinding = true
-		}
 		applied = append(applied, current)
 	}
 	return applied, nil
 }
 
-func rollbackAddRepoApplied(ctx context.Context, db *sql.DB, workspaceID string, applied []addRepoAppliedItem, debugf func(string, ...any)) {
+func rollbackAddRepoApplied(ctx context.Context, applied []addRepoAppliedItem, debugf func(string, ...any)) {
 	for i := len(applied) - 1; i >= 0; i-- {
 		it := applied[i]
-		if it.AddedBinding {
-			_ = statestore.DeleteWorkspaceRepoBinding(ctx, db, workspaceID, it.Plan.Candidate.RepoUID)
-		}
 		if it.CreatedWorktree {
 			_, _ = gitutil.RunBare(ctx, it.Plan.Candidate.BarePath, "worktree", "remove", "--force", it.Plan.WorktreePath)
 			_ = os.RemoveAll(it.Plan.WorktreePath)

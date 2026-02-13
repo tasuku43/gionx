@@ -47,7 +47,7 @@ func (c *CLI) runRepoRemove(args []string) int {
 	}
 	c.debugf("run repo remove args=%d", len(args))
 
-	repos, bareByRepo, fallbackErr := listRootRepoCandidatesFromFilesystem(ctx, session.Root, session.RepoPoolPath)
+	repos, fallbackErr := listRootRepoCandidatesFromFilesystem(ctx, session.Root, session.RepoPoolPath)
 	if fallbackErr != nil {
 		fmt.Fprintf(c.Err, "list repos: %v\n", fallbackErr)
 		return exitError
@@ -72,12 +72,10 @@ func (c *CLI) runRepoRemove(args []string) int {
 	}
 
 	blocked := make([]string, 0)
-	repoUIDs := make([]string, 0, len(selected))
 	for _, it := range selected {
 		if it.WorkspaceRefCount > 0 {
 			blocked = append(blocked, fmt.Sprintf("%s (workspace refs: %d)", it.RepoKey, it.WorkspaceRefCount))
 		}
-		repoUIDs = append(repoUIDs, it.RepoUID)
 	}
 	if len(blocked) > 0 {
 		fmt.Fprintln(c.Err, "cannot remove repos that are still bound to workspaces:")
@@ -90,33 +88,21 @@ func (c *CLI) runRepoRemove(args []string) int {
 
 	useColorOut := writerSupportsColor(c.Out)
 	printRepoRemoveSelection(c.Out, selected, useColorOut)
-	for _, repoUID := range repoUIDs {
-		barePath := strings.TrimSpace(bareByRepo[repoUID])
-		if barePath == "" {
-			continue
-		}
-		if err := os.RemoveAll(barePath); err != nil {
-			fmt.Fprintf(c.Err, "remove repos: %v\n", err)
-			return exitError
-		}
-	}
-
 	printRepoRemoveResult(c.Out, selected, useColorOut)
 	return exitOK
 }
 
-func listRootRepoCandidatesFromFilesystem(ctx context.Context, root string, repoPoolPath string) ([]statestore.RootRepoCandidate, map[string]string, error) {
+func listRootRepoCandidatesFromFilesystem(ctx context.Context, root string, repoPoolPath string) ([]statestore.RootRepoCandidate, error) {
 	bareRepos, err := listRepoPoolBareRepos(repoPoolPath)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 	workspaceRefs, err := listWorkspaceRepoRefCountFromFilesystem(ctx, root)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 
 	candidates := make([]statestore.RootRepoCandidate, 0, len(bareRepos))
-	bareByRepo := make(map[string]string, len(bareRepos))
 	seen := make(map[string]bool, len(bareRepos))
 	for _, barePath := range bareRepos {
 		remoteURL, _ := gitutil.RunBare(ctx, barePath, "config", "--get", "remote.origin.url")
@@ -131,12 +117,11 @@ func listRootRepoCandidatesFromFilesystem(ctx context.Context, root string, repo
 			RemoteURL:         strings.TrimSpace(remoteURL),
 			WorkspaceRefCount: workspaceRefs[repoUID],
 		})
-		bareByRepo[repoUID] = barePath
 	}
 	slices.SortFunc(candidates, func(a, b statestore.RootRepoCandidate) int {
 		return strings.Compare(a.RepoKey, b.RepoKey)
 	})
-	return candidates, bareByRepo, nil
+	return candidates, nil
 }
 
 func listWorkspaceRepoRefCountFromFilesystem(ctx context.Context, root string) (map[string]int, error) {

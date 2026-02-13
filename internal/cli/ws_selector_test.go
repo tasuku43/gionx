@@ -5,7 +5,7 @@ import (
 	"testing"
 
 	tea "github.com/charmbracelet/bubbletea"
-	"github.com/tasuku43/gion-core/workspacerisk"
+	"github.com/tasuku43/gionx/internal/core/workspacerisk"
 )
 
 func TestWorkspaceSelectorModel_SpaceTogglesSelection(t *testing.T) {
@@ -349,7 +349,7 @@ func TestRenderWorkspaceSelectorLines_UsesColonBetweenIDAndTitle(t *testing.T) {
 	}
 }
 
-func TestRenderWorkspaceSelectorLines_ColorizedColonAndNoTitle(t *testing.T) {
+func TestRenderWorkspaceSelectorLines_WorkspaceIDBoldOnlyOnFocusedRow(t *testing.T) {
 	lines := renderWorkspaceSelectorLines(
 		"active",
 		"go",
@@ -366,8 +366,11 @@ func TestRenderWorkspaceSelectorLines_ColorizedColonAndNoTitle(t *testing.T) {
 		120,
 	)
 	joined := strings.Join(lines, "\n")
-	if !strings.Contains(joined, ansiBold+"TEST-002"+ansiReset) {
-		t.Fatalf("workspace id should be bold in selector row, got %q", joined)
+	if strings.Contains(joined, ansiBold+"TEST-002") {
+		t.Fatalf("workspace id should not be bold on non-focused row, got %q", joined)
+	}
+	if !strings.Contains(joined, ansiBold+"TEST-003"+ansiBoldOff) {
+		t.Fatalf("workspace id should be bold on focused row, got %q", joined)
 	}
 	if !strings.Contains(joined, ansiMuted+": "+ansiReset) {
 		t.Fatalf("separator should use muted token, got %q", joined)
@@ -769,6 +772,39 @@ func TestWorkspaceSelectorModel_SingleModeLocksInputWhileConfirming(t *testing.T
 	}
 }
 
+func TestWorkspaceSelectorModel_ViewHidesAssistRowsWhileConfirming(t *testing.T) {
+	m := newWorkspaceSelectorModelWithOptionsAndMode(
+		[]workspaceSelectorCandidate{
+			{ID: "WS1", Risk: workspacerisk.WorkspaceRiskClean},
+			{ID: "WS2", Risk: workspacerisk.WorkspaceRiskClean},
+		},
+		"active",
+		"go",
+		"",
+		"workspace",
+		true,
+		false,
+		nil,
+	)
+
+	updated, _ := m.Update(tea.KeyMsg{Type: tea.KeyEnter})
+	next, ok := updated.(workspaceSelectorModel)
+	if !ok {
+		t.Fatalf("unexpected model type: %T", updated)
+	}
+	if !next.confirming {
+		t.Fatalf("single mode should enter confirming state")
+	}
+
+	view := next.View()
+	if strings.Contains(view, "filter:") {
+		t.Fatalf("confirming view should hide filter row, got=%q", view)
+	}
+	if strings.Contains(view, "space/enter") {
+		t.Fatalf("confirming view should hide footer controls, got=%q", view)
+	}
+}
+
 func TestWorkspaceSelectorModel_MultiModeEnterWaitsConfirmDelay(t *testing.T) {
 	m := newWorkspaceSelectorModel(
 		[]workspaceSelectorCandidate{
@@ -943,6 +979,85 @@ func TestRenderWorkspaceSelectorLinesWithOptions_MultiConfirmingMutesNonSelected
 	}
 	if !strings.Contains(targetLine, ansiMuted) {
 		t.Fatalf("unselected line should be muted while multi confirming, got=%q", targetLine)
+	}
+}
+
+func TestRenderWorkspaceSelectorLinesWithOptions_WorkspaceConfirmingMutesTitleOnUnselectedRows(t *testing.T) {
+	lines := renderWorkspaceSelectorLinesWithOptions(
+		"active",
+		"",
+		"go",
+		[]workspaceSelectorCandidate{
+			{ID: "WS1", Title: "alpha", Risk: workspacerisk.WorkspaceRiskClean},
+			{ID: "WS2", Title: "beta", Risk: workspacerisk.WorkspaceRiskClean},
+		},
+		map[int]bool{0: true},
+		0,
+		"",
+		selectorMessageLevelMuted,
+		"",
+		true,
+		true,
+		true,
+		true,
+		true,
+		120,
+	)
+
+	targetLine := ""
+	for _, line := range lines {
+		if strings.Contains(line, "WS2") {
+			targetLine = line
+			break
+		}
+	}
+	if targetLine == "" {
+		t.Fatalf("expected unselected workspace line in output, got=%q", strings.Join(lines, "\n"))
+	}
+	want := ansiMuted + "○ WS2: beta" + ansiReset
+	if !strings.Contains(targetLine, want) {
+		t.Fatalf("unselected workspace row should be muted including title, got=%q", targetLine)
+	}
+}
+
+func TestRenderWorkspaceSelectorLinesWithOptions_MultiConfirmingHidesFocusBackground(t *testing.T) {
+	lines := renderWorkspaceSelectorLinesWithOptions(
+		"active",
+		"Repos(workspace):",
+		"remove",
+		[]workspaceSelectorCandidate{
+			{ID: "example-org/ai-secretary-tools", Risk: workspacerisk.WorkspaceRiskClean},
+			{ID: "example-org/astraea-tools", Risk: workspacerisk.WorkspaceRiskClean},
+		},
+		map[int]bool{0: true},
+		1,
+		"",
+		selectorMessageLevelMuted,
+		"",
+		false,
+		true,
+		false,
+		true,
+		true,
+		120,
+	)
+
+	focused := ""
+	for _, line := range lines {
+		if strings.Contains(line, "example-org/astraea-tools") {
+			focused = line
+			break
+		}
+	}
+	if focused == "" {
+		t.Fatalf("expected focused line in output, got=%q", strings.Join(lines, "\n"))
+	}
+	if strings.Contains(focused, "\x1b[48;") {
+		t.Fatalf("focused line should not keep background while confirming, got=%q", focused)
+	}
+	focusAccent := styleBold(styleTokenize(">", tokenFocus, true), true)
+	if strings.Contains(focused, focusAccent) {
+		t.Fatalf("focused line should not use focus accent while confirming, got=%q", focused)
 	}
 }
 

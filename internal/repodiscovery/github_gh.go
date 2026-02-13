@@ -7,7 +7,7 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/tasuku43/gion-core/repospec"
+	"github.com/tasuku43/gionx/internal/core/repospec"
 )
 
 type ghRunner func(ctx context.Context, args ...string) (string, error)

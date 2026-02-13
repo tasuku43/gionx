@@ -2,7 +2,6 @@ package cli
 
 import (
 	"context"
-	"database/sql"
 	"errors"
 	"fmt"
 	"io"
@@ -12,10 +11,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/tasuku43/gion-core/workspacerisk"
+	"github.com/tasuku43/gionx/internal/core/workspacerisk"
 	"github.com/tasuku43/gionx/internal/infra/gitutil"
 	"github.com/tasuku43/gionx/internal/infra/paths"
-	"github.com/tasuku43/gionx/internal/infra/statestore"
 )
 
 type removeRepoCandidate struct {
@@ -177,7 +175,6 @@ func (c *CLI) runWSRemoveRepo(args []string) int {
 	}
 
 	ctx := context.Background()
-	var db *sql.DB
 	if outputFormat == "json" {
 		if len(repoKeysFromFlag) == 0 {
 			_ = writeCLIJSON(c.Out, cliJSONResponse{
@@ -205,7 +202,7 @@ func (c *CLI) runWSRemoveRepo(args []string) int {
 		}
 	}
 
-	candidates, err := listRemoveRepoCandidates(ctx, db, root, workspaceID)
+	candidates, err := listRemoveRepoCandidates(ctx, root, workspaceID)
 	if err != nil {
 		fmt.Fprintf(c.Err, "list workspace repos: %v\n", err)
 		return exitError
@@ -228,7 +225,7 @@ func (c *CLI) runWSRemoveRepo(args []string) int {
 	}
 
 	if outputFormat == "json" {
-		return c.runWSRemoveRepoJSON(root, workspaceID, wd, db, candidates, repoKeysFromFlag, yes, force)
+		return c.runWSRemoveRepoJSON(root, workspaceID, wd, candidates, repoKeysFromFlag, yes, force)
 	}
 
 	shouldShiftCWD := isPathInside(filepath.Join(root, "workspaces", workspaceID), wd)
@@ -277,7 +274,7 @@ func (c *CLI) runWSRemoveRepo(args []string) int {
 		return exitError
 	}
 
-	if err := applyRemoveRepoPlan(ctx, db, root, workspaceID, selected); err != nil {
+	if err := applyRemoveRepoPlan(ctx, root, workspaceID, selected); err != nil {
 		fmt.Fprintf(c.Err, "apply remove-repo: %v\n", err)
 		return exitError
 	}
@@ -298,7 +295,7 @@ func (c *CLI) runWSRemoveRepo(args []string) int {
 	return exitOK
 }
 
-func (c *CLI) runWSRemoveRepoJSON(root string, workspaceID string, wd string, db *sql.DB, candidates []removeRepoCandidate, repoKeys []string, yes bool, force bool) int {
+func (c *CLI) runWSRemoveRepoJSON(root string, workspaceID string, wd string, candidates []removeRepoCandidate, repoKeys []string, yes bool, force bool) int {
 	_ = yes
 	shouldShiftCWD := isPathInside(filepath.Join(root, "workspaces", workspaceID), wd)
 	workspacePath := filepath.Join(root, "workspaces", workspaceID)
@@ -358,7 +355,7 @@ func (c *CLI) runWSRemoveRepoJSON(root string, workspaceID string, wd string, db
 		return exitError
 	}
 
-	if err := applyRemoveRepoPlan(context.Background(), db, root, workspaceID, selected); err != nil {
+	if err := applyRemoveRepoPlan(context.Background(), root, workspaceID, selected); err != nil {
 		_ = writeCLIJSON(c.Out, cliJSONResponse{
 			OK:          false,
 			Action:      "remove-repo",
@@ -414,8 +411,8 @@ func (c *CLI) runWSRemoveRepoJSON(root string, workspaceID string, wd string, db
 	return exitOK
 }
 
-func listRemoveRepoCandidates(ctx context.Context, db *sql.DB, root string, workspaceID string) ([]removeRepoCandidate, error) {
-	repos, err := listWorkspaceReposForClose(ctx, db, root, workspaceID)
+func listRemoveRepoCandidates(ctx context.Context, root string, workspaceID string) ([]removeRepoCandidate, error) {
+	repos, err := listWorkspaceReposForClose(ctx, root, workspaceID)
 	if err != nil {
 		return nil, err
 	}
@@ -523,66 +520,20 @@ func collectRemoveRepoPlanDetails(ctx context.Context, selected []removeRepoCand
 			continue
 		}
 
-		status := inspectGitRepoStatus(ctx, it.WorktreePath)
+		snapshot := inspectGitRepoSnapshot(ctx, it.WorktreePath)
+		status := snapshot.Status
 		d.state = workspacerisk.ClassifyRepoStatus(status)
 		d.upstream = strings.TrimSpace(status.Upstream)
 		d.ahead = status.AheadCount
 		d.behind = status.BehindCount
-		d.branch = detectBranchForClose(ctx, it.WorktreePath, "")
-		d.staged, d.unstaged, d.untracked, d.files, d.filesANSI = collectGitShortStatusSummary(ctx, it.WorktreePath)
+		d.branch = strings.TrimSpace(snapshot.Branch)
+		d.staged = snapshot.Staged
+		d.unstaged = snapshot.Unstaged
+		d.untracked = snapshot.Untracked
+		d.files = append([]string{}, snapshot.Files...)
 		details = append(details, d)
 	}
 	return details
-}
-
-func collectGitShortStatusSummary(ctx context.Context, worktreePath string) (staged int, unstaged int, untracked int, files []string, filesANSI []string) {
-	out, err := gitutil.Run(ctx, worktreePath, "status", "--short")
-	if err != nil {
-		return 0, 0, 0, nil, nil
-	}
-	outANSI, err := gitutil.Run(ctx, worktreePath, "-c", "color.status=always", "status", "--short")
-	if err != nil {
-		outANSI = ""
-	}
-	lines := strings.Split(strings.TrimSpace(out), "\n")
-	linesANSI := strings.Split(strings.TrimSpace(outANSI), "\n")
-	if strings.TrimSpace(outANSI) == "" {
-		linesANSI = nil
-	}
-	useANSI := len(linesANSI) == len(lines)
-	for _, line := range lines {
-		line = strings.TrimRight(line, " \t")
-		if strings.TrimSpace(line) == "" {
-			continue
-		}
-		files = append(files, line)
-		if len(line) >= 2 {
-			x := line[0]
-			y := line[1]
-			if x == '?' && y == '?' {
-				untracked++
-				continue
-			}
-			if x != ' ' {
-				staged++
-			}
-			if y != ' ' {
-				unstaged++
-			}
-		} else {
-			unstaged++
-		}
-	}
-	if useANSI {
-		for _, line := range linesANSI {
-			line = strings.TrimRight(line, " \t")
-			if strings.TrimSpace(line) == "" {
-				continue
-			}
-			filesANSI = append(filesANSI, line)
-		}
-	}
-	return staged, unstaged, untracked, files, filesANSI
 }
 
 func selectedAliases(selected []removeRepoCandidate) []string {
@@ -599,7 +550,7 @@ func selectedAliases(selected []removeRepoCandidate) []string {
 	return aliases
 }
 
-func applyRemoveRepoPlan(ctx context.Context, db *sql.DB, root string, workspaceID string, selected []removeRepoCandidate) error {
+func applyRemoveRepoPlan(ctx context.Context, root string, workspaceID string, selected []removeRepoCandidate) error {
 	for _, it := range selected {
 		if _, err := os.Stat(it.WorktreePath); err == nil {
 			barePath, bareErr := resolveBarePathFromWorktreeGitdir(it.WorktreePath)
@@ -611,11 +562,6 @@ func applyRemoveRepoPlan(ctx context.Context, db *sql.DB, root string, workspace
 				}
 			}
 			if err := os.RemoveAll(it.WorktreePath); err != nil {
-				return err
-			}
-		}
-		if db != nil && strings.TrimSpace(it.RepoUID) != "" {
-			if err := statestore.DeleteWorkspaceRepoBinding(ctx, db, workspaceID, it.RepoUID); err != nil {
 				return err
 			}
 		}
@@ -645,7 +591,7 @@ func printRemoveRepoPlan(out io.Writer, workspaceID string, selected []removeRep
 		d, ok := lookupRemoveRepoPlanDetail(details, p)
 		branchSuffix := ""
 		if ok && strings.TrimSpace(d.branch) != "" {
-			branchSuffix = fmt.Sprintf(" (%s%s)", styleMuted("branch: ", useColor), d.branch)
+			branchSuffix = fmt.Sprintf(" (%s%s)", styleMuted("branch: ", useColor), styleGitRefLocal(d.branch, useColor))
 		}
 		body = append(body, fmt.Sprintf("%s%s%s%s", uiIndent+uiIndent, styleMuted(connector, useColor), p.RepoKey, branchSuffix))
 		if !ok {
@@ -687,12 +633,8 @@ func printRemoveRepoPlan(out io.Writer, workspaceID string, selected []removeRep
 				prefix = "   "
 			}
 			body = append(body, fmt.Sprintf("%s%s%s", uiIndent+uiIndent, prefix, styleMuted("files:", useColor)))
-			renderLines := d.files
-			if useColor && len(d.filesANSI) == len(d.files) {
-				renderLines = d.filesANSI
-			}
-			for _, f := range renderLines {
-				body = append(body, fmt.Sprintf("%s%s  %s", uiIndent+uiIndent, prefix, f))
+			for _, f := range d.files {
+				body = append(body, fmt.Sprintf("%s%s  %s", uiIndent+uiIndent, prefix, styleGitStatusShortLine(f, useColor)))
 			}
 		}
 	}
@@ -741,7 +683,7 @@ func renderPlanUpstreamLabel(upstream string, useColor bool) string {
 	if strings.TrimSpace(upstream) == "" {
 		return styleWarn("(none)", useColor)
 	}
-	return upstream
+	return styleGitRefRemote(upstream, useColor)
 }
 
 func renderPlanAheadBehindValue(v int, useColor bool) string {
@@ -754,7 +696,7 @@ func renderPlanAheadBehindValue(v int, useColor bool) string {
 func renderPlanDirtyCounter(name string, v int, useColor bool) string {
 	token := fmt.Sprintf("%s=%d", name, v)
 	if v > 0 {
-		return styleError(token, useColor)
+		return styleErrorSubtle(token, useColor)
 	}
 	return styleMuted(token, useColor)
 }

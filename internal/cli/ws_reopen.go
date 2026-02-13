@@ -2,7 +2,6 @@ package cli
 
 import (
 	"context"
-	"database/sql"
 	"errors"
 	"fmt"
 	"os"
@@ -10,11 +9,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/tasuku43/gion-core/repospec"
-	"github.com/tasuku43/gion-core/repostore"
+	"github.com/tasuku43/gionx/internal/core/repospec"
+	"github.com/tasuku43/gionx/internal/core/repostore"
 	"github.com/tasuku43/gionx/internal/infra/gitutil"
 	"github.com/tasuku43/gionx/internal/infra/paths"
-	"github.com/tasuku43/gionx/internal/infra/statestore"
 )
 
 var errNoArchivedWorkspaces = errors.New("no archived workspaces available")
@@ -73,7 +71,6 @@ func (c *CLI) runWSReopen(args []string) int {
 		fmt.Fprintf(c.Err, "resolve repo pool path: %v\n", err)
 		return exitError
 	}
-	var db *sql.DB = nil
 
 	if err := ensureRootGitWorktree(ctx, root); err != nil {
 		fmt.Fprintf(c.Err, "%v\n", err)
@@ -94,7 +91,7 @@ func (c *CLI) runWSReopen(args []string) int {
 		},
 		ApplyOne: func(item workspaceFlowSelection) error {
 			c.debugf("ws reopen start workspace=%s", item.ID)
-			if err := c.reopenWorkspace(ctx, db, root, repoPoolPath, item.ID); err != nil {
+			if err := c.reopenWorkspace(ctx, root, repoPoolPath, item.ID); err != nil {
 				return err
 			}
 			c.debugf("ws reopen completed workspace=%s", item.ID)
@@ -127,17 +124,7 @@ func (c *CLI) runWSReopen(args []string) int {
 	return exitOK
 }
 
-func (c *CLI) reopenWorkspace(ctx context.Context, db *sql.DB, root string, repoPoolPath string, workspaceID string) error {
-	if db != nil {
-		if status, ok, err := statestore.LookupWorkspaceStatus(ctx, db, workspaceID); err != nil {
-			return fmt.Errorf("load workspace: %w", err)
-		} else if !ok {
-			return fmt.Errorf("workspace not found: %s", workspaceID)
-		} else if status != "archived" {
-			return fmt.Errorf("workspace is not archived (status=%s): %s", status, workspaceID)
-		}
-	}
-
+func (c *CLI) reopenWorkspace(ctx context.Context, root string, repoPoolPath string, workspaceID string) error {
 	archivePath := filepath.Join(root, "archive", workspaceID)
 	if fi, err := os.Stat(archivePath); err != nil {
 		return fmt.Errorf("stat archive dir: %w", err)
@@ -173,22 +160,11 @@ func (c *CLI) reopenWorkspace(ctx context.Context, db *sql.DB, root string, repo
 		return fmt.Errorf("update %s: %w", workspaceMetaFilename, err)
 	}
 
-	sha, err := commitReopenChange(ctx, root, workspaceID)
+	_, err = commitReopenChange(ctx, root, workspaceID)
 	if err != nil {
 		_ = writeWorkspaceMetaFile(wsPath, originalMeta)
 		_ = os.Rename(wsPath, archivePath)
 		return fmt.Errorf("commit reopen change: %w", err)
-	}
-
-	if db != nil {
-		now := time.Now().Unix()
-		if err := statestore.ReopenWorkspace(ctx, db, statestore.ReopenWorkspaceInput{
-			ID:                workspaceID,
-			ReopenedCommitSHA: sha,
-			Now:               now,
-		}); err != nil {
-			return fmt.Errorf("update state store: %w", err)
-		}
 	}
 
 	return nil

@@ -10,8 +10,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/tasuku43/gion-core/repospec"
-	"github.com/tasuku43/gion-core/repostore"
+	"github.com/tasuku43/gionx/internal/core/repospec"
+	"github.com/tasuku43/gionx/internal/core/repostore"
 	"github.com/tasuku43/gionx/internal/repodiscovery"
 	"github.com/tasuku43/gionx/internal/testutil"
 )
@@ -257,8 +257,8 @@ func TestCLI_RepoRemove_RemovesSelectedRegisteredRepo(t *testing.T) {
 	spec2, _ := repospec.Normalize(repoSpec2)
 	removedPath := repostore.StorePath(env.RepoPoolPath(), spec1)
 	keptPath := repostore.StorePath(env.RepoPoolPath(), spec2)
-	if _, statErr := os.Stat(removedPath); !os.IsNotExist(statErr) {
-		t.Fatalf("removed bare repo still exists: %s", removedPath)
+	if fi, statErr := os.Stat(removedPath); statErr != nil || !fi.IsDir() {
+		t.Fatalf("removed target bare repo should remain in pool: %s", removedPath)
 	}
 	if fi, statErr := os.Stat(keptPath); statErr != nil || !fi.IsDir() {
 		t.Fatalf("kept bare repo missing: %s", keptPath)

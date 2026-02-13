@@ -26,11 +26,14 @@ Commands must use semantic tokens and shared helpers.
 - `status.success`
 - `status.warning`
 - `status.error`
+- `status.error.subtle`
 - `status.info`
 - `focus`
 - `selection`
 - `diff.add`
 - `diff.remove`
+- `git.ref.local`
+- `git.ref.remote`
 
 ## gionx mapping rules
 
@@ -39,7 +42,12 @@ Commands must use semantic tokens and shared helpers.
   - `archived` -> `text.muted`
 - Error emphasis:
   - apply `status.error` primarily to leading marker / title
+  - use `status.error.subtle` for secondary risk counters/details when you need contrast without dominating
   - keep detailed reason text as normal/muted when possible
+- Git reference labels (plan/detail views):
+  - local branch/ref -> `git.ref.local`
+  - remote upstream/ref -> `git.ref.remote`
+  - keep `status.error` reserved for risky/error meanings (for example `dirty`)
 - Selector:
   - focus row: `>` marker + subtle background highlight (color-capable terminals only)
   - selected state: `●/○` (must remain textual in no-color mode)

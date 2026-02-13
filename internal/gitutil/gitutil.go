@@ -8,8 +8,8 @@ import (
 	"os/exec"
 	"strings"
 
-	"github.com/tasuku43/gion-core/gitparse"
-	"github.com/tasuku43/gion-core/gitref"
+	"github.com/tasuku43/gionx/internal/core/gitparse"
+	"github.com/tasuku43/gionx/internal/core/gitref"
 )
 
 func EnsureGitInPath() error {
@@ -80,6 +80,34 @@ func ShowRefExistsBare(ctx context.Context, gitDir string, ref string) (bool, er
 	}
 
 	return false, fmt.Errorf("git show-ref --verify failed: %w (output=%s)", err, strings.TrimSpace(string(out)))
+}
+
+func IsIgnored(ctx context.Context, dir string, path string) (bool, error) {
+	path = strings.TrimSpace(path)
+	if path == "" {
+		return false, fmt.Errorf("path is required")
+	}
+	if err := EnsureGitInPath(); err != nil {
+		return false, err
+	}
+
+	cmd := exec.CommandContext(ctx, "git", "check-ignore", "--quiet", "--", path)
+	if dir != "" {
+		cmd.Dir = dir
+	}
+	out, err := cmd.CombinedOutput()
+	if err == nil {
+		return true, nil
+	}
+
+	var exitErr *exec.ExitError
+	if errors.As(err, &exitErr) {
+		// git check-ignore returns exit status 1 when not ignored.
+		if exitErr.ExitCode() == 1 {
+			return false, nil
+		}
+	}
+	return false, fmt.Errorf("git check-ignore %s failed: %w (output=%s)", path, err, strings.TrimSpace(string(out)))
 }
 
 func DefaultBranchFromRemote(ctx context.Context, remoteURL string) (string, error) {
