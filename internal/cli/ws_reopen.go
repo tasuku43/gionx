@@ -18,11 +18,15 @@ import (
 var errNoArchivedWorkspaces = errors.New("no archived workspaces available")
 
 func (c *CLI) runWSReopen(args []string) int {
+	doCommit := false
 	for len(args) > 0 && strings.HasPrefix(args[0], "-") {
 		switch args[0] {
 		case "-h", "--help", "help":
 			c.printWSReopenUsage(c.Out)
 			return exitOK
+		case "--commit":
+			doCommit = true
+			args = args[1:]
 		default:
 			fmt.Fprintf(c.Err, "unknown flag for ws reopen: %q\n", args[0])
 			c.printWSReopenUsage(c.Err)
@@ -72,13 +76,15 @@ func (c *CLI) runWSReopen(args []string) int {
 		return exitError
 	}
 
-	if err := ensureRootGitWorktree(ctx, root); err != nil {
-		fmt.Fprintf(c.Err, "%v\n", err)
-		return exitError
-	}
-	if err := ensureNoStagedChangesForReopen(ctx, root); err != nil {
-		fmt.Fprintf(c.Err, "%v\n", err)
-		return exitError
+	if doCommit {
+		if err := ensureRootGitWorktree(ctx, root); err != nil {
+			fmt.Fprintf(c.Err, "%v\n", err)
+			return exitError
+		}
+		if err := ensureNoStagedChangesForReopen(ctx, root); err != nil {
+			fmt.Fprintf(c.Err, "%v\n", err)
+			return exitError
+		}
 	}
 	useColorOut := writerSupportsColor(c.Out)
 
@@ -91,7 +97,7 @@ func (c *CLI) runWSReopen(args []string) int {
 		},
 		ApplyOne: func(item workspaceFlowSelection) error {
 			c.debugf("ws reopen start workspace=%s", item.ID)
-			if err := c.reopenWorkspace(ctx, root, repoPoolPath, item.ID); err != nil {
+			if err := c.reopenWorkspace(ctx, root, repoPoolPath, item.ID, doCommit); err != nil {
 				return err
 			}
 			c.debugf("ws reopen completed workspace=%s", item.ID)
@@ -124,7 +130,7 @@ func (c *CLI) runWSReopen(args []string) int {
 	return exitOK
 }
 
-func (c *CLI) reopenWorkspace(ctx context.Context, root string, repoPoolPath string, workspaceID string) error {
+func (c *CLI) reopenWorkspace(ctx context.Context, root string, repoPoolPath string, workspaceID string, doCommit bool) error {
 	archivePath := filepath.Join(root, "archive", workspaceID)
 	if fi, err := os.Stat(archivePath); err != nil {
 		return fmt.Errorf("stat archive dir: %w", err)
@@ -160,11 +166,13 @@ func (c *CLI) reopenWorkspace(ctx context.Context, root string, repoPoolPath str
 		return fmt.Errorf("update %s: %w", workspaceMetaFilename, err)
 	}
 
-	_, err = commitReopenChange(ctx, root, workspaceID)
-	if err != nil {
-		_ = writeWorkspaceMetaFile(wsPath, originalMeta)
-		_ = os.Rename(wsPath, archivePath)
-		return fmt.Errorf("commit reopen change: %w", err)
+	if doCommit {
+		_, err = commitReopenChange(ctx, root, workspaceID)
+		if err != nil {
+			_ = writeWorkspaceMetaFile(wsPath, originalMeta)
+			_ = os.Rename(wsPath, archivePath)
+			return fmt.Errorf("commit reopen change: %w", err)
+		}
 	}
 
 	return nil

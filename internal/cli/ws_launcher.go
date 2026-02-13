@@ -321,6 +321,7 @@ func (c *CLI) runWSSelect(args []string) int {
 func (c *CLI) runWSSelectMulti(args []string) int {
 	archivedScope := false
 	fixedAction := ""
+	doCommit := false
 	parseAct := func(next string) (string, bool) {
 		v := strings.TrimSpace(next)
 		if v == "" {
@@ -335,6 +336,9 @@ func (c *CLI) runWSSelectMulti(args []string) int {
 		cur := strings.TrimSpace(args[0])
 		switch cur {
 		case "--multi":
+			args = args[1:]
+		case "--commit":
+			doCommit = true
 			args = args[1:]
 		case "--archived":
 			archivedScope = true
@@ -424,7 +428,7 @@ func (c *CLI) runWSSelectMulti(args []string) int {
 		}
 		return exitError
 	}
-	if err := preflightWSSelectMultiAction(context.Background(), fixedAction, root); err != nil {
+	if err := preflightWSSelectMultiAction(context.Background(), fixedAction, root, doCommit); err != nil {
 		fmt.Fprintf(c.Err, "%v\n", err)
 		return exitError
 	}
@@ -432,47 +436,48 @@ func (c *CLI) runWSSelectMulti(args []string) int {
 	success := make([]string, 0, len(ids))
 	failed := make([]string, 0, len(ids))
 	for _, id := range ids {
-		code := c.runWSSelectMultiActionByID(fixedAction, id)
+		code := c.runWSSelectMultiActionByID(fixedAction, id, doCommit)
 		if code == exitOK {
 			success = append(success, id)
 			continue
 		}
 		failed = append(failed, id)
 	}
-
-	useColor := writerSupportsColor(c.Out)
-	body := []string{
-		fmt.Sprintf("%sselected: %d", uiIndent, len(ids)),
-		fmt.Sprintf("%ssucceeded: %d", uiIndent, len(success)),
-		fmt.Sprintf("%sfailed: %d", uiIndent, len(failed)),
-	}
-	for _, id := range failed {
-		body = append(body, fmt.Sprintf("%s%s %s", uiIndent, styleError("!", useColor), id))
-	}
-	printSection(c.Out, renderResultTitle(useColor), body, sectionRenderOptions{
-		blankAfterHeading: false,
-		trailingBlank:     true,
-	})
 	if len(failed) > 0 {
 		return exitError
 	}
 	return exitOK
 }
 
-func (c *CLI) runWSSelectMultiActionByID(action string, workspaceID string) int {
+func (c *CLI) runWSSelectMultiActionByID(action string, workspaceID string, doCommit bool) int {
 	switch action {
 	case "close":
-		return c.runWSClose([]string{"--id", workspaceID})
+		args := []string{"--id", workspaceID}
+		if doCommit {
+			args = append([]string{"--commit"}, args...)
+		}
+		return c.runWSClose(args)
 	case "reopen":
-		return c.runWSReopen([]string{workspaceID})
+		args := []string{workspaceID}
+		if doCommit {
+			args = append([]string{"--commit"}, args...)
+		}
+		return c.runWSReopen(args)
 	case "purge":
-		return c.runWSPurge([]string{workspaceID})
+		args := []string{workspaceID}
+		if doCommit {
+			args = append([]string{"--commit"}, args...)
+		}
+		return c.runWSPurge(args)
 	default:
 		return exitUsage
 	}
 }
 
-func preflightWSSelectMultiAction(ctx context.Context, action string, root string) error {
+func preflightWSSelectMultiAction(ctx context.Context, action string, root string, doCommit bool) error {
+	if !doCommit {
+		return nil
+	}
 	switch action {
 	case "reopen":
 		if err := ensureRootGitWorktree(ctx, root); err != nil {

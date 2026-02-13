@@ -268,7 +268,7 @@ func TestCLI_WS_Select_Multi_Purge_PreflightErrorPrintedOnce(t *testing.T) {
 	c := New(&out, &errBuf)
 	c.In = in
 
-	code := c.Run([]string{"ws", "select", "--multi", "--act", "purge"})
+	code := c.Run([]string{"ws", "select", "--multi", "--act", "purge", "--commit"})
 	if code != exitError {
 		t.Fatalf("exit code = %d, want %d (stderr=%q)", code, exitError, errBuf.String())
 	}

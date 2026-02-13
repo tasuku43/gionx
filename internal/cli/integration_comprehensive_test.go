@@ -185,7 +185,7 @@ func TestCLI_WS_Reopen_WithStagedChanges_FailsBeforeMutatingWorkspace(t *testing
 		var out bytes.Buffer
 		var err bytes.Buffer
 		c := New(&out, &err)
-		code := c.Run([]string{"ws", "--act", "reopen", "WS1"})
+		code := c.Run([]string{"ws", "--act", "reopen", "--commit", "WS1"})
 		if code != exitError {
 			t.Fatalf("ws reopen exit code = %d, want %d (stderr=%q)", code, exitError, err.String())
 		}
@@ -232,7 +232,7 @@ func TestCLI_WS_Purge_WithStagedChanges_FailsBeforeDeletingWorkspace(t *testing.
 		var out bytes.Buffer
 		var err bytes.Buffer
 		c := New(&out, &err)
-		code := c.Run([]string{"ws", "--act", "purge", "--no-prompt", "--force", "WS1"})
+		code := c.Run([]string{"ws", "--act", "purge", "--no-prompt", "--force", "--commit", "WS1"})
 		if code != exitError {
 			t.Fatalf("ws purge exit code = %d, want %d (stderr=%q)", code, exitError, err.String())
 		}

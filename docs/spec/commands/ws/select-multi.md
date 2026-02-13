@@ -3,7 +3,7 @@ title: "`kra ws select --multi`"
 status: planned
 ---
 
-# `kra ws select --multi --act <close|reopen|purge> [--archived] [--format human|json] [--yes] [--continue-on-error]`
+# `kra ws select --multi --act <close|reopen|purge> [--archived] [--commit] [--format human|json] [--yes] [--continue-on-error]`
 
 ## Purpose
 
@@ -14,8 +14,11 @@ Add multi-select execution mode to the existing workspace selector entrypoint wi
 - `--multi` (required for this mode)
 - `--act` (required): one of `close`, `reopen`, `purge`
 - `--archived` (optional):
-  - required by scope for archived actions (`reopen`, `purge`)
+  - implied automatically by archived actions (`reopen`, `purge`)
   - invalid with active action (`close`)
+- `--commit` (optional):
+  - when set, each selected action uses commit-enabled mode.
+  - default is non-commit operation mode.
 - `--yes` (optional): required in JSON mode for destructive actions
 - `--continue-on-error` (optional):
   - default: fail-fast
@@ -25,7 +28,7 @@ Add multi-select execution mode to the existing workspace selector entrypoint wi
 
 - `--multi` without `--act` must fail with usage error.
 - `go`, `add-repo`, `remove-repo` are invalid in `--multi` mode.
-- Scope mismatch (`--archived` + `close`, or missing `--archived` for archived-only actions) must fail fast.
+- Scope mismatch (`--archived` + `close`) must fail fast.
 
 ## Behavior (MVP)
 

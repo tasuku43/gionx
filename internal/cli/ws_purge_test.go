@@ -30,7 +30,7 @@ func TestCLI_WS_Purge_Help_ShowsUsage(t *testing.T) {
 	}
 }
 
-func TestCLI_WS_Purge_ArchivedWorkspace_DeletesPathsCommitsAndUpdatesDB(t *testing.T) {
+func TestCLI_WS_Purge_ArchivedWorkspace_DeletesPathsAndCanCommitAndUpdatesDB(t *testing.T) {
 	testutil.RequireCommand(t, "git")
 
 	env := testutil.NewEnv(t)
@@ -63,7 +63,7 @@ func TestCLI_WS_Purge_ArchivedWorkspace_DeletesPathsCommitsAndUpdatesDB(t *testi
 		var err bytes.Buffer
 		c := New(&out, &err)
 		c.In = strings.NewReader("y\n")
-		code := c.Run([]string{"ws", "--act", "purge", "WS1"})
+		code := c.Run([]string{"ws", "--act", "purge", "--commit", "WS1"})
 		if code != exitOK {
 			t.Fatalf("ws purge exit code = %d, want %d (stderr=%q)", code, exitOK, err.String())
 		}
@@ -275,8 +275,11 @@ func TestPrintPurgeRiskSection_UsesSharedIndent(t *testing.T) {
 
 	printPurgeRiskSection(&out, selectedIDs, riskMeta, false)
 	got := out.String()
-	if !strings.HasPrefix(got, "Risk:\n\n") {
-		t.Fatalf("risk section should have one blank line after heading: %q", got)
+	if !strings.HasPrefix(got, "Risk:\n") {
+		t.Fatalf("risk section should not include a blank line after heading: %q", got)
+	}
+	if strings.HasPrefix(got, "Risk:\n\n") {
+		t.Fatalf("risk section must not include a blank line after heading: %q", got)
 	}
 	if !strings.HasSuffix(got, "\n\n") {
 		t.Fatalf("risk section should end with exactly one trailing blank line: %q", got)

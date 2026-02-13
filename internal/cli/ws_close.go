@@ -25,6 +25,7 @@ func (c *CLI) runWSClose(args []string) int {
 	directWorkspaceID := ""
 	outputFormat := "human"
 	force := false
+	doCommit := false
 	for len(args) > 0 && strings.HasPrefix(args[0], "-") {
 		switch args[0] {
 		case "-h", "--help", "help":
@@ -32,6 +33,9 @@ func (c *CLI) runWSClose(args []string) int {
 			return exitOK
 		case "--force":
 			force = true
+			args = args[1:]
+		case "--commit":
+			doCommit = true
 			args = args[1:]
 		case "--format":
 			if len(args) < 2 {
@@ -101,9 +105,11 @@ func (c *CLI) runWSClose(args []string) int {
 
 	ctx := context.Background()
 
-	if err := ensureRootGitWorktree(ctx, root); err != nil {
-		fmt.Fprintf(c.Err, "%v\n", err)
-		return exitError
+	if doCommit {
+		if err := ensureRootGitWorktree(ctx, root); err != nil {
+			fmt.Fprintf(c.Err, "%v\n", err)
+			return exitError
+		}
 	}
 	useColorOut := writerSupportsColor(c.Out)
 
@@ -141,7 +147,7 @@ func (c *CLI) runWSClose(args []string) int {
 		directWorkspaceID = fromCWD.ID
 	}
 	if outputFormat == "json" {
-		return c.runWSCloseJSON(directWorkspaceID, force, wd, root)
+		return c.runWSCloseJSON(directWorkspaceID, force, wd, root, doCommit)
 	}
 	shouldShiftCWD := isPathInside(filepath.Join(root, "workspaces", directWorkspaceID), wd)
 	if shouldShiftCWD {
@@ -177,7 +183,7 @@ func (c *CLI) runWSClose(args []string) int {
 		ConfirmRisk: c.confirmRiskProceed,
 		ApplyOne: func(item workspaceFlowSelection) error {
 			c.debugf("ws close archive start workspace=%s", item.ID)
-			if err := c.closeWorkspace(ctx, root, item.ID); err != nil {
+			if err := c.closeWorkspace(ctx, root, item.ID, doCommit); err != nil {
 				return err
 			}
 			c.debugf("ws close archive completed workspace=%s", item.ID)
@@ -216,7 +222,7 @@ func (c *CLI) runWSClose(args []string) int {
 	return exitOK
 }
 
-func (c *CLI) runWSCloseJSON(workspaceID string, force bool, wd string, root string) int {
+func (c *CLI) runWSCloseJSON(workspaceID string, force bool, wd string, root string, doCommit bool) int {
 	ctx := context.Background()
 	shouldShiftCWD := isPathInside(filepath.Join(root, "workspaces", workspaceID), wd)
 	if shouldShiftCWD {
@@ -260,7 +266,7 @@ func (c *CLI) runWSCloseJSON(workspaceID string, force bool, wd string, root str
 		return exitError
 	}
 
-	if err := c.closeWorkspace(ctx, root, workspaceID); err != nil {
+	if err := c.closeWorkspace(ctx, root, workspaceID, doCommit); err != nil {
 		code := "internal_error"
 		msg := err.Error()
 		switch {
@@ -331,7 +337,7 @@ func isPathInside(base string, target string) bool {
 	return true
 }
 
-func (c *CLI) closeWorkspace(ctx context.Context, root string, workspaceID string) error {
+func (c *CLI) closeWorkspace(ctx context.Context, root string, workspaceID string, doCommit bool) error {
 	wsPath := filepath.Join(root, "workspaces", workspaceID)
 	if fi, err := os.Stat(wsPath); err != nil {
 		if errors.Is(err, os.ErrNotExist) {
@@ -382,11 +388,13 @@ func (c *CLI) closeWorkspace(ctx context.Context, root string, workspaceID strin
 		return fmt.Errorf("archive (rename): %w", err)
 	}
 
-	_, err = commitArchiveChange(ctx, root, workspaceID, expectedFiles)
-	if err != nil {
-		_ = os.Rename(archivePath, wsPath)
-		_ = writeWorkspaceMetaFile(wsPath, originalMeta)
-		return fmt.Errorf("commit archive change: %w", err)
+	if doCommit {
+		_, err = commitArchiveChange(ctx, root, workspaceID, expectedFiles)
+		if err != nil {
+			_ = os.Rename(archivePath, wsPath)
+			_ = writeWorkspaceMetaFile(wsPath, originalMeta)
+			return fmt.Errorf("commit archive change: %w", err)
+		}
 	}
 
 	return nil

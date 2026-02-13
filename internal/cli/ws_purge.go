@@ -23,6 +23,7 @@ type purgeWorkspaceMeta struct {
 func (c *CLI) runWSPurge(args []string) int {
 	var noPrompt bool
 	var force bool
+	var doCommit bool
 	for len(args) > 0 && strings.HasPrefix(args[0], "-") {
 		switch args[0] {
 		case "-h", "--help", "help":
@@ -33,6 +34,9 @@ func (c *CLI) runWSPurge(args []string) int {
 			args = args[1:]
 		case "--force":
 			force = true
+			args = args[1:]
+		case "--commit":
+			doCommit = true
 			args = args[1:]
 		default:
 			fmt.Fprintf(c.Err, "unknown flag for ws purge: %q\n", args[0])
@@ -81,13 +85,15 @@ func (c *CLI) runWSPurge(args []string) int {
 
 	ctx := context.Background()
 
-	if err := ensureRootGitWorktree(ctx, root); err != nil {
-		fmt.Fprintf(c.Err, "%v\n", err)
-		return exitError
-	}
-	if err := ensureNoStagedChanges(ctx, root); err != nil {
-		fmt.Fprintf(c.Err, "%v\n", err)
-		return exitError
+	if doCommit {
+		if err := ensureRootGitWorktree(ctx, root); err != nil {
+			fmt.Fprintf(c.Err, "%v\n", err)
+			return exitError
+		}
+		if err := ensureNoStagedChanges(ctx, root); err != nil {
+			fmt.Fprintf(c.Err, "%v\n", err)
+			return exitError
+		}
 	}
 	useColorOut := writerSupportsColor(c.Out)
 
@@ -150,7 +156,7 @@ func (c *CLI) runWSPurge(args []string) int {
 		},
 		ApplyOne: func(item workspaceFlowSelection) error {
 			c.debugf("ws purge start workspace=%s", item.ID)
-			if err := c.purgeWorkspace(ctx, root, item.ID); err != nil {
+			if err := c.purgeWorkspace(ctx, root, item.ID, doCommit); err != nil {
 				return err
 			}
 			c.debugf("ws purge completed workspace=%s", item.ID)
@@ -249,12 +255,12 @@ func printPurgeRiskSection(out io.Writer, selectedIDs []string, riskMeta map[str
 		}
 	}
 	printSection(out, renderRiskTitle(useColor), body, sectionRenderOptions{
-		blankAfterHeading: true,
+		blankAfterHeading: false,
 		trailingBlank:     true,
 	})
 }
 
-func (c *CLI) purgeWorkspace(ctx context.Context, root string, workspaceID string) error {
+func (c *CLI) purgeWorkspace(ctx context.Context, root string, workspaceID string, doCommit bool) error {
 	status := ""
 	if fi, err := os.Stat(filepath.Join(root, "workspaces", workspaceID)); err == nil && fi.IsDir() {
 		status = "active"
@@ -292,8 +298,10 @@ func (c *CLI) purgeWorkspace(ctx context.Context, root string, workspaceID strin
 		return fmt.Errorf("delete archive dir: %w", err)
 	}
 
-	if _, err := commitPurgeChange(ctx, root, workspaceID); err != nil {
-		return fmt.Errorf("commit purge change: %w", err)
+	if doCommit {
+		if _, err := commitPurgeChange(ctx, root, workspaceID); err != nil {
+			return fmt.Errorf("commit purge change: %w", err)
+		}
 	}
 
 	return nil

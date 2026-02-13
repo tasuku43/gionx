@@ -3,7 +3,7 @@ title: "`kra ws --act close`"
 status: implemented
 ---
 
-# `kra ws --act close [--id <id>] [--force] [--format human|json] [<id>]`
+# `kra ws --act close [--id <id>] [--force] [--format human|json] [--commit] [<id>]`
 
 ## Purpose
 
@@ -17,7 +17,7 @@ This is the primary "task completed" flow in `kra`.
 
 ### Preconditions
 
-- `KRA_ROOT` must be a Git working tree (or `kra init` must have been run).
+- `--commit` enabled mode requires `KRA_ROOT` to be a Git working tree (or `kra init` must have been run).
 - Workspace `<id>` must exist as workspace metadata and be active.
 - If current process cwd is inside the target workspace path (`workspaces/<id>/...`), the command must
   shift process cwd to `KRA_ROOT` before worktree removal starts.
@@ -45,24 +45,24 @@ This is the primary "task completed" flow in `kra`.
 
 - Mark the workspace as `archived`.
 - Update `updated_at`.
-- Record:
+- When `--commit` is enabled, record:
   - `archived_commit_sha` (the commit created by this operation)
 
-5) Commit the archive change (always)
+5) Commit the archive change (`--commit` only)
 
 - Commit message is fixed: `archive: <id>`
 - Commit on the current branch.
 - Stage only paths touched by this operation, at minimum:
   - `archive/<id>/`
   - removal of `workspaces/<id>/` (and any emptied parent folders as needed)
- - After committing, store the commit SHA in metadata/index as `archived_commit_sha`.
+- After committing, store the commit SHA in metadata/index as `archived_commit_sha`.
 
 6) Append an event
 
 - Append `workspace_events(event_type='archived', workspace_id='<id>', at=...)` (this is the source of truth
   for the archive timestamp).
 
-If the Git working tree has unrelated changes, this command must not include them in the commit.
+If `--commit` is enabled, unrelated changes must not be included in the commit.
 
 ### Shell synchronization for close
 

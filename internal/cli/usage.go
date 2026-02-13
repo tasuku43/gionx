@@ -124,7 +124,7 @@ func (c *CLI) printWSUsage(w io.Writer) {
 	fmt.Fprint(w, `Usage:
   kra ws [--id <id>] [--act <action>] [action-args...]
   kra ws select [--archived] [--act <go|close|add-repo|remove-repo|reopen|purge>]
-  kra ws select --multi --act <close|reopen|purge> [--archived]
+  kra ws select --multi --act <close|reopen|purge> [--archived] [--commit]
   kra ws create [--no-prompt] <id>
   kra ws import jira (--sprint [<id|name>] [--board <id|name>] | --jql "<expr>") [--limit <n>] [--apply] [--no-prompt] [--json]
   kra ws list|ls [--archived] [--tree] [--format human|tsv]
@@ -151,6 +151,7 @@ Notes:
 - ws select --multi requires --act.
 - ws select --multi supports only close/reopen/purge.
 - ws select --multi --act reopen|purge implies archived scope.
+- ws select --multi --commit enables per-workspace commit behavior.
 - invalid --act/scope combinations fail with usage.
 `)
 }
@@ -326,13 +327,14 @@ Options:
 
 func (c *CLI) printWSCloseUsage(w io.Writer) {
 	fmt.Fprint(w, `Usage:
-  kra ws --act close [--id <id>] [--force] [--format human|json] [<id>]
+  kra ws --act close [--id <id>] [--force] [--format human|json] [--commit] [<id>]
 
 Close (archive) a workspace:
 - inspect repo risk (live) and prompt if not clean
 - remove git worktrees under workspaces/<id>/repos/
 - move workspaces/<id>/ to archive/<id>/ atomically
-- commit the archive change in KRA_ROOT
+- by default, no git commit is created.
+- --commit: commit the archive change in KRA_ROOT
 
 If ID is omitted, current directory must resolve to an active workspace.
 `)
@@ -340,12 +342,13 @@ If ID is omitted, current directory must resolve to an active workspace.
 
 func (c *CLI) printWSReopenUsage(w io.Writer) {
 	fmt.Fprint(w, `Usage:
-  kra ws --act reopen <id>
+  kra ws --act reopen [--commit] <id>
 
 Reopen an archived workspace:
 - move archive/<id>/ to workspaces/<id>/ atomically
 - recreate git worktrees under workspaces/<id>/repos/
-- commit the reopen change in KRA_ROOT
+- by default, no git commit is created.
+- --commit: commit the reopen change in KRA_ROOT
 
 Use kra ws select --archived for interactive selection.
 `)
@@ -353,14 +356,15 @@ Use kra ws select --archived for interactive selection.
 
 func (c *CLI) printWSPurgeUsage(w io.Writer) {
 	fmt.Fprint(w, `Usage:
-  kra ws --act purge [--no-prompt --force] <id>
+  kra ws --act purge [--no-prompt --force] [--commit] <id>
 
 Purge (permanently delete) a workspace:
 - always asks confirmation in interactive mode
 - if workspace is active, inspects repo risk and asks an extra confirmation when risky
 - remove git worktrees under workspaces/<id>/repos/ (if present)
 - delete workspaces/<id>/ and archive/<id>/ (if present)
-- commit the purge change in KRA_ROOT (message: "purge: <id>")
+- by default, no git commit is created.
+- --commit: commit the purge change in KRA_ROOT (message: "purge: <id>")
 
 Options:
   --no-prompt        Do not ask confirmations (requires --force)

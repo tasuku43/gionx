@@ -3,7 +3,7 @@ title: "`kra ws --act purge`"
 status: implemented
 ---
 
-# `kra ws --act purge [--no-prompt --force] <id>`
+# `kra ws --act purge [--no-prompt --force] [--commit] <id>`
 
 ## Purpose
 
@@ -47,7 +47,7 @@ This is a destructive operation. It is separate from `ws --act close`, which kee
 - Remove the workspace snapshot row from `workspaces` for `<id>`.
   - This enables reusing the same workspace ID later as a new generation.
 
-5) Commit the purge change (always)
+5) Commit the purge change (`--commit` only)
 
 - Commit message is fixed: `purge: <id>`
 - Commit on the current branch.
@@ -55,7 +55,7 @@ This is a destructive operation. It is separate from `ws --act close`, which kee
   - removal of `workspaces/<id>/`
   - removal of `archive/<id>/`
 
-If the Git working tree has unrelated changes, this command must not include them in the commit.
+If `--commit` is enabled, unrelated changes must not be included in the commit.
 
 ## Modes
 

@@ -65,7 +65,8 @@ Section-style output should use consistent headings:
 Section body indentation must be controlled by shared global constants (no per-command hardcoded spaces).
 - Global section body indentation is fixed to two spaces.
 - Section spacing:
-  - `Workspaces(...)` and `Risk:` have one blank line after heading.
+  - `Workspaces(...)` has one blank line after heading.
+  - `Risk:` has no blank line after heading.
   - `Result:` has no blank line after heading.
   - every section block ends with exactly one trailing blank line.
 - Selector footer/status lines (for example `selected: n/m` and key hints) are part of section body and must use

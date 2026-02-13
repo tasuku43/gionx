@@ -31,7 +31,7 @@ func TestCLI_WS_Reopen_Help_ShowsUsage(t *testing.T) {
 	}
 }
 
-func TestCLI_WS_Reopen_RestoresWorkspaceRecreatesWorktreesCommitsAndUpdatesDB(t *testing.T) {
+func TestCLI_WS_Reopen_RestoresWorkspaceRecreatesWorktreesAndCanCommitAndUpdatesDB(t *testing.T) {
 	testutil.RequireCommand(t, "git")
 
 	runGit := func(dir string, args ...string) {
@@ -117,7 +117,7 @@ func TestCLI_WS_Reopen_RestoresWorkspaceRecreatesWorktreesCommitsAndUpdatesDB(t 
 		var out bytes.Buffer
 		var err bytes.Buffer
 		c := New(&out, &err)
-		code := c.Run([]string{"ws", "--act", "reopen", "WS1"})
+		code := c.Run([]string{"ws", "--act", "reopen", "--commit", "WS1"})
 		if code != exitOK {
 			t.Fatalf("ws reopen exit code = %d, want %d (stderr=%q)", code, exitOK, err.String())
 		}

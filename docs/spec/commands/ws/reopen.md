@@ -3,7 +3,7 @@ title: "`kra ws --act reopen`"
 status: implemented
 ---
 
-# `kra ws --act reopen <id>`
+# `kra ws --act reopen [--commit] <id>`
 
 ## Purpose
 
@@ -45,10 +45,10 @@ For each recorded workspace repo entry:
 
 - Mark the workspace as `active`.
 - Update `updated_at`.
-- Record:
+- When `--commit` is enabled, record:
   - `reopened_commit_sha` (the commit created by this operation)
 
-5) Commit the reopen change (always)
+5) Commit the reopen change (`--commit` only)
 
 - Commit message is fixed: `reopen: <id>`
 - Commit on the current branch.
@@ -56,7 +56,7 @@ For each recorded workspace repo entry:
   - `workspaces/<id>/` (excluding `repos/**`, which is ignored)
   - removal of `archive/<id>/`
 
-If the Git working tree has unrelated changes, this command must not include them in the commit.
+If `--commit` is enabled, unrelated changes must not be included in the commit.
 
 6) Append an event
 
