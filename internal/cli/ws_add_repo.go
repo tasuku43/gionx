@@ -5,12 +5,14 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net/url"
 	"os"
 	"path/filepath"
 	"runtime"
 	"slices"
 	"strconv"
 	"strings"
+	"sync"
 	"syscall"
 	"time"
 
@@ -40,6 +42,8 @@ type addRepoPlanItem struct {
 
 	LocalBranchExists  bool
 	RemoteBranchExists bool
+
+	FetchDecision string
 }
 
 type addRepoInputProgress struct {
@@ -56,10 +60,56 @@ type addRepoAppliedItem struct {
 	AddedBinding       bool
 }
 
+const (
+	addRepoFetchTTL = 5 * time.Minute
+)
+
+type addRepoFetchOptions struct {
+	Refresh bool
+	NoFetch bool
+}
+
+type addRepoFetchDecision struct {
+	ShouldFetch bool
+	Reason      string
+}
+
+type addRepoFetchProgressStatus string
+
+const (
+	addRepoFetchProgressQueued  addRepoFetchProgressStatus = "queued"
+	addRepoFetchProgressRunning addRepoFetchProgressStatus = "running"
+	addRepoFetchProgressSkipped addRepoFetchProgressStatus = "skipped"
+	addRepoFetchProgressDone    addRepoFetchProgressStatus = "done"
+	addRepoFetchProgressFailed  addRepoFetchProgressStatus = "failed"
+)
+
+type addRepoFetchProgressRow struct {
+	RepoKey string
+	Status  addRepoFetchProgressStatus
+	Reason  string
+}
+
+type addRepoFetchProgressType string
+
+const (
+	addRepoFetchProgressStart addRepoFetchProgressType = "start"
+	addRepoFetchProgressDoneT addRepoFetchProgressType = "done"
+)
+
+type addRepoFetchProgressEvent struct {
+	RepoKey string
+	Type    addRepoFetchProgressType
+	Success bool
+	Reason  string
+}
+
 func (c *CLI) runWSAddRepo(args []string) int {
 	idFromFlag := ""
 	outputFormat := "human"
 	forceApply := false
+	refreshFetch := false
+	noFetch := false
 	repoKeysFromFlag := make([]string, 0, 4)
 	branchFromFlag := ""
 	baseRefFromFlag := ""
@@ -103,6 +153,12 @@ func (c *CLI) runWSAddRepo(args []string) int {
 		case "--yes":
 			forceApply = true
 			args = args[1:]
+		case "--refresh":
+			refreshFetch = true
+			args = args[1:]
+		case "--no-fetch":
+			noFetch = true
+			args = args[1:]
 		case "--id":
 			if len(args) < 2 {
 				fmt.Fprintln(c.Err, "--id requires a value")
@@ -137,6 +193,16 @@ func (c *CLI) runWSAddRepo(args []string) int {
 				args = args[1:]
 				continue
 			}
+			if args[0] == "--refresh" {
+				refreshFetch = true
+				args = args[1:]
+				continue
+			}
+			if args[0] == "--no-fetch" {
+				noFetch = true
+				args = args[1:]
+				continue
+			}
 			fmt.Fprintf(c.Err, "unknown flag for ws add-repo: %q\n", args[0])
 			c.printWSAddRepoUsage(c.Err)
 			return exitUsage
@@ -146,6 +212,11 @@ func (c *CLI) runWSAddRepo(args []string) int {
 	case "human", "json":
 	default:
 		fmt.Fprintf(c.Err, "unsupported --format: %q (supported: human, json)\n", outputFormat)
+		c.printWSAddRepoUsage(c.Err)
+		return exitUsage
+	}
+	if refreshFetch && noFetch {
+		fmt.Fprintln(c.Err, "--refresh and --no-fetch cannot be used together")
 		c.printWSAddRepoUsage(c.Err)
 		return exitUsage
 	}
@@ -215,7 +286,10 @@ func (c *CLI) runWSAddRepo(args []string) int {
 		return exitUsage
 	}
 	if outputFormat == "json" {
-		return c.runWSAddRepoJSON(workspaceID, root, repoPoolPath, repoKeysFromFlag, baseRefFromFlag, branchFromFlag, forceApply)
+		return c.runWSAddRepoJSON(workspaceID, root, repoPoolPath, repoKeysFromFlag, baseRefFromFlag, branchFromFlag, forceApply, addRepoFetchOptions{
+			Refresh: refreshFetch,
+			NoFetch: noFetch,
+		})
 	}
 	c.debugf("run ws add-repo workspace=%s cwd=%s", workspaceID, wd)
 
@@ -266,6 +340,10 @@ func (c *CLI) runWSAddRepo(args []string) int {
 
 	useColorOut := writerSupportsColor(c.Out)
 	useColorErr := writerSupportsColor(c.Err)
+	fetchOpts := addRepoFetchOptions{
+		Refresh: refreshFetch,
+		NoFetch: noFetch,
+	}
 	progress := make([]addRepoInputProgress, len(selected))
 	for i, cand := range selected {
 		progress[i] = addRepoInputProgress{RepoKey: cand.RepoKey}
@@ -274,6 +352,12 @@ func (c *CLI) runWSAddRepo(args []string) int {
 	renderedInputLines := renderAddRepoInputsProgress(c.Err, workspaceID, progress, 0, useColorErr, 0, true, true)
 
 	plan := make([]addRepoPlanItem, 0, len(selected))
+	prefetchRows := make([]addRepoFetchProgressRow, 0, len(selected))
+	prefetchEvents := make(chan addRepoFetchProgressEvent, len(selected)*2+1)
+	prefetched := make(map[string]bool, len(selected))
+	prefetchFailed := make(map[string]string, len(selected))
+	var prefetchMu sync.Mutex
+	var prefetchWG sync.WaitGroup
 	for i, cand := range selected {
 		if i > 0 {
 			c.debugf("add-repo inputs render stage=next-repo active_index=%d prev_lines=%d prompt_closed=%t show_pending_branch=%t keep_base_ref_open=%t", i, renderedInputLines, false, true, true)
@@ -325,6 +409,72 @@ func (c *CLI) runWSAddRepo(args []string) int {
 			DefaultBaseRef: defaultBaseRef,
 			Branch:         branch,
 		})
+		planItem := plan[len(plan)-1]
+		decision, err := evaluateAddRepoFetchDecision(ctx, planItem, fetchOpts)
+		if err != nil {
+			fmt.Fprintf(c.Err, "decide fetch for %s: %v\n", cand.RepoKey, err)
+			return exitError
+		}
+		prefetchRows = append(prefetchRows, addRepoFetchProgressRow{
+			RepoKey: cand.RepoKey,
+			Status:  addRepoFetchProgressQueued,
+			Reason:  decision.Reason,
+		})
+		if !decision.ShouldFetch {
+			prefetchEvents <- addRepoFetchProgressEvent{
+				RepoKey: cand.RepoKey,
+				Type:    addRepoFetchProgressDoneT,
+				Success: true,
+				Reason:  decision.Reason,
+			}
+			continue
+		}
+
+		prefetchWG.Add(1)
+		go func(item addRepoPlanItem) {
+			defer prefetchWG.Done()
+			prefetchEvents <- addRepoFetchProgressEvent{
+				RepoKey: item.Candidate.RepoKey,
+				Type:    addRepoFetchProgressStart,
+			}
+			err := runAddRepoFetchWithPolicy(ctx, item.Candidate.BarePath)
+			if err != nil {
+				prefetchMu.Lock()
+				prefetched[item.Candidate.RepoKey] = false
+				prefetchFailed[item.Candidate.RepoKey] = err.Error()
+				prefetchMu.Unlock()
+				prefetchEvents <- addRepoFetchProgressEvent{
+					RepoKey: item.Candidate.RepoKey,
+					Type:    addRepoFetchProgressDoneT,
+					Success: false,
+					Reason:  err.Error(),
+				}
+				return
+			}
+			prefetchMu.Lock()
+			prefetched[item.Candidate.RepoKey] = true
+			delete(prefetchFailed, item.Candidate.RepoKey)
+			prefetchMu.Unlock()
+			prefetchEvents <- addRepoFetchProgressEvent{
+				RepoKey: item.Candidate.RepoKey,
+				Type:    addRepoFetchProgressDoneT,
+				Success: true,
+				Reason:  "prefetch complete",
+			}
+		}(planItem)
+	}
+	prefetchDone := make(chan struct{})
+	go func() {
+		printAddRepoFetchProgress(c.Err, useColorErr, prefetchRows, prefetchEvents)
+		close(prefetchDone)
+	}()
+	prefetchWG.Wait()
+	close(prefetchEvents)
+	<-prefetchDone
+
+	if err := ensureAddRepoPlanFetchPhaseB(ctx, plan, fetchOpts, prefetched, prefetchFailed); err != nil {
+		fmt.Fprintf(c.Err, "fetch selected repos: %v\n", err)
+		return exitError
 	}
 
 	if err := preflightAddRepoPlan(ctx, root, workspaceID, plan); err != nil {
@@ -342,6 +492,11 @@ func (c *CLI) runWSAddRepo(args []string) int {
 	case "", "y", "yes":
 	default:
 		fmt.Fprintln(c.Err, "aborted")
+		return exitError
+	}
+
+	if err := ensureAddRepoPlanFetchPhaseB(ctx, plan, fetchOpts, prefetched, prefetchFailed); err != nil {
+		fmt.Fprintf(c.Err, "fetch selected repos before apply: %v\n", err)
 		return exitError
 	}
 
@@ -363,7 +518,7 @@ func (c *CLI) runWSAddRepo(args []string) int {
 	return exitOK
 }
 
-func (c *CLI) runWSAddRepoJSON(workspaceID string, root string, repoPoolPath string, repoKeys []string, baseRefInput string, branchInput string, yes bool) int {
+func (c *CLI) runWSAddRepoJSON(workspaceID string, root string, repoPoolPath string, repoKeys []string, baseRefInput string, branchInput string, yes bool, fetchOpts addRepoFetchOptions) int {
 	ctx := context.Background()
 	if len(repoKeys) == 0 {
 		_ = writeCLIJSON(c.Out, cliJSONResponse{
@@ -529,6 +684,18 @@ func (c *CLI) runWSAddRepoJSON(workspaceID string, root string, repoPoolPath str
 		})
 	}
 
+	if err := ensureAddRepoPlanFetchPhaseB(ctx, plan, fetchOpts, nil, nil); err != nil {
+		_ = writeCLIJSON(c.Out, cliJSONResponse{
+			OK:          false,
+			Action:      "add-repo",
+			WorkspaceID: workspaceID,
+			Error: &cliJSONError{
+				Code:    "internal_error",
+				Message: fmt.Sprintf("fetch selected repos: %v", err),
+			},
+		})
+		return exitError
+	}
 	if err := preflightAddRepoPlan(ctx, root, workspaceID, plan); err != nil {
 		_ = writeCLIJSON(c.Out, cliJSONResponse{
 			OK:          false,
@@ -798,6 +965,12 @@ func scanRepoPoolCandidatesFromFilesystem(ctx context.Context, repoPoolPath stri
 			}
 			return nil
 		}
+		if missingPath, missing := missingLocalFileRemotePath(strings.TrimSpace(remoteURL)); missing {
+			if debugf != nil {
+				debugf("skip bare repo with missing local file remote path=%s remote_path=%s", path, missingPath)
+			}
+			return nil
+		}
 		spec, err := repospec.Normalize(strings.TrimSpace(remoteURL))
 		if err != nil {
 			if debugf != nil {
@@ -819,6 +992,27 @@ func scanRepoPoolCandidatesFromFilesystem(ctx context.Context, repoPoolPath stri
 		return nil, err
 	}
 	return items, nil
+}
+
+func missingLocalFileRemotePath(remote string) (string, bool) {
+	remote = strings.TrimSpace(remote)
+	if remote == "" {
+		return "", false
+	}
+	u, err := url.Parse(remote)
+	if err != nil || u.Scheme != "file" {
+		return "", false
+	}
+	p := strings.TrimSpace(u.Path)
+	if p == "" {
+		return "", false
+	}
+	if _, err := os.Stat(p); err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			return p, true
+		}
+	}
+	return "", false
 }
 
 func deriveAliasFromRepoKey(repoKey string) string {
@@ -988,6 +1182,292 @@ func detectDefaultBaseRefFromBare(ctx context.Context, barePath string) (string,
 	return "", fmt.Errorf("failed to detect default base_ref in bare repo")
 }
 
+func evaluateAddRepoFetchDecision(ctx context.Context, p addRepoPlanItem, opts addRepoFetchOptions) (addRepoFetchDecision, error) {
+	if opts.NoFetch {
+		return addRepoFetchDecision{
+			ShouldFetch: false,
+			Reason:      "skipped (--no-fetch)",
+		}, nil
+	}
+	if opts.Refresh {
+		return addRepoFetchDecision{
+			ShouldFetch: true,
+			Reason:      "required (--refresh)",
+		}, nil
+	}
+	baseRef := strings.TrimSpace(p.BaseRefUsed)
+	if baseRef == "" {
+		baseRef = strings.TrimSpace(p.BaseRefInput)
+	}
+	if baseRef == "" {
+		baseRef = strings.TrimSpace(p.DefaultBaseRef)
+	}
+	if baseRef == "" {
+		return addRepoFetchDecision{}, fmt.Errorf("base_ref is required")
+	}
+	okBaseRef, err := gitutil.ShowRefExistsBare(ctx, p.Candidate.BarePath, "refs/remotes/"+baseRef)
+	if err != nil {
+		return addRepoFetchDecision{}, err
+	}
+	if !okBaseRef {
+		return addRepoFetchDecision{
+			ShouldFetch: true,
+			Reason:      fmt.Sprintf("required (base_ref missing: %s)", baseRef),
+		}, nil
+	}
+	okBranchRef, err := gitutil.ShowRefExistsBare(ctx, p.Candidate.BarePath, "refs/remotes/origin/"+p.Branch)
+	if err != nil {
+		return addRepoFetchDecision{}, err
+	}
+	_ = okBranchRef
+	fetchHeadPath := filepath.Join(p.Candidate.BarePath, "FETCH_HEAD")
+	info, err := os.Stat(fetchHeadPath)
+	if err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			return addRepoFetchDecision{
+				ShouldFetch: true,
+				Reason:      "required (stale, age=unknown)",
+			}, nil
+		}
+		return addRepoFetchDecision{}, err
+	}
+	age := time.Since(info.ModTime())
+	if age <= addRepoFetchTTL {
+		return addRepoFetchDecision{
+			ShouldFetch: false,
+			Reason:      fmt.Sprintf("skipped (fresh, age=%s <= 5m)", age.Round(time.Second)),
+		}, nil
+	}
+	return addRepoFetchDecision{
+		ShouldFetch: true,
+		Reason:      fmt.Sprintf("required (stale, age=%s)", age.Round(time.Second)),
+	}, nil
+}
+
+func runAddRepoFetchWithPolicy(ctx context.Context, barePath string) error {
+	if _, err := gitutil.RunBare(ctx, barePath, "fetch", "origin", "--prune", "--no-tags"); err != nil {
+		if !isRetryableFetchError(err) {
+			return err
+		}
+		if _, retryErr := gitutil.RunBare(ctx, barePath, "fetch", "origin", "--prune", "--no-tags"); retryErr != nil {
+			return retryErr
+		}
+	}
+	return nil
+}
+
+func isRetryableFetchError(err error) bool {
+	if err == nil {
+		return false
+	}
+	s := strings.ToLower(err.Error())
+	retryable := []string{
+		"timeout",
+		"timed out",
+		"connection reset",
+		"connection refused",
+		"temporary",
+		"network is unreachable",
+		"tls handshake timeout",
+	}
+	for _, token := range retryable {
+		if strings.Contains(s, token) {
+			return true
+		}
+	}
+	return false
+}
+
+func ensureAddRepoPlanFetchPhaseB(ctx context.Context, plan []addRepoPlanItem, opts addRepoFetchOptions, prefetched map[string]bool, prefetchFailed map[string]string) error {
+	for i := range plan {
+		decision, err := evaluateAddRepoFetchDecision(ctx, plan[i], opts)
+		if err != nil {
+			return fmt.Errorf("%s: %w", plan[i].Candidate.RepoKey, err)
+		}
+		plan[i].FetchDecision = ""
+		if !decision.ShouldFetch {
+			continue
+		}
+		if prefetched != nil && prefetched[plan[i].Candidate.RepoKey] {
+			continue
+		}
+		if prefetchFailed != nil {
+			if reason, ok := prefetchFailed[plan[i].Candidate.RepoKey]; ok && strings.TrimSpace(reason) != "" {
+				plan[i].FetchDecision = fmt.Sprintf("required (prefetch failed: %s)", reason)
+			}
+		}
+		if err := runAddRepoFetchWithPolicy(ctx, plan[i].Candidate.BarePath); err != nil {
+			return fmt.Errorf("%s: %w", plan[i].Candidate.RepoKey, err)
+		}
+	}
+	return nil
+}
+
+func printAddRepoFetchProgress(out io.Writer, useColor bool, rows []addRepoFetchProgressRow, events <-chan addRepoFetchProgressEvent) {
+	if len(rows) == 0 {
+		for range events {
+		}
+		return
+	}
+	rowByRepo := make(map[string]*addRepoFetchProgressRow, len(rows))
+	current := make([]addRepoFetchProgressRow, 0, len(rows))
+	for i := range rows {
+		current = append(current, rows[i])
+		rowByRepo[rows[i].RepoKey] = &current[len(current)-1]
+	}
+	file, tty := out.(*os.File)
+	if !tty || !writerIsTTY(file) {
+		fmt.Fprintln(out)
+		fmt.Fprintln(out, renderProgressTitle(useColor))
+		for ev := range events {
+			row := rowByRepo[ev.RepoKey]
+			if row == nil {
+				r := addRepoFetchProgressRow{RepoKey: ev.RepoKey, Status: addRepoFetchProgressQueued}
+				current = append(current, r)
+				row = &current[len(current)-1]
+				rowByRepo[ev.RepoKey] = row
+			}
+			applyAddRepoFetchEvent(row, ev)
+			status := string(row.Status)
+			label := status
+			if useColor {
+				switch row.Status {
+				case addRepoFetchProgressRunning:
+					label = styleInfo(status, useColor)
+				case addRepoFetchProgressDone:
+					label = styleSuccess(status, useColor)
+				case addRepoFetchProgressFailed:
+					label = styleError(status, useColor)
+				case addRepoFetchProgressSkipped:
+					label = styleMuted(status, useColor)
+				default:
+					label = styleMuted(status, useColor)
+				}
+			}
+			fmt.Fprintf(out, "%s- %s: %s\n", uiIndent, row.RepoKey, label)
+		}
+		return
+	}
+
+	spinnerFrames := []string{"-", "\\", "|", "/"}
+	spinnerIndex := 0
+	printed := 0
+	render := func() {
+		lines := renderAddRepoFetchProgressLines(useColor, current, spinnerFrames[spinnerIndex])
+		if printed > 0 {
+			fmt.Fprintf(out, "\x1b[%dA", printed)
+		}
+		for _, line := range lines {
+			fmt.Fprintf(out, "\x1b[2K%s\n", line)
+		}
+		printed = len(lines)
+	}
+	ticker := time.NewTicker(120 * time.Millisecond)
+	defer ticker.Stop()
+	open := true
+	render()
+	for {
+		select {
+		case ev, ok := <-events:
+			if !ok {
+				open = false
+				render()
+				return
+			}
+			row := rowByRepo[ev.RepoKey]
+			if row == nil {
+				current = append(current, addRepoFetchProgressRow{RepoKey: ev.RepoKey, Status: addRepoFetchProgressQueued})
+				row = &current[len(current)-1]
+				rowByRepo[ev.RepoKey] = row
+			}
+			applyAddRepoFetchEvent(row, ev)
+			spinnerIndex = (spinnerIndex + 1) % len(spinnerFrames)
+			render()
+		case <-ticker.C:
+			if !open || !hasAddRepoFetchRunning(current) {
+				continue
+			}
+			spinnerIndex = (spinnerIndex + 1) % len(spinnerFrames)
+			render()
+		}
+	}
+}
+
+func applyAddRepoFetchEvent(row *addRepoFetchProgressRow, ev addRepoFetchProgressEvent) {
+	switch ev.Type {
+	case addRepoFetchProgressStart:
+		row.Status = addRepoFetchProgressRunning
+		row.Reason = ""
+	case addRepoFetchProgressDoneT:
+		row.Reason = strings.TrimSpace(ev.Reason)
+		if !ev.Success {
+			row.Status = addRepoFetchProgressFailed
+			return
+		}
+		if strings.HasPrefix(strings.ToLower(row.Reason), "skipped") {
+			row.Status = addRepoFetchProgressSkipped
+			return
+		}
+		row.Status = addRepoFetchProgressDone
+	}
+}
+
+func hasAddRepoFetchRunning(rows []addRepoFetchProgressRow) bool {
+	for _, row := range rows {
+		if row.Status == addRepoFetchProgressRunning || row.Status == addRepoFetchProgressQueued {
+			return true
+		}
+	}
+	return false
+}
+
+func renderAddRepoFetchProgressLines(useColor bool, rows []addRepoFetchProgressRow, spinner string) []string {
+	lines := make([]string, 0, len(rows)+2)
+	lines = append(lines, "")
+	lines = append(lines, renderProgressTitle(useColor))
+	for _, row := range rows {
+		prefix := "·"
+		switch row.Status {
+		case addRepoFetchProgressQueued:
+			prefix = "·"
+		case addRepoFetchProgressRunning:
+			prefix = spinner
+		case addRepoFetchProgressSkipped:
+			prefix = "-"
+		case addRepoFetchProgressDone:
+			prefix = "✔"
+		case addRepoFetchProgressFailed:
+			prefix = "!"
+		}
+		status := string(row.Status)
+		if useColor {
+			switch row.Status {
+			case addRepoFetchProgressRunning:
+				prefix = styleInfo(prefix, useColor)
+				status = styleInfo(status, useColor)
+			case addRepoFetchProgressDone:
+				prefix = styleSuccess(prefix, useColor)
+				status = styleSuccess(status, useColor)
+			case addRepoFetchProgressFailed:
+				prefix = styleError(prefix, useColor)
+				status = styleError(status, useColor)
+			case addRepoFetchProgressSkipped:
+				prefix = styleMuted(prefix, useColor)
+				status = styleMuted(status, useColor)
+			default:
+				prefix = styleMuted(prefix, useColor)
+				status = styleMuted(status, useColor)
+			}
+		}
+		line := fmt.Sprintf("%s%s %s (%s)", uiIndent, prefix, row.RepoKey, status)
+		if strings.TrimSpace(row.Reason) != "" {
+			line = fmt.Sprintf("%s: %s", line, row.Reason)
+		}
+		lines = append(lines, line)
+	}
+	return lines
+}
+
 func preflightAddRepoPlan(ctx context.Context, root string, workspaceID string, plan []addRepoPlanItem) error {
 	if len(plan) == 0 {
 		return fmt.Errorf("no repo selected")
@@ -1100,6 +1580,13 @@ func printAddRepoPlan(out io.Writer, workspaceID string, plan []addRepoPlanItem,
 			connector = "└─ "
 		}
 		body = append(body, fmt.Sprintf("%s%s%s", uiIndent+uiIndent, connectorMuted(connector), p.Candidate.RepoKey))
+		if strings.TrimSpace(p.FetchDecision) != "" {
+			stem := "│  "
+			if i == len(plan)-1 {
+				stem = "   "
+			}
+			body = append(body, fmt.Sprintf("%s%s%s fetch: %s", uiIndent+uiIndent, connectorMuted(stem), connectorMuted("└─"), p.FetchDecision))
+		}
 	}
 	fmt.Fprintln(out)
 	printSection(out, styleBold("Plan:", useColor), body, sectionRenderOptions{
@@ -1252,10 +1739,20 @@ func resolveBaseRefInput(rawInput string, defaultBaseRef string) (string, error)
 	if v == "" {
 		return strings.TrimSpace(defaultBaseRef), nil
 	}
-	if !strings.HasPrefix(v, "origin/") || len(v) <= len("origin/") {
-		return "", fmt.Errorf("invalid base_ref")
+	if strings.HasPrefix(v, "origin/") {
+		if len(v) <= len("origin/") {
+			return "", fmt.Errorf("invalid base_ref")
+		}
+		return v, nil
 	}
-	return v, nil
+	if strings.HasPrefix(v, "/") {
+		branch := strings.TrimSpace(strings.TrimPrefix(v, "/"))
+		if branch == "" {
+			return "", fmt.Errorf("invalid base_ref")
+		}
+		return "origin/" + branch, nil
+	}
+	return "origin/" + v, nil
 }
 
 func resolveBranchInput(rawInput string, defaultPrefix string) string {

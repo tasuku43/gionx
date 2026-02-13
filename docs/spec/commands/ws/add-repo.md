@@ -1,8 +1,6 @@
 ---
 title: "`gionx ws --act add-repo`"
 status: implemented
-pending:
-  - ws-add-repo-smart-fetch
 ---
 
 # `gionx ws --act add-repo [--id <workspace-id>] [<workspace-id>] [--format human|json] [--refresh] [--no-fetch]`

@@ -288,6 +288,18 @@ status: planned
     - `docs/spec/commands/ws/selector.md`
     - `docs/spec/commands/ws/add-repo.md`
   - Depends: UX-WS-028, UX-WS-026, MVP-031
+- [x] UX-WS-030: `ws add-repo` smart prefetch + progress visibility
+  - What: improve `ws add-repo` UX without blocking users by adding:
+    - background prefetch that starts after repo selection is confirmed (selected repos only; no all-candidate fetch),
+    - lightweight fetch mode (`fetch --prune --no-tags`) for branch-based base_ref flow,
+    - explicit per-repo fetch progress states (`queued/running/skipped/done/failed`) with shared progress UI reuse.
+    Also define two-phase fetch decision timing:
+    - phase A: start prefetch as early as possible (during inputs),
+    - phase B: re-check at apply and skip fetch when prefetch made cache fresh within TTL.
+  - Specs:
+    - `docs/spec/commands/ws/add-repo.md`
+    - `docs/spec/commands/ws/selector.md`
+  - Depends: UX-WS-028
   - Serial: yes
 
 ## Architecture Refactor (full layering migration)

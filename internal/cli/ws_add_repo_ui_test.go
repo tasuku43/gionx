@@ -116,9 +116,23 @@ func TestResolveBranchInput_KeepsEmptyWhenEmpty(t *testing.T) {
 	}
 }
 
-func TestResolveBaseRefInput_RejectsNonOriginPrefix(t *testing.T) {
-	if _, err := resolveBaseRefInput("main", "origin/main"); err == nil {
-		t.Fatal("expected error for non origin/ base_ref")
+func TestResolveBaseRefInput_NormalizesBareBranch(t *testing.T) {
+	got, err := resolveBaseRefInput("main", "origin/main")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if got != "origin/main" {
+		t.Fatalf("got=%q, want=%q", got, "origin/main")
+	}
+}
+
+func TestResolveBaseRefInput_NormalizesSlashBranch(t *testing.T) {
+	got, err := resolveBaseRefInput("/release", "origin/main")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if got != "origin/release" {
+		t.Fatalf("got=%q, want=%q", got, "origin/release")
 	}
 }
 

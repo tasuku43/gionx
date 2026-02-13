@@ -2,8 +2,13 @@ package cli
 
 import (
 	"bytes"
+	"context"
 	"strings"
 	"testing"
+
+	"github.com/tasuku43/gionx/internal/core/repospec"
+	"github.com/tasuku43/gionx/internal/core/repostore"
+	"github.com/tasuku43/gionx/internal/testutil"
 )
 
 func TestParseMultiSelectIndices_DeduplicatesAndPreservesOrder(t *testing.T) {
@@ -99,8 +104,14 @@ func TestPromptAddRepoEditableInput_NonTTY_InputOverridesInitial(t *testing.T) {
 func TestPrintAddRepoPlan_ShowsConciseTree(t *testing.T) {
 	var out bytes.Buffer
 	plan := []addRepoPlanItem{
-		{Candidate: addRepoPoolCandidate{RepoKey: "tasuku43/gionx"}},
-		{Candidate: addRepoPoolCandidate{RepoKey: "tasuku43/gion-core"}},
+		{
+			Candidate:     addRepoPoolCandidate{RepoKey: "tasuku43/gionx"},
+			FetchDecision: "required (stale, age=6m1s)",
+		},
+		{
+			Candidate:     addRepoPoolCandidate{RepoKey: "tasuku43/gion-core"},
+			FetchDecision: "skipped (fresh, age=2m0s <= 5m)",
+		},
 	}
 
 	printAddRepoPlan(&out, "TEST-010", plan, false)
@@ -111,11 +122,70 @@ func TestPrintAddRepoPlan_ShowsConciseTree(t *testing.T) {
 		"add 2 repos (worktrees) to workspace TEST-010",
 		"repos:",
 		"├─ tasuku43/gionx",
+		"fetch: required (stale, age=6m1s)",
 		"└─ tasuku43/gion-core",
+		"fetch: skipped (fresh, age=2m0s <= 5m)",
 	} {
 		if !strings.Contains(got, want) {
 			t.Fatalf("missing %q in plan output:\n%s", want, got)
 		}
+	}
+}
+
+func TestPrintAddRepoPlan_HidesFetchLineWhenDecisionIsEmpty(t *testing.T) {
+	var out bytes.Buffer
+	plan := []addRepoPlanItem{
+		{
+			Candidate:     addRepoPoolCandidate{RepoKey: "example-org/biryani-tools"},
+			FetchDecision: "",
+		},
+	}
+	printAddRepoPlan(&out, "DEMO-0000", plan, false)
+	got := out.String()
+	if strings.Contains(got, "fetch:") {
+		t.Fatalf("plan should not include fetch line when decision is empty:\n%s", got)
+	}
+}
+
+func TestMissingLocalFileRemotePath(t *testing.T) {
+	missing := "file:///tmp/this-path-should-not-exist-gionx-test"
+	if p, ok := missingLocalFileRemotePath(missing); !ok || p == "" {
+		t.Fatalf("missingLocalFileRemotePath(%q) = (%q, %v), want missing path", missing, p, ok)
+	}
+	if _, ok := missingLocalFileRemotePath("git@github.com:example-org/biryani-tools.git"); ok {
+		t.Fatal("ssh remote should not be treated as missing local file remote")
+	}
+}
+
+func TestEvaluateAddRepoFetchDecision_DoesNotRequireWhenOriginBranchMissing(t *testing.T) {
+	env := testutil.NewEnv(t)
+	repoSpec := prepareRemoteRepoSpec(t, func(dir string, args ...string) {
+		runGit(t, dir, args...)
+	})
+	_, repoKey, _ := seedRepoPoolAndState(t, env, repoSpec)
+
+	spec, err := repospec.Normalize(repoSpec)
+	if err != nil {
+		t.Fatalf("Normalize(repoSpec): %v", err)
+	}
+	barePath := repostore.StorePath(env.RepoPoolPath(), spec)
+
+	decision, err := evaluateAddRepoFetchDecision(context.Background(), addRepoPlanItem{
+		Candidate: addRepoPoolCandidate{
+			RepoKey:  repoKey,
+			BarePath: barePath,
+		},
+		BaseRefUsed: "origin/main",
+		Branch:      "DEMO-0000",
+	}, addRepoFetchOptions{})
+	if err != nil {
+		t.Fatalf("evaluateAddRepoFetchDecision() error: %v", err)
+	}
+	if decision.ShouldFetch {
+		t.Fatalf("decision.ShouldFetch = true, want false (reason=%q)", decision.Reason)
+	}
+	if !strings.Contains(decision.Reason, "skipped (fresh") {
+		t.Fatalf("decision.Reason = %q, want fresh-skip reason", decision.Reason)
 	}
 }
 
