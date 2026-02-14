@@ -94,7 +94,7 @@ status: planned
   - Depends: none
   - Serial: yes
 
-- [ ] OPS-010: Tool-provided flow skillpack + AGENTS guidance optimization
+- [x] OPS-010: Tool-provided flow skillpack + AGENTS guidance optimization
   - What: provide official flow-oriented skillpack (not domain-specific playbooks) and align root AGENTS guidance
     so operators can use project-local skills effectively without manual setup burden.
   - Specs:

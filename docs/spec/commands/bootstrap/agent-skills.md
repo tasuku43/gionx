@@ -21,8 +21,8 @@ kra init [--root <path>] [--context <name>] [--format human|json] --bootstrap ag
 ## Scope
 
 - This command is for bootstrap/setup only.
-- It does not create or install concrete skill contents in the first phase.
-- It only prepares structure and references.
+- It prepares structure and references.
+- It installs tool-provided baseline flow skillpack files when missing.
 
 ## Root resolution
 
@@ -59,6 +59,11 @@ Reference paths (directory-level symlink):
 First phase creates:
 
 - empty `<KRA_ROOT>/.agent/skills/` directory if missing.
+- default baseline skillpack files under `<KRA_ROOT>/.agent/skills/` when missing:
+  - `.kra-skillpack.yaml`
+  - `flow-investigation/SKILL.md`
+  - `flow-execution/SKILL.md`
+  - `flow-insight-capture/SKILL.md`
 
 ## Conflict policy (safe-first)
 
@@ -99,6 +104,5 @@ Shared output envelope:
 
 ## Non-goals (first phase)
 
-- auto-installing official skill packs
 - per-agent custom mapping policy
 - multi-target bootstrap in one call

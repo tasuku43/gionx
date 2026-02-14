@@ -539,6 +539,24 @@ Notes vs artifacts:
 - notes/: write what you learned and decided
 - artifacts/: store evidence files you may need later
 
+## Agent skillpack
+
+- project-local skills live under .agent/skills/
+- .codex/skills and .claude/skills should reference .agent/skills/
+- prefer flow skills first:
+  - flow-investigation
+  - flow-execution
+  - flow-insight-capture
+
+## Insight capture policy
+
+- do not persist always-on activity logs by default
+- when a reusable high-value insight appears:
+  1) propose capture in conversation
+  2) persist only after explicit user approval
+- approved capture command:
+  kra ws insight add --id <workspace-id> --ticket <ticket> --session-id <session-id> --what "<summary>" --approved
+
 ## Workflow (typical)
 
 1) kra ws create

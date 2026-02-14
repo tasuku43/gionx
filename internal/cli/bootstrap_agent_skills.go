@@ -188,6 +188,9 @@ func runBootstrapAgentSkills(root string) (bootstrapAgentSkillsResult, string, e
 	if err := ensureBootstrapSkillsRoot(skillsRoot, &result); err != nil {
 		return result, "internal_error", err
 	}
+	if err := ensureBootstrapDefaultSkillpack(skillsRoot, &result); err != nil {
+		return result, "internal_error", err
+	}
 
 	plans := make([]bootstrapSkillReferencePlan, 0, 2)
 	for _, linkPath := range []string{
@@ -222,7 +225,7 @@ func ensureBootstrapSkillsRoot(path string, result *bootstrapAgentSkillsResult) 
 			appendBootstrapConflict(result, path, "exists and is not a directory")
 			return nil
 		}
-		result.Skipped = append(result.Skipped, path)
+		appendUniquePath(&result.Skipped, path)
 		return nil
 	}
 	if !os.IsNotExist(err) {
@@ -231,7 +234,7 @@ func ensureBootstrapSkillsRoot(path string, result *bootstrapAgentSkillsResult) 
 	if err := os.MkdirAll(path, 0o755); err != nil {
 		return fmt.Errorf("create %s: %w", path, err)
 	}
-	result.Created = append(result.Created, path)
+	appendUniquePath(&result.Created, path)
 	return nil
 }
 
@@ -253,7 +256,7 @@ func planBootstrapSkillReference(path string, target string, result *bootstrapAg
 	info, err := os.Lstat(path)
 	if err == nil {
 		if info.Mode()&os.ModeSymlink != 0 && symlinkPointsTo(path, target) {
-			result.Skipped = append(result.Skipped, path)
+			appendUniquePath(&result.Skipped, path)
 			return nil, nil
 		}
 		appendBootstrapConflict(result, path, fmt.Sprintf("exists and is not the expected symlink to %s", target))
@@ -275,7 +278,7 @@ func applyBootstrapSkillReferencePlan(plan bootstrapSkillReferencePlan, result *
 		if err := os.MkdirAll(plan.parent, 0o755); err != nil {
 			return fmt.Errorf("create %s: %w", plan.parent, err)
 		}
-		result.Created = append(result.Created, plan.parent)
+		appendUniquePath(&result.Created, plan.parent)
 	}
 	if _, err := os.Lstat(plan.path); err == nil {
 		return fmt.Errorf("path already exists during bootstrap apply: %s", plan.path)
@@ -285,7 +288,7 @@ func applyBootstrapSkillReferencePlan(plan bootstrapSkillReferencePlan, result *
 	if err := os.Symlink(plan.target, plan.path); err != nil {
 		return fmt.Errorf("create symlink %s -> %s: %w", plan.path, plan.target, err)
 	}
-	result.Linked = append(result.Linked, plan.path)
+	appendUniquePath(&result.Linked, plan.path)
 	return nil
 }
 

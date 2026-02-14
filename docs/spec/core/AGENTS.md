@@ -40,6 +40,14 @@ Include:
   - `archive/<id>/`: archived workspaces (Git-tracked)
 - Workflow:
   - `kra ws create` -> `kra ws --act add-repo` -> work -> `kra ws --act close`
+- Agent skillpack:
+  - project-local skills under `.agent/skills/`
+  - `.codex/skills` and `.claude/skills` should reference `.agent/skills/`
+  - prefer flow-oriented skills (`flow-investigation`, `flow-execution`, `flow-insight-capture`)
+- Insight capture policy:
+  - no always-on logs by default
+  - propose capture in conversation first
+  - persist only after approval via `kra ws insight add ... --approved`
 - Git policy:
   - track: everything except `workspaces/**/repos/**`
   - ignore: `workspaces/**/repos/**`

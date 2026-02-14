@@ -69,6 +69,7 @@ func TestCLI_BootstrapAgentSkills_CreatesDirectoryAndSymlinks(t *testing.T) {
 	} else if !info.IsDir() {
 		t.Fatalf("%s is not dir", skillsRoot)
 	}
+	assertSkillpackSeeded(t, skillsRoot)
 	assertSymlinkTo(t, filepath.Join(root, ".codex", "skills"), skillsRoot)
 	assertSymlinkTo(t, filepath.Join(root, ".claude", "skills"), skillsRoot)
 }
@@ -111,6 +112,7 @@ func TestCLI_BootstrapAgentSkills_Idempotent(t *testing.T) {
 	}
 
 	skillsRoot := filepath.Join(root, ".agent", "skills")
+	assertSkillpackSeeded(t, skillsRoot)
 	assertSymlinkTo(t, filepath.Join(root, ".codex", "skills"), skillsRoot)
 	assertSymlinkTo(t, filepath.Join(root, ".claude", "skills"), skillsRoot)
 }
@@ -196,6 +198,7 @@ func TestCLI_Init_BootstrapAgentSkills_Integration(t *testing.T) {
 	}
 
 	skillsRoot := filepath.Join(root, ".agent", "skills")
+	assertSkillpackSeeded(t, skillsRoot)
 	assertSymlinkTo(t, filepath.Join(root, ".codex", "skills"), skillsRoot)
 	assertSymlinkTo(t, filepath.Join(root, ".claude", "skills"), skillsRoot)
 }
@@ -302,4 +305,26 @@ func asJSONString(v any) string {
 		return "{}"
 	}
 	return strings.TrimSpace(string(b))
+}
+
+func assertSkillpackSeeded(t *testing.T, skillsRoot string) {
+	t.Helper()
+	checks := []struct {
+		path     string
+		contains string
+	}{
+		{path: filepath.Join(skillsRoot, ".kra-skillpack.yaml"), contains: `pack: "kra-flow"`},
+		{path: filepath.Join(skillsRoot, "flow-investigation", "SKILL.md"), contains: "# Flow: Investigation"},
+		{path: filepath.Join(skillsRoot, "flow-execution", "SKILL.md"), contains: "# Flow: Execution"},
+		{path: filepath.Join(skillsRoot, "flow-insight-capture", "SKILL.md"), contains: "# Flow: Insight Capture"},
+	}
+	for _, c := range checks {
+		data, err := os.ReadFile(c.path)
+		if err != nil {
+			t.Fatalf("read %s: %v", c.path, err)
+		}
+		if !strings.Contains(string(data), c.contains) {
+			t.Fatalf("%s missing marker %q", c.path, c.contains)
+		}
+	}
 }
