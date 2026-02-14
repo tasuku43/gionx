@@ -9,7 +9,7 @@ tasks:
   build-exp:
     desc: Build experimental kra binary at ./kra
     cmds:
-      - go build -tags experimental -o kra ./cmd/kra-exp
+      - go build -tags experimental -o kra ./cmd/kra
 
   run:
     desc: Run stable kra from source
@@ -19,7 +19,7 @@ tasks:
   run-exp:
     desc: Run experimental kra from source
     cmds:
-      - go run -tags experimental ./cmd/kra-exp {{.CLI_ARGS}}
+      - go run -tags experimental ./cmd/kra {{.CLI_ARGS}}
 
   test:
     desc: Run all tests
