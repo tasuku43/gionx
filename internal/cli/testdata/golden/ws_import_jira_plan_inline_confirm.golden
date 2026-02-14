@@ -1,10 +1,10 @@
 Plan:
-  • source: jira mode=sprint sprint=DEMO スプリント 16
+  • source: jira mode=sprint sprint=Example Sprint 16
   • filters: assignee=currentUser() statusCategory!=Done limit=30
   • to create (2)
-    ├─ DEMO-0000: Prepare baseline project setup
-    └─ DEMO-0000: Audit current manifest structure
+    ├─ DEMO-4077: Prepare baseline project setup
+    └─ DEMO-3943: Audit current manifest structure
   • skipped (1)
-    └─ DEMO-0000: Evaluate cloud execution feasibility
+    └─ DEMO-4076: Evaluate cloud execution feasibility
   • failed (0)
 

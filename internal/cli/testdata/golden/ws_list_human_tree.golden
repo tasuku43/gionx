@@ -1,6 +1,6 @@
 Workspaces(active):
 
-  • DEMO-0000: Audit current manifest structure
+  • DEMO-3943: Audit current manifest structure
     - kra  branch:main  state:tracked
     - infra  branch:develop  state:missing
   • TEST-002: (no title)

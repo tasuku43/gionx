@@ -42,8 +42,8 @@ func TestGolden_RepoPoolSelectorMulti(t *testing.T) {
 		"Repos(pool):",
 		"add",
 		[]workspaceSelectorCandidate{
-			{ID: "example-org/helmfiles", Risk: workspacerisk.WorkspaceRiskClean},
-			{ID: "example-org/sre-apps", Risk: workspacerisk.WorkspaceRiskClean},
+			{ID: "example-org/repo-alpha", Risk: workspacerisk.WorkspaceRiskClean},
+			{ID: "example-org/repo-beta", Risk: workspacerisk.WorkspaceRiskClean},
 		},
 		map[int]bool{1: true},
 		0,
@@ -63,10 +63,10 @@ func TestGolden_RepoPoolSelectorMulti(t *testing.T) {
 func TestGolden_WSAddRepoPlan(t *testing.T) {
 	var out bytes.Buffer
 	plan := []addRepoPlanItem{
-		{Candidate: addRepoPoolCandidate{RepoKey: "example-org/terraforms"}},
-		{Candidate: addRepoPoolCandidate{RepoKey: "tasuku43/kra"}},
+		{Candidate: addRepoPoolCandidate{RepoKey: "example-org/repo-core"}},
+		{Candidate: addRepoPoolCandidate{RepoKey: "example-user/example-cli"}},
 	}
-	printAddRepoPlan(&out, "DEMO-0000", plan, false)
+	printAddRepoPlan(&out, "DEMO-0001", plan, false)
 	assertGolden(t, "ws_add_repo_plan.golden", out.String())
 }
 
@@ -78,7 +78,7 @@ func TestGolden_WSImportJiraPlanInlineConfirm(t *testing.T) {
 		Source: wsImportJiraSource{
 			Type:   "jira",
 			Mode:   "sprint",
-			Sprint: "DEMO スプリント 16",
+			Sprint: "Example Sprint 16",
 		},
 		Filters: wsImportJiraFilters{
 			Assignee:       "currentUser()",
@@ -93,17 +93,17 @@ func TestGolden_WSImportJiraPlanInlineConfirm(t *testing.T) {
 		},
 		Items: []wsImportJiraItem{
 			{
-				IssueKey: "DEMO-0000",
+				IssueKey: "DEMO-4077",
 				Title:    "Prepare baseline project setup",
 				Action:   "create",
 			},
 			{
-				IssueKey: "DEMO-0000",
+				IssueKey: "DEMO-3943",
 				Title:    "Audit current manifest structure",
 				Action:   "create",
 			},
 			{
-				IssueKey: "DEMO-0000",
+				IssueKey: "DEMO-4076",
 				Title:    "Evaluate cloud execution feasibility",
 				Action:   "skip",
 				Reason:   "already_active",
@@ -141,7 +141,7 @@ func TestGolden_WSListHuman_Tree(t *testing.T) {
 	var out bytes.Buffer
 	rows := []wsListRow{
 		{
-			ID:    "DEMO-0000",
+			ID:    "DEMO-3943",
 			Title: "Audit current manifest structure",
 			Repos: []statestore.WorkspaceRepo{
 				{

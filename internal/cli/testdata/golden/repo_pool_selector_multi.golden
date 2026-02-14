@@ -1,6 +1,6 @@
 Repos(pool):
-> ○ example-org/helmfiles  
-  ● example-org/sre-apps   
+> ○ example-org/repo-alpha  
+  ● example-org/repo-beta   
 
   filter: 
   selected: 1/2  ↑↓ move  space toggle  enter add  type filter  esc cancel

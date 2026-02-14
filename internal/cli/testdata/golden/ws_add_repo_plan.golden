@@ -1,7 +1,7 @@
 
 Plan:
-  • add 2 repos (worktrees) to workspace DEMO-0000
+  • add 2 repos (worktrees) to workspace DEMO-0001
   • repos:
-    ├─ example-org/terraforms
-    └─ tasuku43/kra
+    ├─ example-org/repo-core
+    └─ example-user/example-cli
 
