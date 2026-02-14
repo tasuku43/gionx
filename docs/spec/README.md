@@ -42,7 +42,7 @@ Implementation should reference these specs. When behavior changes, update the s
   - `concepts/output-contract.md`: Shared machine-readable output envelope and error code policy
   - `concepts/worklog-insight.md`: workspace-local approved insight capture model (planned)
 - Commands
-  - `commands/bootstrap/agent-skills.md`: `kra bootstrap agent-skills` + `init --bootstrap` integration (planned)
+  - `commands/bootstrap/agent-skills.md`: `kra bootstrap agent-skills` + `init --bootstrap` integration
   - `commands/agent/activity.md`: `kra agent` activity tracking baseline
   - `commands/agent/logs.md`: `kra agent logs`
   - `commands/agent/run.md`: `kra agent run`

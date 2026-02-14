@@ -70,6 +70,8 @@ func (c *CLI) Run(args []string) int {
 		return c.runTemplate(args[1:])
 	case "shell":
 		return c.runShell(args[1:])
+	case "bootstrap":
+		return c.runBootstrap(args[1:])
 	case "ws":
 		return c.runWS(args[1:])
 	case "doctor":

@@ -85,7 +85,7 @@ status: planned
   - Depends: AGENT-001, OPS-003
   - Parallel: yes
 
-- [ ] OPS-009: `kra bootstrap agent-skills` foundation + `init` integration
+- [x] OPS-009: `kra bootstrap agent-skills` foundation + `init` integration
   - What: add safe bootstrap flow for project-local agent skills:
     source of truth under `.agent/skills` and directory-level symlink references from `.codex/skills` and `.claude/skills`.
     Integrate via `kra init --bootstrap agent-skills`.

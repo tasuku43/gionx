@@ -1,6 +1,6 @@
 ---
 title: "`kra bootstrap agent-skills`"
-status: planned
+status: implemented
 ---
 
 # `kra bootstrap agent-skills`
@@ -15,7 +15,7 @@ This command standardizes where project-local skills live and how each agent run
 
 ```sh
 kra bootstrap agent-skills [--format human|json]
-kra init [--root <path>] [--context <name>] --bootstrap agent-skills
+kra init [--root <path>] [--context <name>] [--format human|json] --bootstrap agent-skills
 ```
 
 ## Scope
@@ -102,4 +102,3 @@ Shared output envelope:
 - auto-installing official skill packs
 - per-agent custom mapping policy
 - multi-target bootstrap in one call
-
