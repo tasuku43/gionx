@@ -543,10 +543,8 @@ Notes vs artifacts:
 
 - project-local skills live under .agent/skills/
 - .codex/skills and .claude/skills should reference .agent/skills/
-- prefer flow skills first:
-  - flow-investigation
-  - flow-execution
-  - flow-insight-capture
+- baseline skill is flow-insight-capture only
+- this skill is for approved insight capture and should not prescribe work style
 
 ## Insight capture policy
 

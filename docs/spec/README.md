@@ -37,7 +37,7 @@ Implementation should reference these specs. When behavior changes, update the s
   - `concepts/workspace-template.md`: root-local workspace template model and validation
   - `concepts/ui-color.md`: CLI/TUI semantic color token policy
   - `concepts/architecture.md`: Layered architecture (`cli/app/domain/infra/ui`) and migration rules
-  - `concepts/agent-skillpack.md`: project-local flow-oriented skillpack model
+  - `concepts/agent-skillpack.md`: project-local non-intrusive skillpack model
   - `concepts/workspace-lifecycle.md`: Workspace lifecycle state machine and transition policy
   - `concepts/output-contract.md`: Shared machine-readable output envelope and error code policy
   - `concepts/worklog-insight.md`: workspace-local approved insight capture model

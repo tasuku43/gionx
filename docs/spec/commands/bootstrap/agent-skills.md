@@ -61,8 +61,6 @@ First phase creates:
 - empty `<KRA_ROOT>/.agent/skills/` directory if missing.
 - default baseline skillpack files under `<KRA_ROOT>/.agent/skills/` when missing:
   - `.kra-skillpack.yaml`
-  - `flow-investigation/SKILL.md`
-  - `flow-execution/SKILL.md`
   - `flow-insight-capture/SKILL.md`
 
 ## Conflict policy (safe-first)

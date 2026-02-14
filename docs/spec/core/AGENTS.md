@@ -43,7 +43,8 @@ Include:
 - Agent skillpack:
   - project-local skills under `.agent/skills/`
   - `.codex/skills` and `.claude/skills` should reference `.agent/skills/`
-  - prefer flow-oriented skills (`flow-investigation`, `flow-execution`, `flow-insight-capture`)
+  - baseline skill is `flow-insight-capture` only
+  - skill usage should stay non-intrusive to work style
 - Insight capture policy:
   - no always-on logs by default
   - propose capture in conversation first
