@@ -153,7 +153,7 @@ func TestCLI_Context_UseWithoutNameRequiresTTY(t *testing.T) {
 	setKraHomeForTest(t)
 
 	root := t.TempDir()
-	if err := stateregistry.SetContextName(root, "sre", time.Unix(100, 0)); err != nil {
+	if err := stateregistry.SetContextName(root, "demo", time.Unix(100, 0)); err != nil {
 		t.Fatalf("SetContextName(root): %v", err)
 	}
 
@@ -176,7 +176,7 @@ func TestCLI_Context_RemoveWithoutNameRequiresTTY(t *testing.T) {
 	setKraHomeForTest(t)
 
 	root := t.TempDir()
-	if err := stateregistry.SetContextName(root, "sre", time.Unix(100, 0)); err != nil {
+	if err := stateregistry.SetContextName(root, "demo", time.Unix(100, 0)); err != nil {
 		t.Fatalf("SetContextName(root): %v", err)
 	}
 
@@ -222,7 +222,7 @@ func TestCLI_Context_RemoveProtectsCurrent(t *testing.T) {
 	setKraHomeForTest(t)
 
 	root := t.TempDir()
-	if err := stateregistry.SetContextName(root, "sre", time.Unix(100, 0)); err != nil {
+	if err := stateregistry.SetContextName(root, "demo", time.Unix(100, 0)); err != nil {
 		t.Fatalf("SetContextName(): %v", err)
 	}
 	if err := paths.WriteCurrentContext(root); err != nil {
@@ -232,11 +232,11 @@ func TestCLI_Context_RemoveProtectsCurrent(t *testing.T) {
 	var out bytes.Buffer
 	var err bytes.Buffer
 	c := New(&out, &err)
-	code := c.Run([]string{"context", "rm", "sre"})
+	code := c.Run([]string{"context", "rm", "demo"})
 	if code != exitError {
 		t.Fatalf("context rm exit code = %d, want %d", code, exitError)
 	}
-	if !strings.Contains(err.String(), "cannot remove current context: sre") {
+	if !strings.Contains(err.String(), "cannot remove current context: demo") {
 		t.Fatalf("stderr missing protection message: %q", err.String())
 	}
 }

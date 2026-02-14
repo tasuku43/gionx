@@ -54,13 +54,13 @@ func TestFilterAddRepoPoolCandidates_CaseInsensitive(t *testing.T) {
 func TestFilterAddRepoPoolCandidates_FuzzyMatch(t *testing.T) {
 	cands := []addRepoPoolCandidate{
 		{RepoKey: "example-org/helmfiles"},
-		{RepoKey: "example-org/sre-apps"},
+		{RepoKey: "example-org/demo-apps"},
 	}
 	got := filterAddRepoPoolCandidates(cands, "es")
 	if len(got) != 2 {
 		t.Fatalf("len(filtered)=%d, want=2", len(got))
 	}
-	if got[0].RepoKey != "example-org/helmfiles" || got[1].RepoKey != "example-org/sre-apps" {
+	if got[0].RepoKey != "example-org/helmfiles" || got[1].RepoKey != "example-org/demo-apps" {
 		t.Fatalf("unexpected filtered order/content: %+v", got)
 	}
 }

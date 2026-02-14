@@ -82,7 +82,7 @@ func TestLoadFile_SpaceProjectConflictFails(t *testing.T) {
 integration:
   jira:
     defaults:
-      space: SRE
+      space: DEMO
       project: APP
 `), 0o644); err != nil {
 		t.Fatalf("write config: %v", err)

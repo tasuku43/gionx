@@ -50,7 +50,7 @@ integration:
   jira:
     # base_url: https://jira.example.com
     # defaults:
-    #   space: SRE
+    #   space: DEMO
     #   type: sprint # sprint | jql
 `
 }

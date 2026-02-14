@@ -952,7 +952,7 @@ func TestRenderWorkspaceSelectorLinesWithOptions_MultiConfirmingMutesNonSelected
 		"add",
 		[]workspaceSelectorCandidate{
 			{ID: "example-org/helmfiles", Risk: workspacerisk.WorkspaceRiskClean},
-			{ID: "example-org/sre-apps", Risk: workspacerisk.WorkspaceRiskClean},
+			{ID: "example-org/demo-apps", Risk: workspacerisk.WorkspaceRiskClean},
 		},
 		map[int]bool{1: true},
 		1,

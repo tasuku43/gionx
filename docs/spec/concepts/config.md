@@ -51,7 +51,7 @@ workspace:
 integration:
   jira:
     defaults:
-      space: SRE
+      space: DEMO
       type: sprint # sprint | jql
 ```
 
