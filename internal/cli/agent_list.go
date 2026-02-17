@@ -20,6 +20,10 @@ const agentActivitiesFilename = "agents.json"
 type agentListOptions struct {
 	format      string
 	workspaceID string
+	state       string
+	location    string
+	kind        string
+	all         bool
 }
 
 type agentActivityRecord struct {
@@ -57,27 +61,19 @@ func (c *CLI) runAgentList(args []string) int {
 		return exitError
 	}
 
-	records, err := loadAgentActivities(root)
+	records, err := loadAgentRuntimeSessions(root)
 	if err != nil {
-		fmt.Fprintf(c.Err, "load agent activities: %v\n", err)
+		fmt.Fprintf(c.Err, "load agent runtime sessions: %v\n", err)
 		return exitError
 	}
-	if opts.workspaceID != "" {
-		filtered := make([]agentActivityRecord, 0, len(records))
-		for _, r := range records {
-			if r.WorkspaceID == opts.workspaceID {
-				filtered = append(filtered, r)
-			}
-		}
-		records = filtered
-	}
+	records = filterAgentRuntimeSessions(records, opts)
 
 	switch opts.format {
 	case "tsv":
-		printAgentListTSV(c.Out, records)
+		printAgentRuntimeListTSV(c.Out, records)
 	default:
 		useColorOut := writerSupportsColor(c.Out)
-		printAgentListHuman(c.Out, records, useColorOut)
+		printAgentRuntimeListHuman(c.Out, records, useColorOut)
 	}
 	return exitOK
 }
@@ -108,6 +104,36 @@ func parseAgentListOptions(args []string) (agentListOptions, error) {
 			}
 			opts.workspaceID = strings.TrimSpace(rest[1])
 			rest = rest[2:]
+		case strings.HasPrefix(arg, "--state="):
+			opts.state = strings.TrimSpace(strings.ToLower(strings.TrimPrefix(arg, "--state=")))
+			rest = rest[1:]
+		case arg == "--state":
+			if len(rest) < 2 {
+				return agentListOptions{}, fmt.Errorf("--state requires a value")
+			}
+			opts.state = strings.TrimSpace(strings.ToLower(rest[1]))
+			rest = rest[2:]
+		case strings.HasPrefix(arg, "--location="):
+			opts.location = strings.TrimSpace(strings.TrimPrefix(arg, "--location="))
+			rest = rest[1:]
+		case arg == "--location":
+			if len(rest) < 2 {
+				return agentListOptions{}, fmt.Errorf("--location requires a value")
+			}
+			opts.location = strings.TrimSpace(rest[1])
+			rest = rest[2:]
+		case strings.HasPrefix(arg, "--kind="):
+			opts.kind = strings.TrimSpace(strings.TrimPrefix(arg, "--kind="))
+			rest = rest[1:]
+		case arg == "--kind":
+			if len(rest) < 2 {
+				return agentListOptions{}, fmt.Errorf("--kind requires a value")
+			}
+			opts.kind = strings.TrimSpace(rest[1])
+			rest = rest[2:]
+		case arg == "--all":
+			opts.all = true
+			rest = rest[1:]
 		default:
 			return agentListOptions{}, fmt.Errorf("unknown flag for agent list: %q", arg)
 		}
@@ -120,7 +146,44 @@ func parseAgentListOptions(args []string) (agentListOptions, error) {
 	default:
 		return agentListOptions{}, fmt.Errorf("unsupported --format: %q (supported: human, tsv)", opts.format)
 	}
+	switch opts.state {
+	case "", "running", "idle", "exited", "unknown":
+	default:
+		return agentListOptions{}, fmt.Errorf("unsupported --state: %q (supported: running, idle, exited, unknown)", opts.state)
+	}
 	return opts, nil
+}
+
+func filterAgentRuntimeSessions(records []agentRuntimeSessionRecord, opts agentListOptions) []agentRuntimeSessionRecord {
+	filtered := make([]agentRuntimeSessionRecord, 0, len(records))
+	workspaceQuery := strings.TrimSpace(opts.workspaceID)
+	locationQuery := strings.TrimSpace(strings.ToLower(opts.location))
+	kindQuery := strings.TrimSpace(strings.ToLower(opts.kind))
+	for _, r := range records {
+		if workspaceQuery != "" && r.WorkspaceID != workspaceQuery {
+			continue
+		}
+		if !opts.all && opts.state == "" && r.RuntimeState == "exited" {
+			continue
+		}
+		if opts.state != "" && r.RuntimeState != opts.state {
+			continue
+		}
+		if kindQuery != "" && strings.ToLower(r.Kind) != kindQuery {
+			continue
+		}
+		if locationQuery != "" {
+			location := "workspace"
+			if r.ExecutionScope == "repo" {
+				location = "repo:" + strings.ToLower(r.RepoKey)
+			}
+			if !strings.Contains(location, locationQuery) {
+				continue
+			}
+		}
+		filtered = append(filtered, r)
+	}
+	return filtered
 }
 
 func loadAgentActivities(root string) ([]agentActivityRecord, error) {

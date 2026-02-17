@@ -482,16 +482,16 @@ func (c *CLI) printAgentUsage(w io.Writer) {
 Subcommands:
   run               Start an agent activity
   stop              Stop a running agent activity
-  logs              Show logs for an agent activity
   list              List agent activities
   ls                Alias of list
+  board             Show workspace-grouped activity view
   help              Show this help
 `)
 }
 
 func (c *CLI) printAgentRunUsage(w io.Writer) {
 	fmt.Fprint(w, `Usage:
-  kra agent run --workspace <id> --kind <agent-kind> [--repo <repo-key>] [--task <summary>] [--instruction <summary>] [--status <running|waiting_user|thinking|blocked>] [--log-path <path>]
+  kra agent run --workspace <id> --kind <agent-kind> [--repo <repo-key>]
 
 Start/replace tracked running agent activity for one workspace.
 
@@ -499,47 +499,51 @@ Options:
   --workspace       Workspace ID (required)
   --kind            Agent kind label (required)
   --repo            Optional repository key in workspace scope
-  --task            Optional short work summary
-  --instruction     Optional short instruction summary
-  --status          Initial live status (default: running)
-  --log-path        Optional log path for operator navigation
 `)
 }
 
 func (c *CLI) printAgentStopUsage(w io.Writer) {
 	fmt.Fprint(w, `Usage:
-  kra agent stop --workspace <id> [--status succeeded|failed|unknown]
+  kra agent stop (--session <id> | --workspace <id> [--repo <repo-key>] [--kind <agent-kind>])
 
-Stop tracked running agent activity for one workspace.
+Stop one runtime agent session.
 
 Options:
-  --workspace       Workspace ID (required)
-  --status          Final status (default: failed)
+  --session         Session ID
+  --workspace       Workspace ID (required unless --session is set)
+  --repo            Optional repo key selector
+  --kind            Optional kind selector
 `)
 }
 
 func (c *CLI) printAgentListUsage(w io.Writer) {
 	fmt.Fprint(w, `Usage:
-  kra agent list [--workspace <id>] [--format human|tsv]
-  kra agent ls [--workspace <id>] [--format human|tsv]
+  kra agent list [--workspace <id>] [--state <running|idle|exited|unknown>] [--location <query>] [--kind <agent-kind>] [--all] [--format human|tsv]
+  kra agent ls [--workspace <id>] [--state <running|idle|exited|unknown>] [--location <query>] [--kind <agent-kind>] [--all] [--format human|tsv]
 
-List tracked agent activities managed by kra in current KRA_ROOT.
+List runtime agent sessions managed by kra in current KRA_ROOT.
 
 Options:
   --workspace       Filter by workspace ID
-  --format          Output format (default: human; tsv columns include repo/task/instruction summaries)
+  --state           Filter by runtime state
+  --location        Filter by execution location query (workspace or repo:<repo-key>)
+  --kind            Filter by agent kind
+  --all             Include exited sessions in default view
+  --format          Output format (default: human)
 `)
 }
 
-func (c *CLI) printAgentLogsUsage(w io.Writer) {
+func (c *CLI) printAgentBoardUsage(w io.Writer) {
 	fmt.Fprint(w, `Usage:
-  kra agent logs --workspace <id> [--tail <n>] [--follow]
+  kra agent board [--workspace <id>] [--state <running|idle|exited|unknown>] [--location <query>] [--kind <agent-kind>] [--all]
 
-Show logs for one workspace's current tracked agent activity.
+Show workspace-grouped runtime activity view.
 
 Options:
-  --workspace       Workspace ID (required)
-  --tail            Show only the last N lines (default: 100)
-  --follow          Keep streaming appended lines
+  --workspace       Filter by workspace ID
+  --state           Filter by runtime state
+  --location        Filter by execution location query (workspace or repo:<repo-key>)
+  --kind            Filter by agent kind
+  --all             Include exited sessions in default view
 `)
 }

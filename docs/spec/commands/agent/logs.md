@@ -1,35 +1,27 @@
 ---
-title: "`kra agent logs` baseline"
-status: implemented
+title: "`kra agent logs` retirement"
+status: planned
 ---
 
-# `kra agent logs` baseline
+# `kra agent logs` retirement (v3 draft)
 
 ## Purpose
 
-Provide a direct command to inspect logs of the tracked agent activity for a workspace.
+Retire `kra agent logs` from the default agent surface in v3.
 
-## Scope (baseline)
+## Rationale
 
-- Command:
-  - `kra agent logs --workspace <id> [--tail <n>] [--follow]`
-- Required options:
-  - `--workspace`
-- Optional options:
-  - `--tail` (default: `100`)
-  - `--follow`
-- Data source:
-  - `KRA_ROOT/.kra/state/agents.json` (resolve record by `workspace_id`)
-  - read `log_path` from resolved record
-- Behavior:
-  - if workspace record is missing: fail
-  - if `log_path` is empty: fail
-  - resolve relative `log_path` against `KRA_ROOT`
-  - print last `N` lines
-  - when `--follow` is enabled, continue streaming appended lines
+- v2 `logs` depended on externally managed log files and did not provide reliable runtime truth.
+- v3 shifts to PTY-managed runtime session state under `KRA_HOME/state/agents/`.
+- MVP focus is current runtime visibility (`run/list/board/stop`), not file-log inspection.
 
-## Out of scope (baseline)
+## Scope (v3 draft)
 
-- Session selection by historical run id
-- Log redaction policy and retention policy
-- Structured log query language
+- `kra agent logs` command is removed from CLI usage.
+- `log_path` is removed from runtime activity schema.
+- `kra agent run` no longer accepts `--log-path`.
+
+## Out of scope (v3 draft)
+
+- Reintroducing log inspection in MVP.
+- Structured trace/event querying.

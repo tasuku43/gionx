@@ -1,47 +1,42 @@
 ---
 title: "`kra agent run` baseline"
-status: implemented
+status: planned
 ---
 
-# `kra agent run` v2
+# `kra agent run` v3 draft
 
 ## Purpose
 
-Provide an explicit start command to register one live agent activity per workspace.
+Start one agent session under PTY and register runtime activity in `KRA_HOME` state.
 
-## Scope (v2)
+## Scope (v3 draft)
 
 - Command:
-  - `kra agent run --workspace <id> --kind <agent-kind> [--repo <repo-key>] [--task <summary>] [--instruction <summary>] [--status <running|waiting_user|thinking|blocked>] [--log-path <path>]`
-- Required options:
-  - `--workspace`
-  - `--kind`
-- Optional options:
-  - `--repo`
+  - `kra agent run [--workspace <id>] [--repo <repo-key>] [--kind <agent-kind>]`
+- Interactive behavior:
+  - with no args, command enters interactive selector flow
+  - workspace selector must include active workspaces only
+  - execution target must always be selected when `--repo` is not given:
+    - run at workspace scope
+    - run at repo scope (pick repo key)
+  - if `--kind` is omitted, prompt for kind selection
+- Flags removed in v3:
   - `--task`
   - `--instruction`
-  - `--status` (default: `running`)
+  - `--status`
   - `--log-path`
-- Data write target:
-  - `KRA_ROOT/.kra/state/agents.json`
+- Runtime write target:
+  - `KRA_HOME/state/agents/<root-hash>/<session-id>.json`
 - Behavior:
   - resolve current `KRA_ROOT`
-  - load existing activity records (missing file is treated as empty)
-  - upsert a single record by `workspace_id`
-  - set fields:
-    - `workspace_id` = `--workspace`
-    - `repo_key` = `--repo` (or empty)
-    - `agent_kind` = `--kind`
-    - `task_summary` = `--task` (or empty)
-    - `instruction_summary` = `--instruction` (or empty)
-    - `started_at` = current unix timestamp
-    - `last_heartbeat_at` = current unix timestamp
-    - `status` = `--status` (default: `running`)
-    - `log_path` = `--log-path` (or empty)
-  - write back JSON and print a human confirmation line
+  - resolve run target (workspace scope or repo scope)
+  - start child process on a PTY
+  - create new `session_id` and write initial runtime state
+  - while process is alive, update `updated_at` and `seq` based on PTY I/O and lifecycle events
+  - on process exit, persist final record (`runtime_state=exited`, `exit_code=<code>`)
+  - print a human confirmation line including `session_id`
 
-## Out of scope (v2)
+## Out of scope (v3 draft)
 
-- Actual process supervision/ownership guarantees
-- Multi-session history per workspace (baseline keeps one record per workspace)
-- Automatic log path generation policy
+- Rich instruction/task metadata capture in `run`.
+- Cross-process command injection channel from `agent run` MVP.

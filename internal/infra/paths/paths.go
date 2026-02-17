@@ -4,6 +4,7 @@ import base "github.com/tasuku43/kra/internal/paths"
 
 func ResolveExistingRoot(cwd string) (string, error) { return base.ResolveExistingRoot(cwd) }
 func DefaultRepoPoolPath() (string, error)           { return base.DefaultRepoPoolPath() }
+func KraHomeDir() (string, error)                    { return base.KraHomeDir() }
 func ConfigPath() (string, error)                    { return base.ConfigPath() }
 func RootConfigPath(root string) string              { return base.RootConfigPath(root) }
 func WriteCurrentContext(root string) error          { return base.WriteCurrentContext(root) }

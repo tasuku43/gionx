@@ -21,10 +21,10 @@ func (c *CLI) runAgent(args []string) int {
 		return c.runAgentRun(args[1:])
 	case "stop":
 		return c.runAgentStop(args[1:])
-	case "logs":
-		return c.runAgentLogs(args[1:])
 	case "list", "ls":
 		return c.runAgentList(args[1:])
+	case "board":
+		return c.runAgentBoard(args[1:])
 	default:
 		fmt.Fprintf(c.Err, "unknown command: %q\n", strings.Join(append([]string{"agent"}, args[0]), " "))
 		c.printAgentUsage(c.Err)

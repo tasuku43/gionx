@@ -3,22 +3,29 @@
 package cli
 
 import (
+	"context"
+	"errors"
 	"fmt"
+	"io"
 	"os"
+	"os/exec"
+	"os/signal"
+	"path/filepath"
 	"strings"
+	"sync"
+	"syscall"
 	"time"
 
+	"github.com/creack/pty"
+	"github.com/mattn/go-isatty"
 	"github.com/tasuku43/kra/internal/infra/paths"
+	"golang.org/x/term"
 )
 
 type agentRunOptions struct {
 	workspaceID string
 	repoKey     string
 	agentKind   string
-	taskSummary string
-	instruction string
-	status      string
-	logPath     string
 }
 
 func (c *CLI) runAgentRun(args []string) int {
@@ -44,48 +51,146 @@ func (c *CLI) runAgentRun(args []string) int {
 		return exitError
 	}
 
-	records, err := loadAgentActivities(root)
+	opts, err = c.completeAgentRunOptionsInteractive(root, opts)
 	if err != nil {
-		fmt.Fprintf(c.Err, "load agent activities: %v\n", err)
+		fmt.Fprintf(c.Err, "resolve run options: %v\n", err)
 		return exitError
 	}
+	execDir := filepath.Join(root, "workspaces", opts.workspaceID)
+	scope := "workspace"
+	if strings.TrimSpace(opts.repoKey) != "" {
+		scope = "repo"
+		execDir = filepath.Join(execDir, "repos", opts.repoKey)
+	}
+	cmdName := strings.TrimSpace(opts.agentKind)
+	if cmdName == "" {
+		fmt.Fprintf(c.Err, "resolve run options: --kind is required\n")
+		return exitUsage
+	}
+	cmd := exec.Command(cmdName)
+	cmd.Dir = execDir
+	cmd.Env = append(os.Environ(), "KRA_AGENT_WORKSPACE="+opts.workspaceID)
+	ptmx, err := pty.Start(cmd)
+	if err != nil {
+		fmt.Fprintf(c.Err, "start agent process: %v\n", err)
+		return exitError
+	}
+	defer func() { _ = ptmx.Close() }()
 
-	now := time.Now().Unix()
-	newRecord := agentActivityRecord{
-		WorkspaceID:        opts.workspaceID,
-		RepoKey:            opts.repoKey,
-		AgentKind:          opts.agentKind,
-		TaskSummary:        opts.taskSummary,
-		InstructionSummary: opts.instruction,
-		StartedAt:          now,
-		LastHeartbeatAt:    now,
-		Status:             opts.status,
-		LogPath:            opts.logPath,
+	nowTS := time.Now()
+	sessionID := newAgentRuntimeSessionID(nowTS, cmd.Process.Pid)
+	runtimeRecord := agentRuntimeSessionRecord{
+		SessionID:      sessionID,
+		RootPath:       root,
+		WorkspaceID:    opts.workspaceID,
+		ExecutionScope: scope,
+		RepoKey:        strings.TrimSpace(opts.repoKey),
+		Kind:           opts.agentKind,
+		PID:            cmd.Process.Pid,
+		StartedAt:      nowTS.Unix(),
+		UpdatedAt:      nowTS.Unix(),
+		Seq:            1,
+		RuntimeState:   "running",
+		ExitCode:       nil,
+	}
+	if err := saveAgentRuntimeSession(runtimeRecord); err != nil {
+		fmt.Fprintf(c.Err, "save runtime session: %v\n", err)
+		return exitError
+	}
+	fmt.Fprintf(c.Out, "agent started: workspace=%s kind=%s session=%s dir=%s\n", opts.workspaceID, opts.agentKind, sessionID, execDir)
+	if strings.TrimSpace(os.Getenv("KRA_AGENT_RUN_DRY_RUN")) == "1" {
+		zero := 0
+		runtimeRecord.Seq++
+		runtimeRecord.UpdatedAt = time.Now().Unix()
+		runtimeRecord.RuntimeState = "exited"
+		runtimeRecord.ExitCode = &zero
+		_ = saveAgentRuntimeSession(runtimeRecord)
+		return exitOK
 	}
 
-	updated := false
-	for i := range records {
-		if records[i].WorkspaceID != opts.workspaceID {
-			continue
+	var mu sync.Mutex
+	updateRuntime := func(state string, exitCode *int) {
+		mu.Lock()
+		defer mu.Unlock()
+		runtimeRecord.Seq++
+		runtimeRecord.UpdatedAt = time.Now().Unix()
+		if strings.TrimSpace(state) != "" {
+			runtimeRecord.RuntimeState = state
 		}
-		records[i] = newRecord
-		updated = true
-		break
-	}
-	if !updated {
-		records = append(records, newRecord)
-	}
-	if err := saveAgentActivities(root, records); err != nil {
-		fmt.Fprintf(c.Err, "save agent activities: %v\n", err)
-		return exitError
+		runtimeRecord.ExitCode = exitCode
+		_ = saveAgentRuntimeSession(runtimeRecord)
 	}
 
-	fmt.Fprintf(c.Out, "agent started: workspace=%s kind=%s\n", opts.workspaceID, opts.agentKind)
-	return exitOK
+	sigCh := make(chan os.Signal, 1)
+	signal.Notify(sigCh, syscall.SIGINT, syscall.SIGTERM, syscall.SIGHUP)
+	defer signal.Stop(sigCh)
+	go func() {
+		for sig := range sigCh {
+			if cmd.Process == nil {
+				return
+			}
+			_ = cmd.Process.Signal(sig)
+		}
+	}()
+
+	restoreTerminal, resizeCleanup := setupPTYBridgeTerminal(c.In, c.Out, ptmx)
+	defer restoreTerminal()
+	defer resizeCleanup()
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	copyDone := make(chan struct{})
+	go func() {
+		defer close(copyDone)
+		buf := make([]byte, 4096)
+		lastPersist := time.Now()
+		for {
+			n, readErr := ptmx.Read(buf)
+			if n > 0 {
+				_, _ = c.Out.Write(buf[:n])
+				if time.Since(lastPersist) >= time.Second {
+					updateRuntime("running", nil)
+					lastPersist = time.Now()
+				}
+			}
+			if readErr != nil {
+				return
+			}
+			select {
+			case <-ctx.Done():
+				return
+			default:
+			}
+		}
+	}()
+	go func() {
+		_, _ = io.Copy(ptmx, c.In)
+	}()
+
+	waitErr := cmd.Wait()
+	cancel()
+	_ = ptmx.Close()
+	<-copyDone
+	exitCode := 0
+	finalState := "exited"
+	if waitErr != nil {
+		var exitErr *exec.ExitError
+		if errors.As(waitErr, &exitErr) {
+			exitCode = exitErr.ExitCode()
+		} else {
+			finalState = "unknown"
+		}
+	}
+	updateRuntime(finalState, &exitCode)
+	if finalState == "unknown" {
+		fmt.Fprintf(c.Err, "wait agent process: %v\n", waitErr)
+		return exitError
+	}
+	return exitCode
 }
 
 func parseAgentRunOptions(args []string) (agentRunOptions, error) {
-	opts := agentRunOptions{status: "running"}
+	opts := agentRunOptions{}
 	rest := append([]string{}, args...)
 	for len(rest) > 0 && strings.HasPrefix(rest[0], "-") {
 		arg := rest[0]
@@ -119,42 +224,6 @@ func parseAgentRunOptions(args []string) (agentRunOptions, error) {
 			}
 			opts.agentKind = strings.TrimSpace(rest[1])
 			rest = rest[2:]
-		case strings.HasPrefix(arg, "--task="):
-			opts.taskSummary = strings.TrimSpace(strings.TrimPrefix(arg, "--task="))
-			rest = rest[1:]
-		case arg == "--task":
-			if len(rest) < 2 {
-				return agentRunOptions{}, fmt.Errorf("--task requires a value")
-			}
-			opts.taskSummary = strings.TrimSpace(rest[1])
-			rest = rest[2:]
-		case strings.HasPrefix(arg, "--instruction="):
-			opts.instruction = strings.TrimSpace(strings.TrimPrefix(arg, "--instruction="))
-			rest = rest[1:]
-		case arg == "--instruction":
-			if len(rest) < 2 {
-				return agentRunOptions{}, fmt.Errorf("--instruction requires a value")
-			}
-			opts.instruction = strings.TrimSpace(rest[1])
-			rest = rest[2:]
-		case strings.HasPrefix(arg, "--status="):
-			opts.status = strings.TrimSpace(strings.ToLower(strings.TrimPrefix(arg, "--status=")))
-			rest = rest[1:]
-		case arg == "--status":
-			if len(rest) < 2 {
-				return agentRunOptions{}, fmt.Errorf("--status requires a value")
-			}
-			opts.status = strings.TrimSpace(strings.ToLower(rest[1]))
-			rest = rest[2:]
-		case strings.HasPrefix(arg, "--log-path="):
-			opts.logPath = strings.TrimSpace(strings.TrimPrefix(arg, "--log-path="))
-			rest = rest[1:]
-		case arg == "--log-path":
-			if len(rest) < 2 {
-				return agentRunOptions{}, fmt.Errorf("--log-path requires a value")
-			}
-			opts.logPath = strings.TrimSpace(rest[1])
-			rest = rest[2:]
 		default:
 			return agentRunOptions{}, fmt.Errorf("unknown flag for agent run: %q", arg)
 		}
@@ -162,16 +231,135 @@ func parseAgentRunOptions(args []string) (agentRunOptions, error) {
 	if len(rest) > 0 {
 		return agentRunOptions{}, fmt.Errorf("unexpected args for agent run: %q", strings.Join(rest, " "))
 	}
-	if opts.workspaceID == "" {
-		return agentRunOptions{}, fmt.Errorf("--workspace is required")
+	return opts, nil
+}
+
+func (c *CLI) completeAgentRunOptionsInteractive(root string, opts agentRunOptions) (agentRunOptions, error) {
+	interactive := cliInputIsTTY(c.In)
+	if strings.TrimSpace(opts.workspaceID) == "" {
+		if !interactive {
+			return agentRunOptions{}, fmt.Errorf("--workspace is required in non-interactive mode")
+		}
+		candidates, err := listWorkspaceCandidatesByStatus(context.Background(), root, "active")
+		if err != nil {
+			return agentRunOptions{}, fmt.Errorf("list active workspaces: %w", err)
+		}
+		selected, err := c.promptWorkspaceSelectorSingle("active", "run", candidates)
+		if err != nil {
+			return agentRunOptions{}, err
+		}
+		if len(selected) != 1 {
+			return agentRunOptions{}, fmt.Errorf("workspace selection canceled")
+		}
+		opts.workspaceID = selected[0]
 	}
-	if opts.agentKind == "" {
-		return agentRunOptions{}, fmt.Errorf("--kind is required")
+
+	exists, active, err := workspaceActiveOnFilesystem(root, opts.workspaceID)
+	if err != nil {
+		return agentRunOptions{}, fmt.Errorf("check workspace: %w", err)
 	}
-	switch opts.status {
-	case "running", "waiting_user", "thinking", "blocked":
-	default:
-		return agentRunOptions{}, fmt.Errorf("unsupported --status: %q (supported: running, waiting_user, thinking, blocked)", opts.status)
+	if !exists || !active {
+		return agentRunOptions{}, fmt.Errorf("workspace is not active: %s", opts.workspaceID)
+	}
+
+	if strings.TrimSpace(opts.repoKey) == "" && interactive {
+		candidates, err := listAgentRunTargetCandidates(root, opts.workspaceID)
+		if err != nil {
+			return agentRunOptions{}, fmt.Errorf("list workspace targets: %w", err)
+		}
+		selected, err := c.promptWorkspaceSelectorWithOptionsAndMode("active", "run", "Target:", "target", candidates, true)
+		if err != nil {
+			return agentRunOptions{}, err
+		}
+		if len(selected) != 1 {
+			return agentRunOptions{}, fmt.Errorf("target selection canceled")
+		}
+		if selected[0] != "workspace" {
+			opts.repoKey = selected[0]
+		}
+	}
+
+	if strings.TrimSpace(opts.agentKind) == "" {
+		if !interactive {
+			return agentRunOptions{}, fmt.Errorf("--kind is required in non-interactive mode")
+		}
+		candidates := []workspaceSelectorCandidate{
+			{ID: "codex", Description: "OpenAI Codex CLI"},
+			{ID: "claude", Description: "Claude Code CLI"},
+		}
+		selected, err := c.promptWorkspaceSelectorWithOptionsAndMode("active", "run", "Agent kind:", "kind", candidates, true)
+		if err != nil {
+			return agentRunOptions{}, err
+		}
+		if len(selected) != 1 {
+			return agentRunOptions{}, fmt.Errorf("kind selection canceled")
+		}
+		opts.agentKind = selected[0]
 	}
 	return opts, nil
+}
+
+func cliInputIsTTY(in io.Reader) bool {
+	inFile, ok := in.(*os.File)
+	return ok && isatty.IsTerminal(inFile.Fd())
+}
+
+func setupPTYBridgeTerminal(in io.Reader, out io.Writer, ptmx *os.File) (restore func(), cleanup func()) {
+	restore = func() {}
+	cleanup = func() {}
+
+	inFile, inOK := in.(*os.File)
+	outFile, outOK := out.(*os.File)
+	if !inOK || !outOK {
+		return restore, cleanup
+	}
+	if !isatty.IsTerminal(inFile.Fd()) || !isatty.IsTerminal(outFile.Fd()) {
+		return restore, cleanup
+	}
+
+	oldState, err := term.MakeRaw(int(inFile.Fd()))
+	if err == nil {
+		restore = func() {
+			_ = term.Restore(int(inFile.Fd()), oldState)
+		}
+	}
+
+	_ = pty.InheritSize(inFile, ptmx)
+	winchCh := make(chan os.Signal, 1)
+	signal.Notify(winchCh, syscall.SIGWINCH)
+	go func() {
+		for range winchCh {
+			_ = pty.InheritSize(inFile, ptmx)
+		}
+	}()
+	cleanup = func() {
+		signal.Stop(winchCh)
+		close(winchCh)
+	}
+	return restore, cleanup
+}
+
+func listAgentRunTargetCandidates(root string, workspaceID string) ([]workspaceSelectorCandidate, error) {
+	candidates := []workspaceSelectorCandidate{
+		{ID: "workspace", Description: "run at workspace root"},
+	}
+	reposDir := filepath.Join(root, "workspaces", workspaceID, "repos")
+	entries, err := os.ReadDir(reposDir)
+	if err != nil && !os.IsNotExist(err) {
+		return nil, err
+	}
+	for _, e := range entries {
+		if !e.IsDir() {
+			continue
+		}
+		alias := strings.TrimSpace(e.Name())
+		if alias == "" {
+			continue
+		}
+		candidates = append(candidates, workspaceSelectorCandidate{
+			ID:          alias,
+			Description: "repo:" + alias,
+		})
+	}
+	return candidates, nil
 }

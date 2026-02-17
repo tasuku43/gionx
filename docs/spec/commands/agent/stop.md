@@ -1,36 +1,35 @@
 ---
 title: "`kra agent stop` baseline"
-status: implemented
+status: planned
 ---
 
-# `kra agent stop` v2-compatible
+# `kra agent stop` v3 draft
 
 ## Purpose
 
-Provide an explicit stop command to finalize one running agent activity for a workspace.
+Stop one running agent session managed by `kra agent run`.
 
-## Scope (v2-compatible)
+## Scope (v3 draft)
 
 - Command:
-  - `kra agent stop --workspace <id> [--status succeeded|failed|unknown]`
+  - `kra agent stop (--session <id> | --workspace <id> [--repo <repo-key>] [--kind <agent-kind>])`
 - Required options:
-  - `--workspace`
+  - either `--session`, or `--workspace` selector set
 - Optional options:
-  - `--status` (default: `failed`)
-- Data write target:
-  - `KRA_ROOT/.kra/state/agents.json`
+  - `--repo`
+  - `--kind`
+- Runtime data source:
+  - `KRA_HOME/state/agents/<root-hash>/<session-id>.json`
 - Behavior:
   - resolve current `KRA_ROOT`
-  - load existing activity records
-  - find record by `workspace_id`
-  - if record does not exist: fail
-  - if record status is not a live state (`running` / `waiting_user` / `thinking` / `blocked`): fail
-  - otherwise update:
-    - `status` = selected final status
-    - `last_heartbeat_at` = current unix timestamp
-  - write back JSON and print a human confirmation line
+  - locate target session
+  - if session is already `exited`, return idempotent success
+  - send termination signal to target process
+  - wait bounded grace period, then force kill if still alive
+  - persist final runtime state (`exited`) with `updated_at` and `seq` increment
+  - print final status line with `session_id`
 
-## Out of scope (v2-compatible)
+## Out of scope (v3 draft)
 
-- Process signal delivery / external process termination
-- Automatic final status inference from runtime signals
+- Distributed stop across remote hosts.
+- Multi-step approval flow for stop.

@@ -41,12 +41,13 @@ Implementation should reference these specs. When behavior changes, update the s
   - `concepts/workspace-lifecycle.md`: Workspace lifecycle state machine and transition policy
   - `concepts/output-contract.md`: Shared machine-readable output envelope and error code policy
   - `concepts/worklog-insight.md`: workspace-local approved insight capture model
+  - `concepts/agent-runtime.md`: PTY-based agent runtime architecture and session state model (v3 draft)
 - Commands
   - `commands/bootstrap/agent-skills.md`: `kra bootstrap agent-skills` + `init --bootstrap` integration
-  - `commands/agent/activity.md`: `kra agent` activity tracking baseline
-  - `commands/agent/logs.md`: `kra agent logs`
-  - `commands/agent/run.md`: `kra agent run`
-  - `commands/agent/stop.md`: `kra agent stop`
+  - `commands/agent/activity.md`: `kra agent` runtime activity tracking (v3 draft)
+  - `commands/agent/logs.md`: `kra agent logs` retirement (v3 draft)
+  - `commands/agent/run.md`: `kra agent run` (PTY + interactive target selection)
+  - `commands/agent/stop.md`: `kra agent stop` (session-oriented)
   - `commands/doctor-fix.md`: `kra doctor --fix --plan|--apply` staged remediation
   - `commands/doctor.md`: `kra doctor`
   - `commands/context.md`: `kra context`

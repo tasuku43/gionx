@@ -25,6 +25,7 @@ func prepareCurrentRootForTest(t *testing.T) string {
 	t.Helper()
 	root := t.TempDir()
 	setKraHomeForTest(t)
+	t.Setenv("KRA_AGENT_RUN_DRY_RUN", "1")
 	if err := os.MkdirAll(filepath.Join(root, "workspaces"), 0o755); err != nil {
 		t.Fatalf("create workspaces/: %v", err)
 	}
