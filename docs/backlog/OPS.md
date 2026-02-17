@@ -124,7 +124,7 @@ status: planned
   - Depends: OPS-005
   - Serial: yes
 
-- [ ] OPS-013: `ws reopen` default auto-commit + `--no-commit`
+- [x] OPS-013: `ws reopen` default auto-commit + `--no-commit`
   - What: make `kra ws --act reopen` commit-enabled by default with strict two-phase reopen flow
     (`archive/<id>/` pre-state commit, reopen rename, `workspaces/<id>/` post-state commit).
     Replace opt-in `--commit` with opt-out `--no-commit`.

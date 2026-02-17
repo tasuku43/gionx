@@ -18,16 +18,32 @@ import (
 var errNoArchivedWorkspaces = errors.New("no archived workspaces available")
 
 func (c *CLI) runWSReopen(args []string) int {
-	doCommit := false
+	doCommit := true
 	outputFormat := "human"
 	dryRun := false
+	commitModeExplicit := ""
 	for len(args) > 0 && strings.HasPrefix(args[0], "-") {
 		switch args[0] {
 		case "-h", "--help", "help":
 			c.printWSReopenUsage(c.Out)
 			return exitOK
 		case "--commit":
+			if commitModeExplicit == "no-commit" {
+				fmt.Fprintln(c.Err, "--commit and --no-commit cannot be used together")
+				c.printWSReopenUsage(c.Err)
+				return exitUsage
+			}
 			doCommit = true
+			commitModeExplicit = "commit"
+			args = args[1:]
+		case "--no-commit":
+			if commitModeExplicit == "commit" {
+				fmt.Fprintln(c.Err, "--commit and --no-commit cannot be used together")
+				c.printWSReopenUsage(c.Err)
+				return exitUsage
+			}
+			doCommit = false
+			commitModeExplicit = "no-commit"
 			args = args[1:]
 		case "--dry-run":
 			dryRun = true
@@ -111,10 +127,6 @@ func (c *CLI) runWSReopen(args []string) int {
 
 	if doCommit {
 		if err := ensureRootGitWorktree(ctx, root); err != nil {
-			fmt.Fprintf(c.Err, "%v\n", err)
-			return exitError
-		}
-		if err := ensureNoStagedChangesForReopen(ctx, root); err != nil {
 			fmt.Fprintf(c.Err, "%v\n", err)
 			return exitError
 		}
@@ -238,6 +250,12 @@ func (c *CLI) reopenWorkspace(ctx context.Context, root string, repoPoolPath str
 		return fmt.Errorf("stat workspace dir: %w", err)
 	}
 
+	if doCommit {
+		if _, err := commitReopenPreSnapshot(ctx, root, workspaceID); err != nil {
+			return fmt.Errorf("commit reopen pre-snapshot: %w", err)
+		}
+	}
+
 	if err := os.Rename(archivePath, wsPath); err != nil {
 		return fmt.Errorf("restore workspace (rename): %w", err)
 	}
@@ -251,7 +269,6 @@ func (c *CLI) reopenWorkspace(ctx context.Context, root string, repoPoolPath str
 		_ = os.Rename(wsPath, archivePath)
 		return fmt.Errorf("recreate worktrees: %w", err)
 	}
-	originalMeta := meta
 	meta.Workspace.Status = "active"
 	meta.Workspace.UpdatedAt = time.Now().Unix()
 	if err := writeWorkspaceMetaFile(wsPath, meta); err != nil {
@@ -262,23 +279,10 @@ func (c *CLI) reopenWorkspace(ctx context.Context, root string, repoPoolPath str
 	if doCommit {
 		_, err = commitReopenChange(ctx, root, workspaceID)
 		if err != nil {
-			_ = writeWorkspaceMetaFile(wsPath, originalMeta)
-			_ = os.Rename(wsPath, archivePath)
 			return fmt.Errorf("commit reopen change: %w", err)
 		}
 	}
 
-	return nil
-}
-
-func ensureNoStagedChangesForReopen(ctx context.Context, root string) error {
-	out, err := gitutil.Run(ctx, root, "diff", "--cached", "--name-only")
-	if err != nil {
-		return err
-	}
-	if strings.TrimSpace(out) != "" {
-		return fmt.Errorf("git index has staged changes; commit or unstage them before running ws reopen")
-	}
 	return nil
 }
 
@@ -399,7 +403,7 @@ func commitReopenChange(ctx context.Context, root string, workspaceID string) (s
 		}
 	}
 
-	out, err := gitutil.Run(ctx, root, "diff", "--cached", "--name-only")
+	out, err := gitutil.Run(ctx, root, "diff", "--cached", "--name-only", "--", workspacesArg, archiveArg)
 	if err != nil {
 		_, _ = gitutil.Run(ctx, root, "reset", "-q", "--", workspacesArg, archiveArg)
 		return "", err
@@ -415,10 +419,48 @@ func commitReopenChange(ctx context.Context, root string, workspaceID string) (s
 		return "", fmt.Errorf("unexpected staged path outside allowlist: %s", p)
 	}
 
-	if _, err := gitutil.Run(ctx, root, "commit", "-m", fmt.Sprintf("reopen: %s", workspaceID)); err != nil {
+	if _, err := gitutil.Run(ctx, root, "commit", "--only", "-m", fmt.Sprintf("reopen: %s", workspaceID), "--", workspacesArg, archiveArg); err != nil {
 		_, _ = gitutil.Run(ctx, root, "reset", "-q", "--", workspacesArg, archiveArg)
 		return "", err
 	}
+	_, _ = gitutil.Run(ctx, root, "reset", "-q", "--", workspacesArg, archiveArg)
+
+	sha, err := gitutil.Run(ctx, root, "rev-parse", "HEAD")
+	if err != nil {
+		return "", err
+	}
+	return strings.TrimSpace(sha), nil
+}
+
+func commitReopenPreSnapshot(ctx context.Context, root string, workspaceID string) (string, error) {
+	archivePrefix, err := toGitTopLevelPath(ctx, root, filepath.Join("archive", workspaceID))
+	if err != nil {
+		return "", err
+	}
+	archivePrefix += string(filepath.Separator)
+	archiveArg := filepath.ToSlash(filepath.Join("archive", workspaceID))
+
+	if _, err := gitutil.Run(ctx, root, "add", "-A", "--", archiveArg); err != nil {
+		return "", err
+	}
+	out, err := gitutil.Run(ctx, root, "diff", "--cached", "--name-only", "--", archiveArg)
+	if err != nil {
+		_, _ = gitutil.Run(ctx, root, "reset", "-q", "--", archiveArg)
+		return "", err
+	}
+	for _, p := range strings.Fields(out) {
+		p = filepath.Clean(filepath.FromSlash(p))
+		if strings.HasPrefix(p, archivePrefix) {
+			continue
+		}
+		_, _ = gitutil.Run(ctx, root, "reset", "-q", "--", archiveArg)
+		return "", fmt.Errorf("unexpected staged path outside allowlist: %s", p)
+	}
+	if _, err := gitutil.Run(ctx, root, "commit", "--allow-empty", "--only", "-m", fmt.Sprintf("reopen-pre: %s", workspaceID), "--", archiveArg); err != nil {
+		_, _ = gitutil.Run(ctx, root, "reset", "-q", "--", archiveArg)
+		return "", err
+	}
+	_, _ = gitutil.Run(ctx, root, "reset", "-q", "--", archiveArg)
 
 	sha, err := gitutil.Run(ctx, root, "rev-parse", "HEAD")
 	if err != nil {

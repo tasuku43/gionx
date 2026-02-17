@@ -441,14 +441,14 @@ If ID is omitted, current directory must resolve to an active workspace.
 
 func (c *CLI) printWSReopenUsage(w io.Writer) {
 	fmt.Fprint(w, `Usage:
-  kra ws --act reopen [--commit] <id>
+  kra ws --act reopen [--no-commit] <id>
   kra ws --act reopen --dry-run --format json <id>
 
 Reopen an archived workspace:
 - move archive/<id>/ to workspaces/<id>/ atomically
 - recreate git worktrees under workspaces/<id>/repos/
-- by default, no git commit is created.
-- --commit: commit the reopen change in KRA_ROOT
+- by default, lifecycle commits run automatically (pre-reopen + reopen).
+- --no-commit: disable lifecycle commits for this command
 
 Use kra ws select --archived for interactive selection.
 `)

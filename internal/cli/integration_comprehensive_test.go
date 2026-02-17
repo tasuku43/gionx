@@ -146,7 +146,7 @@ func TestCLI_WS_Close_WithStagedChanges_CommitsOnlyWorkspaceScope(t *testing.T) 
 	}
 }
 
-func TestCLI_WS_Reopen_WithStagedChanges_FailsBeforeMutatingWorkspace(t *testing.T) {
+func TestCLI_WS_Reopen_WithStagedChanges_PreservesUnrelatedIndexAndReopens(t *testing.T) {
 	testutil.RequireCommand(t, "git")
 
 	env := testutil.NewEnv(t)
@@ -186,19 +186,20 @@ func TestCLI_WS_Reopen_WithStagedChanges_FailsBeforeMutatingWorkspace(t *testing
 		var err bytes.Buffer
 		c := New(&out, &err)
 		code := c.Run([]string{"ws", "--act", "reopen", "--commit", "WS1"})
-		if code != exitError {
-			t.Fatalf("ws reopen exit code = %d, want %d (stderr=%q)", code, exitError, err.String())
-		}
-		if !strings.Contains(err.String(), "git index has staged changes") {
-			t.Fatalf("stderr missing staged changes guard: %q", err.String())
+		if code != exitOK {
+			t.Fatalf("ws reopen exit code = %d, want %d (stderr=%q)", code, exitOK, err.String())
 		}
 	}
 
-	if _, err := os.Stat(filepath.Join(env.Root, "archive", "WS1")); err != nil {
-		t.Fatalf("archive/WS1 should remain: %v", err)
+	if _, err := os.Stat(filepath.Join(env.Root, "archive", "WS1")); err == nil {
+		t.Fatalf("archive/WS1 should not exist")
 	}
-	if _, err := os.Stat(filepath.Join(env.Root, "workspaces", "WS1")); err == nil {
-		t.Fatalf("workspaces/WS1 should not exist")
+	if _, err := os.Stat(filepath.Join(env.Root, "workspaces", "WS1")); err != nil {
+		t.Fatalf("workspaces/WS1 should exist: %v", err)
+	}
+	staged := strings.TrimSpace(mustGitOutput(t, env.Root, "diff", "--cached", "--name-only"))
+	if !strings.Contains(staged, "README.tmp") {
+		t.Fatalf("pre-existing staged file should remain staged: %q", staged)
 	}
 }
 

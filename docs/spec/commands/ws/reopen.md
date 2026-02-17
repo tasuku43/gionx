@@ -3,7 +3,7 @@ title: "`kra ws --act reopen`"
 status: implemented
 ---
 
-# `kra ws --act reopen [--commit] <id>`
+# `kra ws --act reopen [--no-commit] [--commit] <id>`
 # `kra ws --act reopen --dry-run --format json <id>`
 
 ## Purpose
@@ -42,14 +42,21 @@ For each recorded workspace repo entry:
   - otherwise, create it from the default branch
 - If the branch is already checked out by another worktree, error (Git worktree constraint).
 
-4) Update workspace metadata/index
+4) Commit pre-reopen snapshot (default; skipped by `--no-commit`)
+
+- Commit message is fixed: `reopen-pre: <id>`
+- Stage allowlist: `archive/<id>/`
+- Preserve unrelated staged changes outside allowlist.
+- `--commit` is accepted for backward compatibility and keeps default behavior.
+
+5) Update workspace metadata/index
 
 - Mark the workspace as `active`.
 - Update `updated_at`.
-- When `--commit` is enabled, record:
+- In default commit mode, record:
   - `reopened_commit_sha` (the commit created by this operation)
 
-5) Commit the reopen change (`--commit` only)
+6) Commit the reopen change (default; skipped by `--no-commit`)
 
 - Commit message is fixed: `reopen: <id>`
 - Commit on the current branch.
@@ -57,9 +64,10 @@ For each recorded workspace repo entry:
   - `workspaces/<id>/` (excluding `repos/**`, which is ignored)
   - removal of `archive/<id>/`
 
-If `--commit` is enabled, unrelated changes must not be included in the commit.
+If post-reopen commit fails, do not auto-rollback filesystem rename; keep reopened state and return error.
+In default commit mode, unrelated changes must not be included in lifecycle commits.
 
-6) Append an event
+7) Append an event
 
 - Append `workspace_events(event_type='reopened', workspace_id='<id>', at=...)` (this is the source of truth
   for the reopen timestamp).
