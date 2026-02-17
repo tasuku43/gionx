@@ -14,13 +14,14 @@ const (
 type Action string
 
 const (
-	ActionGo      Action = "go"
-	ActionAddRepo Action = "add-repo"
-	ActionRemove  Action = "remove-repo"
-	ActionClose   Action = "close"
-	ActionReopen  Action = "reopen"
-	ActionUnlock  Action = "unlock"
-	ActionPurge   Action = "purge"
+	ActionGo       Action = "go"
+	ActionAddRepo  Action = "add-repo"
+	ActionRemove   Action = "remove-repo"
+	ActionClose    Action = "close"
+	ActionRunAgent Action = "run-agent"
+	ActionReopen   Action = "reopen"
+	ActionUnlock   Action = "unlock"
+	ActionPurge    Action = "purge"
 )
 
 // WorkspaceRef identifies a workspace in app-layer contracts.

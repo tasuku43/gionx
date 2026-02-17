@@ -85,7 +85,7 @@ func (s *Service) Run(ctx context.Context, req LauncherRequest) (LauncherResult,
 func isActionAllowedForScope(action Action, scope Scope) bool {
 	switch scope {
 	case ScopeActive:
-		return action == ActionGo || action == ActionAddRepo || action == ActionRemove || action == ActionClose
+		return action == ActionGo || action == ActionAddRepo || action == ActionRemove || action == ActionClose || action == ActionRunAgent
 	case ScopeArchived:
 		return action == ActionReopen || action == ActionUnlock || action == ActionPurge
 	default:

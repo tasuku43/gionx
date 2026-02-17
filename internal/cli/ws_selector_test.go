@@ -655,6 +655,44 @@ func TestRenderWorkspaceSelectorLinesWithOptions_RepoModeSelectedMarkerUsesAccen
 	}
 }
 
+func TestRenderWorkspaceSelectorLinesWithFilterView_TargetModeIndentsRepoRows(t *testing.T) {
+	lines := renderWorkspaceSelectorLinesWithFilterView(
+		"target",
+		"active",
+		"Target:",
+		"run",
+		[]workspaceSelectorCandidate{
+			{ID: "workspace", Description: "run at workspace root", Risk: workspacerisk.WorkspaceRiskClean},
+			{ID: "NOIR-Plugins", Description: "repo:NOIR-Plugins", Risk: workspacerisk.WorkspaceRiskClean},
+			{ID: "ai-secretary-tools", Description: "repo:ai-secretary-tools", Risk: workspacerisk.WorkspaceRiskClean},
+		},
+		map[int]bool{},
+		0,
+		"",
+		selectorMessageLevelMuted,
+		"",
+		"",
+		true,
+		true,
+		true,
+		false,
+		true,
+		false,
+		120,
+		0,
+	)
+	joined := strings.Join(lines, "\n")
+	if !strings.Contains(joined, "\n> ○ workspace") {
+		t.Fatalf("target mode should render workspace row as top-level: %q", joined)
+	}
+	if !strings.Contains(joined, "\n    ○ NOIR-Plugins") {
+		t.Fatalf("target mode should indent repo rows: %q", joined)
+	}
+	if strings.Contains(joined, "├─") || strings.Contains(joined, "└─") {
+		t.Fatalf("target mode should not render tree branch symbols: %q", joined)
+	}
+}
+
 func TestWorkspaceSelectorModel_SingleModeEnterSelectsCurrent(t *testing.T) {
 	m := newWorkspaceSelectorModelWithOptionsAndMode(
 		[]workspaceSelectorCandidate{

@@ -15,7 +15,7 @@ Unify interactive selection into a single entrypoint while keeping operation com
   - `kra ws`
   - `kra ws select`
 - Non-interactive execution path (operation-fixed):
-  - `kra ws --act <go|add-repo|remove-repo|close|reopen|purge> ...`
+  - `kra ws --act <go|add-repo|remove-repo|close|run-agent|reopen|purge> ...`
 - Both facades must converge to the same operation core behavior for each action.
 - Parent-shell side effects (for example `cd`) are applied only through action-file protocol.
 
@@ -24,9 +24,9 @@ Unify interactive selection into a single entrypoint while keeping operation com
 - `kra ws` is context-aware launcher.
 - `kra ws --id <id>` resolves launcher target explicitly by id.
 - `kra ws select` always starts from workspace selection.
-- `kra ws select --act <go|close|add-repo|remove-repo|reopen|unlock|purge>` skips action menu and executes fixed action.
+- `kra ws select --act <go|run-agent|close|add-repo|remove-repo|reopen|unlock|purge>` skips action menu and executes fixed action.
 - `kra ws select --act reopen|unlock|purge` implicitly switches to archived scope.
-- `kra ws select --archived --act go|add-repo|remove-repo|close` must fail with usage error.
+- `kra ws select --archived --act go|run-agent|add-repo|remove-repo|close` must fail with usage error.
 - `kra ws select --multi` requires `--act`.
 - `kra ws select --multi --act <close|reopen|purge>` enables multi-selection and executes the fixed action for each
   selected workspace.
@@ -46,7 +46,7 @@ Unify interactive selection into a single entrypoint while keeping operation com
 - Stage 1: select exactly one workspace from list scope.
 - Stage 1 (multi): select one or more workspaces from list scope when `--multi` is set.
 - Stage 2: select action for selected workspace.
-  - active scope: `go`, `add-repo`, `remove-repo`, `close`
+  - active scope: `go`, `run-agent` (experimental only), `add-repo`, `remove-repo`, `close`
   - archived scope: `reopen`, `purge`
 - Stage 3: dispatch to operation command with explicit `<id>`.
 - Stage 3 (multi): dispatch selected fixed action for each selected workspace id.
@@ -56,4 +56,5 @@ Unify interactive selection into a single entrypoint while keeping operation com
 - Edit operations for existing workspace resources are routed by `--act`.
 - Read-only commands remain subcommands (`ws list`, `ws ls`) and resource creation remains `ws create`.
 - `ws go|close|add-repo|remove-repo|reopen|purge` subcommands are not part of supported entrypoints.
+- `run-agent` is delegated to `kra agent run` in experimental builds.
 - Non-interactive usage should prefer explicit `--id` and must not rely on interactive selectors.

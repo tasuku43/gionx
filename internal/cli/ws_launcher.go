@@ -22,8 +22,8 @@ func detectWorkspaceFromCWD(root string, cwd string) (workspaceContextSelection,
 	if root == "" || cwd == "" {
 		return workspaceContextSelection{}, false
 	}
-	cleanRoot := filepath.Clean(root)
-	cleanCWD := filepath.Clean(cwd)
+	cleanRoot := canonicalDetectPath(root)
+	cleanCWD := canonicalDetectPath(cwd)
 
 	try := func(base string, status string) (workspaceContextSelection, bool) {
 		rel, err := filepath.Rel(base, cleanCWD)
@@ -48,6 +48,34 @@ func detectWorkspaceFromCWD(root string, cwd string) (workspaceContextSelection,
 		return out, true
 	}
 	return workspaceContextSelection{}, false
+}
+
+func canonicalDetectPath(path string) string {
+	clean := filepath.Clean(path)
+	resolved, err := filepath.EvalSymlinks(clean)
+	if err != nil {
+		missingTail := make([]string, 0, 4)
+		cur := clean
+		for {
+			if _, statErr := os.Stat(cur); statErr == nil {
+				baseResolved, baseErr := filepath.EvalSymlinks(cur)
+				if baseErr != nil {
+					return clean
+				}
+				for i := len(missingTail) - 1; i >= 0; i-- {
+					baseResolved = filepath.Join(baseResolved, missingTail[i])
+				}
+				return filepath.Clean(baseResolved)
+			}
+			parent := filepath.Dir(cur)
+			if parent == cur {
+				return clean
+			}
+			missingTail = append(missingTail, filepath.Base(cur))
+			cur = parent
+		}
+	}
+	return filepath.Clean(resolved)
 }
 
 func (c *CLI) runWSLauncher(args []string) int {
@@ -107,7 +135,12 @@ parseFlags:
 	}
 	if fixedAction != "" {
 		switch fixedAction {
-		case "go", "add-repo", "remove-repo", "close":
+		case "go", "add-repo", "remove-repo", "close", "run-agent":
+			if fixedAction == "run-agent" && !c.wsAgentActionEnabled() {
+				fmt.Fprintf(c.Err, "unsupported --act: %q\n", fixedAction)
+				c.printWSUsage(c.Err)
+				return exitUsage
+			}
 			if archivedScope {
 				fmt.Fprintf(c.Err, "--act %s cannot be used with --archived\n", fixedAction)
 				c.printWSUsage(c.Err)
@@ -194,6 +227,8 @@ parseFlags:
 			return c.runWSGo([]string{"--ui", "--archived", target.ID})
 		}
 		return c.runWSGo([]string{"--ui", target.ID})
+	case "run-agent":
+		return c.runWSRunAgent([]string{"--workspace", target.ID})
 	case "add-repo":
 		return c.runWSAddRepo([]string{target.ID})
 	case "remove-repo":
@@ -235,7 +270,11 @@ func runWSActionHasPositional(actionArgs []string) bool {
 
 func (c *CLI) runWSFixedActionDirect(action string, workspaceID string, archivedScope bool, wd string, root string, actionArgs []string) int {
 	switch action {
-	case "go", "add-repo", "remove-repo", "close":
+	case "go", "add-repo", "remove-repo", "close", "run-agent":
+		if action == "run-agent" && !c.wsAgentActionEnabled() {
+			c.printWSUsage(c.Err)
+			return exitUsage
+		}
 		if archivedScope {
 			c.printWSUsage(c.Err)
 			return exitUsage
@@ -258,6 +297,10 @@ func (c *CLI) runWSFixedActionDirect(action string, workspaceID string, archived
 	case "go", "add-repo", "remove-repo", "close":
 		if workspaceID != "" && !runWSActionHasIDArg(opArgs) && !runWSActionHasPositional(opArgs) {
 			opArgs = append([]string{"--id", workspaceID}, opArgs...)
+		}
+	case "run-agent":
+		if workspaceID != "" && !runWSActionHasWorkspaceArg(opArgs) {
+			opArgs = append([]string{"--workspace", workspaceID}, opArgs...)
 		}
 	case "reopen", "purge", "unlock":
 		if workspaceID != "" && !runWSActionHasPositional(opArgs) {
@@ -286,6 +329,8 @@ func (c *CLI) runWSFixedActionDirect(action string, workspaceID string, archived
 		return c.runWSRemoveRepo(opArgs)
 	case "close":
 		return c.runWSClose(opArgs)
+	case "run-agent":
+		return c.runWSRunAgent(opArgs)
 	case "reopen":
 		return c.runWSReopen(opArgs)
 	case "unlock":
@@ -639,6 +684,9 @@ func (c *CLI) promptLauncherAction(target workspaceContextSelection, fromContext
 	switch target.Status {
 	case "active":
 		if fromContext {
+			if c.wsAgentActionEnabled() {
+				actions = append(actions, workspaceSelectorCandidate{ID: "run-agent", Description: "start agent session"})
+			}
 			actions = append(actions,
 				workspaceSelectorCandidate{ID: "add-repo", Description: "add repositories"},
 				workspaceSelectorCandidate{ID: "remove-repo", Description: "remove repositories"},
@@ -647,6 +695,11 @@ func (c *CLI) promptLauncherAction(target workspaceContextSelection, fromContext
 		} else {
 			actions = append(actions,
 				workspaceSelectorCandidate{ID: "go", Description: "switch to workspace"},
+			)
+			if c.wsAgentActionEnabled() {
+				actions = append(actions, workspaceSelectorCandidate{ID: "run-agent", Description: "start agent session"})
+			}
+			actions = append(actions,
 				workspaceSelectorCandidate{ID: "add-repo", Description: "add repositories"},
 				workspaceSelectorCandidate{ID: "remove-repo", Description: "remove repositories"},
 				workspaceSelectorCandidate{ID: "close", Description: "archive this workspace"},
@@ -677,4 +730,17 @@ func renderActionSelectorTitle(workspaceID string, useColor bool) string {
 		label = styleAccent(label, useColor)
 	}
 	return fmt.Sprintf("Action:\n%s%s: %s", uiIndent, label, workspaceID)
+}
+
+func runWSActionHasWorkspaceArg(actionArgs []string) bool {
+	for i := 0; i < len(actionArgs); i++ {
+		arg := strings.TrimSpace(actionArgs[i])
+		if arg == "--workspace" {
+			return true
+		}
+		if strings.HasPrefix(arg, "--workspace=") {
+			return true
+		}
+	}
+	return false
 }

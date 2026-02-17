@@ -568,6 +568,8 @@ func renderWorkspaceSelectorLinesWithFilterView(itemLabel string, status string,
 				bodyRaw, prefixPlain = renderWorkspaceSelectorRow(markerText, mark, idRaw, it, maxCols, useColor)
 			case selectorRowStyleAction:
 				bodyRaw, prefixPlain = renderActionSelectorRow(markerText, mark, idRaw, it, idWidth, maxCols, useColor)
+			case selectorRowStyleTarget:
+				bodyRaw, prefixPlain = renderTargetSelectorRow(markerText, mark, idRaw, it, idWidth, maxCols, useColor)
 			default:
 				desc := it.secondaryText()
 				if desc == "" {
@@ -730,6 +732,7 @@ const (
 	selectorRowStyleDefault   selectorRowStyle = "default"
 	selectorRowStyleWorkspace selectorRowStyle = "workspace"
 	selectorRowStyleAction    selectorRowStyle = "action"
+	selectorRowStyleTarget    selectorRowStyle = "target"
 )
 
 func selectorRowStyleFromContext(itemLabel string, title string, showDesc bool) selectorRowStyle {
@@ -742,6 +745,8 @@ func selectorRowStyleFromContext(itemLabel string, title string, showDesc bool) 
 		return selectorRowStyleWorkspace
 	case "action":
 		return selectorRowStyleAction
+	case "target":
+		return selectorRowStyleTarget
 	}
 	if strings.HasPrefix(strings.ToLower(strings.TrimSpace(title)), "action:") {
 		return selectorRowStyleAction
@@ -828,6 +833,32 @@ func renderActionSelectorRow(markerText string, mark string, actionRaw string, i
 	}
 	actionStyled := colorizeRiskID(actionPadded, it.Risk, useColor)
 	return fmt.Sprintf("%s %s  %s", markerText, actionStyled, suffixStyled), prefixPlain
+}
+
+func renderTargetSelectorRow(markerText string, mark string, targetRaw string, it workspaceSelectorCandidate, idWidth int, maxCols int, useColor bool) (string, string) {
+	targetPadded := fmt.Sprintf("%-*s", idWidth, targetRaw)
+	desc := it.secondaryText()
+	if desc == "" {
+		desc = "(no description)"
+	}
+
+	indent := ""
+	if strings.HasPrefix(strings.ToLower(strings.TrimSpace(desc)), "repo:") {
+		indent = "  "
+	}
+	prefixPlain := fmt.Sprintf("%s%s %s  ", indent, mark, targetPadded)
+	availableDescCols := maxCols - displayWidth(prefixPlain) - 2 // include focus + space
+	if availableDescCols < 8 {
+		availableDescCols = 8
+	}
+	descText := truncateDisplay(desc, availableDescCols)
+	descStyled := descText
+	if useColor {
+		descStyled = styleMuted(descText, true)
+	}
+
+	targetStyled := styleBold(targetPadded, useColor)
+	return fmt.Sprintf("%s%s %s  %s", indent, markerText, targetStyled, descStyled), prefixPlain
 }
 
 func isReducedMotionEnabled() bool {

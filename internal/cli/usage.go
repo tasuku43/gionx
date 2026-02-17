@@ -163,7 +163,7 @@ Bootstrap:
 func (c *CLI) printWSUsage(w io.Writer) {
 	fmt.Fprint(w, `Usage:
   kra ws [--id <id>] [--act <action>] [action-args...]
-  kra ws select [--archived] [--act <go|close|add-repo|remove-repo|reopen|unlock|purge>]
+  kra ws select [--archived] [--act <go|run-agent|close|add-repo|remove-repo|reopen|unlock|purge>]
   kra ws select --multi --act <close|reopen|purge> [--archived] [--no-commit]
   kra ws create [--no-prompt] [--template <name>] [--format human|json] <id>
   kra ws create [--no-prompt] [--template <name>] [--format human|json] --id <id> [--title "<title>"]
@@ -191,6 +191,7 @@ Run:
 Notes:
 - edit actions for existing workspaces are routed by --act.
 - active actions: go, add-repo, remove-repo, close
+- experimental build adds active action: run-agent
 - archived actions: reopen, unlock, purge (applies archived scope automatically)
 - ws --archived --act go|add-repo|remove-repo|close is invalid.
 - kra ws opens action launcher when --act is omitted.
