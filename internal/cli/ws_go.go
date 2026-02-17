@@ -6,8 +6,8 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"slices"
 	"strings"
+	"time"
 
 	"github.com/tasuku43/kra/internal/infra/paths"
 )
@@ -272,78 +272,19 @@ func (c *CLI) runWSGoJSON(workspaceID string, archivedScope bool) int {
 }
 
 func listWorkspaceCandidatesByStatus(ctx context.Context, root string, status string) ([]workspaceSelectorCandidate, error) {
-	_ = ctx
-	rows, err := listWorkspaceSelectorRowsFromFilesystem(root, status)
+	rows, _, err := buildWSListRows(ctx, root, status, time.Now().Unix(), false)
 	if err != nil {
 		return nil, err
 	}
 	out := make([]workspaceSelectorCandidate, 0, len(rows))
 	for _, row := range rows {
 		out = append(out, workspaceSelectorCandidate{
-			ID:    row.ID,
-			Title: formatWorkspaceTitle(row.Title),
+			ID:        row.ID,
+			Title:     formatWorkspaceTitle(row.Title),
+			WorkState: normalizeWorkspaceWorkState(row.WorkState),
 		})
 	}
 	return out, nil
-}
-
-type workspaceSelectorRow struct {
-	ID        string
-	Title     string
-	UpdatedAt int64
-}
-
-func listWorkspaceSelectorRowsFromFilesystem(root string, status string) ([]workspaceSelectorRow, error) {
-	baseDir := filepath.Join(root, "workspaces")
-	if status == "archived" {
-		baseDir = filepath.Join(root, "archive")
-	}
-	entries, err := os.ReadDir(baseDir)
-	if err != nil {
-		return nil, err
-	}
-
-	rows := make([]workspaceSelectorRow, 0, len(entries))
-	for _, e := range entries {
-		if !e.IsDir() {
-			continue
-		}
-		id := strings.TrimSpace(e.Name())
-		if err := validateWorkspaceID(id); err != nil {
-			continue
-		}
-
-		wsPath := filepath.Join(baseDir, id)
-		meta, metaErr := loadWorkspaceMetaFile(wsPath)
-		title := ""
-		updatedAt := int64(0)
-		if metaErr == nil {
-			title = strings.TrimSpace(meta.Workspace.Title)
-			updatedAt = meta.Workspace.UpdatedAt
-		}
-		if updatedAt <= 0 {
-			fi, statErr := os.Stat(wsPath)
-			if statErr == nil {
-				updatedAt = fi.ModTime().Unix()
-			}
-		}
-		rows = append(rows, workspaceSelectorRow{
-			ID:        id,
-			Title:     title,
-			UpdatedAt: updatedAt,
-		})
-	}
-
-	slices.SortFunc(rows, func(a, b workspaceSelectorRow) int {
-		if a.UpdatedAt != b.UpdatedAt {
-			if a.UpdatedAt > b.UpdatedAt {
-				return -1
-			}
-			return 1
-		}
-		return strings.Compare(a.ID, b.ID)
-	})
-	return rows, nil
 }
 
 func resolveWorkspaceGoTarget(root string, scope string, workspaceID string) (string, error) {

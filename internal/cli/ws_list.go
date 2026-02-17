@@ -29,6 +29,7 @@ type wsListRow struct {
 	UpdatedAt int64
 	RepoCount int
 	Title     string
+	WorkState workspaceWorkState
 	Repos     []statestore.WorkspaceRepo
 }
 
@@ -168,6 +169,12 @@ func buildWSListRows(ctx context.Context, root string, scope string, now int64, 
 }
 
 func listRowsFromFilesystem(ctx context.Context, root string, scope string, includeRepos bool) ([]wsListRow, error) {
+	cache, err := loadWorkspaceWorkStateCache(root)
+	if err != nil {
+		return nil, err
+	}
+	cacheDirty := false
+
 	baseDir := filepath.Join(root, "workspaces")
 	if scope == "archived" {
 		baseDir = filepath.Join(root, "archive")
@@ -216,17 +223,49 @@ func listRowsFromFilesystem(ctx context.Context, root string, scope string, incl
 				return nil, countErr
 			}
 		}
+
+		workState := workspaceWorkStateTodo
+		if scope == "active" {
+			if cached, ok := cache.Workspaces[id]; ok && cached.State == workspaceWorkStateInProgress {
+				workState = workspaceWorkStateInProgress
+			} else {
+				reposForState := repos
+				if reposForState == nil {
+					reposForState, err = listWorkspaceReposFromFilesystem(ctx, root, scope, id, meta)
+					if err != nil {
+						return nil, err
+					}
+				}
+				var changed bool
+				workState, changed = resolveWorkspaceWorkState(ctx, root, scope, id, reposForState, &cache, time.Now().Unix())
+				if changed {
+					cacheDirty = true
+				}
+			}
+		}
+
 		rows = append(rows, wsListRow{
 			ID:        id,
 			Status:    scope,
 			UpdatedAt: updatedAt,
 			RepoCount: repoCount,
 			Title:     title,
+			WorkState: workState,
 			Repos:     repos,
 		})
 	}
 
 	slices.SortFunc(rows, func(a, b wsListRow) int {
+		if scope == "active" {
+			wa := workStateSortPriority(a.WorkState)
+			wb := workStateSortPriority(b.WorkState)
+			if wa != wb {
+				if wa < wb {
+					return -1
+				}
+				return 1
+			}
+		}
 		if a.UpdatedAt != b.UpdatedAt {
 			if a.UpdatedAt > b.UpdatedAt {
 				return -1
@@ -235,6 +274,11 @@ func listRowsFromFilesystem(ctx context.Context, root string, scope string, incl
 		}
 		return strings.Compare(a.ID, b.ID)
 	})
+	if cacheDirty {
+		if err := saveWorkspaceWorkStateCache(root, cache); err != nil {
+			return nil, err
+		}
+	}
 	return rows, nil
 }
 
@@ -467,20 +511,21 @@ func renderWSListSummaryRow(row wsListRow, maxCols int, useColor bool) string {
 	desc := formatWorkspaceTitle(row.Title)
 
 	separatorPlain := ": "
-	prefixPlain := fmt.Sprintf("%s• %s%s", uiIndent, idPlain, separatorPlain)
+	mark := wsListMarkerForWorkState(normalizeWorkspaceWorkState(row.WorkState))
+	prefixPlain := fmt.Sprintf("%s%s %s%s", uiIndent, mark, idPlain, separatorPlain)
 	availableDescCols := maxCols - displayWidth(prefixPlain)
 	if availableDescCols < 8 {
 		availableDescCols = 8
 	}
 	desc = truncateDisplay(desc, availableDescCols)
 
-	bullet := "•"
+	markerText := mark
 	separator := separatorPlain
 	if useColor {
-		bullet = styleMuted(bullet, useColor)
+		markerText = styleMuted(markerText, useColor)
 		separator = styleMuted(separatorPlain, useColor)
 	}
-	line := fmt.Sprintf("%s%s %s%s", uiIndent, bullet, idPlain, separator) + desc
+	line := fmt.Sprintf("%s%s %s%s", uiIndent, markerText, idPlain, separator) + desc
 	return truncateDisplay(line, maxCols)
 }
 

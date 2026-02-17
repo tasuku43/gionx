@@ -290,6 +290,9 @@ func (c *CLI) reopenWorkspace(ctx context.Context, root string, repoPoolPath str
 		_ = os.Rename(wsPath, archivePath)
 		return reopenCommitTrace{}, fmt.Errorf("update %s: %w", workspaceMetaFilename, err)
 	}
+	if err := createOrRefreshWorkspaceBaseline(ctx, root, workspaceID, time.Now().Unix()); err != nil {
+		c.debugf("reopen workspace baseline refresh failed workspace=%s err=%v", workspaceID, err)
+	}
 
 	if doCommit {
 		postSHA, err := commitReopenChange(ctx, root, workspaceID)
@@ -464,38 +467,79 @@ func commitReopenChange(ctx context.Context, root string, workspaceID string) (s
 
 	workspacesArg := filepath.ToSlash(filepath.Join("workspaces", workspaceID))
 	archiveArg := filepath.ToSlash(filepath.Join("archive", workspaceID))
+	baselineArg := filepath.ToSlash(filepath.Join(".kra", "state", workspaceBaselineDirName, workspaceID+".json"))
+	workStateArg := filepath.ToSlash(filepath.Join(".kra", "state", workspaceWorkStateCacheFilename))
+	baselinePath, err := toGitTopLevelPath(ctx, root, filepath.Join(".kra", "state", workspaceBaselineDirName, workspaceID+".json"))
+	if err != nil {
+		return "", err
+	}
+	workStatePath, err := toGitTopLevelPath(ctx, root, filepath.Join(".kra", "state", workspaceWorkStateCacheFilename))
+	if err != nil {
+		return "", err
+	}
+	resetArgs := []string{workspacesArg, archiveArg, baselineArg, workStateArg}
+	resetStaging := func() {
+		cmd := append([]string{"reset", "-q", "--"}, resetArgs...)
+		_, _ = gitutil.Run(ctx, root, cmd...)
+	}
 
 	if _, err := gitutil.Run(ctx, root, "add", "-A", "--", workspacesArg); err != nil {
 		return "", err
 	}
 	if _, err := gitutil.Run(ctx, root, "add", "-u", "--", archiveArg); err != nil {
 		if !strings.Contains(err.Error(), "did not match any files") && !strings.Contains(err.Error(), "did not match any file") {
-			_, _ = gitutil.Run(ctx, root, "reset", "-q", "--", workspacesArg, archiveArg)
+			resetStaging()
+			return "", err
+		}
+	}
+	for _, arg := range []string{baselineArg, workStateArg} {
+		if _, err := gitutil.Run(ctx, root, "add", "-A", "--", arg); err != nil {
+			if strings.Contains(err.Error(), "did not match any files") || strings.Contains(err.Error(), "did not match any file") {
+				continue
+			}
+			resetStaging()
 			return "", err
 		}
 	}
 
-	out, err := gitutil.Run(ctx, root, "diff", "--cached", "--name-only", "--", workspacesArg, archiveArg)
+	out, err := gitutil.Run(ctx, root, "diff", "--cached", "--name-only", "--", workspacesArg, archiveArg, baselineArg, workStateArg)
 	if err != nil {
-		_, _ = gitutil.Run(ctx, root, "reset", "-q", "--", workspacesArg, archiveArg)
+		resetStaging()
 		return "", err
 	}
 
 	staged := strings.Fields(out)
+	hasBaselineStage := false
+	hasWorkStateStage := false
 	for _, p := range staged {
 		p = filepath.Clean(filepath.FromSlash(p))
 		if strings.HasPrefix(p, workspacesPrefix) || strings.HasPrefix(p, archivePrefix) {
 			continue
 		}
-		_, _ = gitutil.Run(ctx, root, "reset", "-q", "--", workspacesArg, archiveArg)
+		if p == baselinePath {
+			hasBaselineStage = true
+			continue
+		}
+		if p == workStatePath {
+			hasWorkStateStage = true
+			continue
+		}
+		resetStaging()
 		return "", fmt.Errorf("unexpected staged path outside allowlist: %s", p)
 	}
 
-	if _, err := gitutil.Run(ctx, root, "commit", "--only", "-m", fmt.Sprintf("reopen: %s", workspaceID), "--", workspacesArg, archiveArg); err != nil {
-		_, _ = gitutil.Run(ctx, root, "reset", "-q", "--", workspacesArg, archiveArg)
+	commitArgs := []string{"commit", "--only", "-m", fmt.Sprintf("reopen: %s", workspaceID), "--", workspacesArg, archiveArg}
+	if hasBaselineStage {
+		commitArgs = append(commitArgs, baselineArg)
+	}
+	if hasWorkStateStage {
+		commitArgs = append(commitArgs, workStateArg)
+	}
+	if _, err := gitutil.Run(ctx, root, commitArgs...); err != nil {
+		resetStaging()
 		return "", err
 	}
-	_, _ = gitutil.Run(ctx, root, "reset", "-q", "--", workspacesArg, archiveArg)
+	resetStaging()
 
 	sha, err := gitutil.Run(ctx, root, "rev-parse", "HEAD")
 	if err != nil {
