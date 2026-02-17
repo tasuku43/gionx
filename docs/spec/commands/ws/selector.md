@@ -104,6 +104,7 @@ Semantic color token policy:
 - Canonical row shape:
   - `> ○ WS-101      login flow`
   - `  ● WS-202      payment hotfix`
+- Workspace row markers use the same selection semantics as other selectors (`○` unselected, `●` selected).
 - Single-select canonical row shape:
   - `> ○ WS-101      login flow`
   - `  ● WS-202      payment hotfix`
@@ -118,6 +119,7 @@ Semantic color token policy:
   - warning (`unpushed`/`diverged`): warn color
   - danger (`dirty`/`unknown`): error color
 - `ws list` summary rows do not render risk hints; they use bullet-list `id: title` only.
+- Active workspace selectors should prioritize `in-progress` rows before `todo` rows.
 
 ## Selection visual behavior (task-list style)
 

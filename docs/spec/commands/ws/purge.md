@@ -62,6 +62,8 @@ This is a destructive operation. It is separate from `ws --act close`, which kee
 - Stage only paths touched by this operation, at minimum:
   - removal of `workspaces/<id>/`
   - removal of `archive/<id>/`
+  - `.kra/state/workspace-baselines/<id>.json`
+  - `.kra/state/workspace-workstate.json`
 
 In default commit mode, unrelated changes must not be included in lifecycle commits.
 
@@ -79,3 +81,6 @@ In default commit mode, unrelated changes must not be included in lifecycle comm
   - `hint: run 'kra ws unlock <id>' before purge`
 - `ws close`/`ws reopen` preserve purge guard value.
 - Purge execution is archived-only in current policy.
+- On successful purge, remove runtime baseline/cache entries for `<id>`:
+  - `.kra/state/workspace-baselines/<id>.json`
+  - `.kra/state/workspace-workstate.json` entry for `<id>`

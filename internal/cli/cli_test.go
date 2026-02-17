@@ -556,6 +556,13 @@ func seedDefaultTemplate(t *testing.T, root string) {
 	}
 }
 
+func initGitRootForWSCreateTest(t *testing.T, root string) {
+	t.Helper()
+	runGit(t, root, "init", "-b", "main")
+	runGit(t, root, "config", "user.email", "test@example.com")
+	runGit(t, root, "config", "user.name", "test")
+}
+
 func TestCLI_WS_Create_CreatesScaffoldAndStateStoreRows(t *testing.T) {
 	root := t.TempDir()
 
@@ -566,6 +573,7 @@ func TestCLI_WS_Create_CreatesScaffoldAndStateStoreRows(t *testing.T) {
 		t.Fatalf("create archive/: %v", err)
 	}
 	seedDefaultTemplate(t, root)
+	initGitRootForWSCreateTest(t, root)
 
 	setKraHomeForTest(t)
 	if err := paths.WriteCurrentContext(root); err != nil {
@@ -644,6 +652,7 @@ func TestCLI_WS_Create_ArchivedCollision_GuidesReopen(t *testing.T) {
 		t.Fatalf("create archive/: %v", err)
 	}
 	seedDefaultTemplate(t, root)
+	initGitRootForWSCreateTest(t, root)
 
 	setKraHomeForTest(t)
 	if err := paths.WriteCurrentContext(root); err != nil {
@@ -678,6 +687,7 @@ func TestCLI_WS_Create_ActiveCollision_Errors(t *testing.T) {
 		t.Fatalf("create archive/: %v", err)
 	}
 	seedDefaultTemplate(t, root)
+	initGitRootForWSCreateTest(t, root)
 
 	setKraHomeForTest(t)
 	if err := paths.WriteCurrentContext(root); err != nil {
@@ -748,6 +758,7 @@ func TestCLI_WS_AddRepo_CreatesWorktreeAndRecordsState(t *testing.T) {
 		t.Fatalf("create archive/: %v", err)
 	}
 	seedDefaultTemplate(t, root)
+	initGitRootForWSCreateTest(t, root)
 
 	if err := paths.WriteCurrentContext(root); err != nil {
 		t.Fatalf("WriteCurrentContext() error: %v", err)
@@ -861,6 +872,7 @@ func TestCLI_WS_AddRepo_DBUnavailable_FallsBackToFilesystem(t *testing.T) {
 		t.Fatalf("create archive/: %v", err)
 	}
 	seedDefaultTemplate(t, root)
+	initGitRootForWSCreateTest(t, root)
 
 	if err := paths.WriteCurrentContext(root); err != nil {
 		t.Fatalf("WriteCurrentContext() error: %v", err)

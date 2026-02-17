@@ -2,6 +2,7 @@ package cli
 
 import (
 	"os"
+	"os/exec"
 	"path/filepath"
 	"testing"
 
@@ -34,5 +35,16 @@ func prepareCurrentRootForTest(t *testing.T) string {
 	if err := paths.WriteCurrentContext(root); err != nil {
 		t.Fatalf("WriteCurrentContext() error: %v", err)
 	}
+	runGitCmd := func(args ...string) {
+		t.Helper()
+		cmd := exec.Command("git", args...)
+		cmd.Dir = root
+		if out, err := cmd.CombinedOutput(); err != nil {
+			t.Fatalf("git %v failed: %v (output=%s)", args, err, string(out))
+		}
+	}
+	runGitCmd("init", "-b", "main")
+	runGitCmd("config", "user.email", "test@example.com")
+	runGitCmd("config", "user.name", "test")
 	return root
 }

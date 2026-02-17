@@ -34,6 +34,7 @@ type workspaceSelectorCandidate struct {
 	Title       string
 	Description string
 	Risk        workspacerisk.WorkspaceRisk
+	WorkState   workspaceWorkState
 }
 
 func (c workspaceSelectorCandidate) secondaryText() string {

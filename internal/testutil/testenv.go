@@ -2,6 +2,7 @@ package testutil
 
 import (
 	"os"
+	"os/exec"
 	"path/filepath"
 	"testing"
 
@@ -50,11 +51,25 @@ func (e Env) EnsureRootLayout(t *testing.T) {
 	if err := os.WriteFile(agentsPath, []byte("# test template\n"), 0o644); err != nil {
 		t.Fatalf("write %q: %v", agentsPath, err)
 	}
+	if _, err := os.Stat(filepath.Join(e.Root, ".git")); os.IsNotExist(err) {
+		runGit(t, e.Root, "init", "-b", "main")
+		runGit(t, e.Root, "config", "user.email", "test@example.com")
+		runGit(t, e.Root, "config", "user.name", "test")
+	}
 }
 
 func mustMkdirAll(t *testing.T, path string) {
 	t.Helper()
 	if err := os.MkdirAll(path, 0o755); err != nil {
 		t.Fatalf("MkdirAll(%q): %v", path, err)
+	}
+}
+
+func runGit(t *testing.T, dir string, args ...string) {
+	t.Helper()
+	cmd := exec.Command("git", args...)
+	cmd.Dir = dir
+	if out, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("git %v failed: %v (output=%s)", args, err, string(out))
 	}
 }

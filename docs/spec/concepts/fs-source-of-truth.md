@@ -36,6 +36,9 @@ This spec defines the current canonical model.
 - ranking/usage hints
 - selector acceleration indexes
 - cross-root scan caches
+- workspace logical-state baseline/cache:
+  - `.kra/state/workspace-baselines/<id>.json`
+  - `.kra/state/workspace-workstate.json`
 
 If rebuildable data is missing/corrupt, commands should either:
 - rebuild automatically, or

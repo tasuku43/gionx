@@ -23,12 +23,13 @@ List workspaces with status and summary fields, similar in spirit to `gion manif
 ## Default display
 
 - One row per workspace (summary view) using selector-parity visual hierarchy.
-- Row content is bullet-list style and summary-first:
+- Row content is marker-list style and summary-first:
   - `id`
   - `title` (stored as `title` for compatibility)
 - Canonical row shape:
   - `• WS-101: login flow`
 - Summary row order is fixed as `ID | title`.
+- Marker is display-only and not used to distinguish work-state.
 - Ellipsis policy:
   - only `title` is truncated with `…` when terminal width is tight.
   - row output width must not exceed the selected terminal width.
@@ -37,6 +38,11 @@ List workspaces with status and summary fields, similar in spirit to `gion manif
   - `--archived`: `Workspaces(archived):`
 - `Workspaces(...)` section follows shared section atom contract and ends with exactly one trailing blank line.
 - `status` is represented by scope, not repeated per row.
+- Active list sort order is fixed:
+  - work-state priority (`in-progress` first)
+  - then `updated_at` descending
+  - then `id` ascending
+- Archived list keeps existing `updated_at`/`id` order (no work-state priority).
 - Summary output should follow the same shared row rendering semantics as selector flows
   (`commands/ws/selector.md`), while remaining non-interactive.
 - Status label coloring must follow shared semantics from selector UI:
@@ -78,6 +84,16 @@ List workspaces with status and summary fields, similar in spirit to `gion manif
 
 - Filesystem metadata (`.kra.meta.json`) is the primary source of desired/current state.
 - Directory existence under `KRA_ROOT/workspaces/` and `KRA_ROOT/archive/` is treated as physical truth.
+- Logical work-state derivation (`active` scope):
+  - runtime baseline file: `.kra/state/workspace-baselines/<id>.json`
+  - repo signals under `repos/**`:
+    - `dirty` -> `in-progress`
+    - `baseline_head..HEAD` delta -> `in-progress`
+  - non-repo FS signals:
+    - compare current file hash map with baseline `fs` map (exclude `repos/**`, `.kra.meta.json`)
+  - if any signal differs, classify as `in-progress`; otherwise `todo`
+  - once a workspace is derived as `in-progress`, cache it in `.kra/state/workspace-workstate.json`
+    and keep monotonic `todo -> in-progress` semantics.
 
 ### Drift repair (MVP)
 

@@ -7,12 +7,15 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/mattn/go-isatty"
 	"github.com/tasuku43/kra/internal/app/wscreate"
 	"github.com/tasuku43/kra/internal/config"
 	"github.com/tasuku43/kra/internal/infra/appports"
+	"github.com/tasuku43/kra/internal/infra/gitutil"
 	"github.com/tasuku43/kra/internal/infra/paths"
 )
 
@@ -214,6 +217,14 @@ func (c *CLI) runWSCreate(args []string) int {
 	if err != nil {
 		return writeRuntimeError(classifyWSCreateErrorCode(err), err.Error())
 	}
+	now := time.Now().Unix()
+	if err := createOrRefreshWorkspaceBaseline(ctx, root, id, now); err != nil {
+		return writeRuntimeError("internal_error", fmt.Sprintf("initialize workspace baseline: %v", err))
+	}
+	createCommitSHA, err := commitCreateWorkspace(ctx, root, id)
+	if err != nil {
+		return writeRuntimeError("internal_error", fmt.Sprintf("commit create change: %v", err))
+	}
 
 	if outputFormat == "json" {
 		_ = writeCLIJSON(c.Out, cliJSONResponse{
@@ -221,9 +232,10 @@ func (c *CLI) runWSCreate(args []string) int {
 			Action:      "ws.create",
 			WorkspaceID: id,
 			Result: map[string]any{
-				"created":  1,
-				"path":     wsPath,
-				"template": templateName,
+				"created":    1,
+				"path":       wsPath,
+				"template":   templateName,
+				"commit_sha": createCommitSHA,
 			},
 		})
 		c.debugf("ws create completed id=%s path=%s format=json", id, wsPath)
@@ -238,7 +250,7 @@ func (c *CLI) runWSCreate(args []string) int {
 		fmt.Sprintf("%s %s", styleSuccess("✔", useColorOut), id),
 		styleMuted(fmt.Sprintf("path: %s", wsPath), useColorOut),
 	)
-	c.debugf("ws create completed id=%s path=%s", id, wsPath)
+	c.debugf("ws create completed id=%s path=%s commit=%s", id, wsPath, shortCommitSHA(createCommitSHA))
 	return exitOK
 }
 
@@ -299,4 +311,87 @@ func validateWorkspaceID(id string) error {
 		return fmt.Errorf("must not contain path separators")
 	}
 	return nil
+}
+
+func resetCreateStaging(ctx context.Context, root string, args []string) {
+	for _, arg := range args {
+		if strings.TrimSpace(arg) == "" {
+			continue
+		}
+		_, _ = gitutil.Run(ctx, root, "reset", "-q", "--", arg)
+	}
+}
+
+func commitCreateWorkspace(ctx context.Context, root string, workspaceID string) (string, error) {
+	if err := ensureRootGitWorktree(ctx, root); err != nil {
+		return "", err
+	}
+	workspaceArg := filepath.ToSlash(filepath.Join("workspaces", workspaceID))
+	baselineArg := filepath.ToSlash(filepath.Join(".kra", "state", workspaceBaselineDirName, workspaceID+".json"))
+	workStateArg := filepath.ToSlash(filepath.Join(".kra", "state", workspaceWorkStateCacheFilename))
+	args := []string{workspaceArg, baselineArg, workStateArg}
+
+	workspacePrefix, err := toGitTopLevelPath(ctx, root, filepath.Join("workspaces", workspaceID))
+	if err != nil {
+		return "", err
+	}
+	workspacePrefix += string(filepath.Separator)
+	baselinePath, err := toGitTopLevelPath(ctx, root, filepath.Join(".kra", "state", workspaceBaselineDirName, workspaceID+".json"))
+	if err != nil {
+		return "", err
+	}
+	workStatePath, err := toGitTopLevelPath(ctx, root, filepath.Join(".kra", "state", workspaceWorkStateCacheFilename))
+	if err != nil {
+		return "", err
+	}
+
+	for _, arg := range args {
+		if _, err := gitutil.Run(ctx, root, "add", "-A", "--", arg); err != nil {
+			if strings.Contains(err.Error(), "did not match any files") || strings.Contains(err.Error(), "did not match any file") {
+				continue
+			}
+			resetCreateStaging(ctx, root, args)
+			return "", err
+		}
+	}
+	out, err := gitutil.Run(ctx, root, "diff", "--cached", "--name-only", "--", workspaceArg, baselineArg, workStateArg)
+	if err != nil {
+		resetCreateStaging(ctx, root, args)
+		return "", err
+	}
+	hasBaselineStage := false
+	hasWorkStateStage := false
+	for _, p := range strings.Fields(out) {
+		p = filepath.Clean(filepath.FromSlash(p))
+		if strings.HasPrefix(p, workspacePrefix) {
+			continue
+		}
+		if p == baselinePath {
+			hasBaselineStage = true
+			continue
+		}
+		if p == workStatePath {
+			hasWorkStateStage = true
+			continue
+		}
+		resetCreateStaging(ctx, root, args)
+		return "", fmt.Errorf("unexpected staged path outside allowlist: %s", p)
+	}
+	commitArgs := []string{"commit", "--only", "-m", fmt.Sprintf("create: %s", workspaceID), "--", workspaceArg}
+	if hasBaselineStage {
+		commitArgs = append(commitArgs, baselineArg)
+	}
+	if hasWorkStateStage {
+		commitArgs = append(commitArgs, workStateArg)
+	}
+	if _, err := gitutil.Run(ctx, root, commitArgs...); err != nil {
+		resetCreateStaging(ctx, root, args)
+		return "", err
+	}
+	resetCreateStaging(ctx, root, args)
+	sha, err := gitutil.Run(ctx, root, "rev-parse", "HEAD")
+	if err != nil {
+		return "", err
+	}
+	return strings.TrimSpace(sha), nil
 }

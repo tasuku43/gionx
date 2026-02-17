@@ -506,6 +506,9 @@ func (c *CLI) closeWorkspace(ctx context.Context, root string, workspaceID strin
 		_ = writeWorkspaceMetaFile(wsPath, originalMeta)
 		return closeCommitTrace{}, fmt.Errorf("archive (rename): %w", err)
 	}
+	if err := removeWorkspaceBaselineAndWorkState(root, workspaceID); err != nil {
+		c.debugf("close workspace baseline cleanup failed workspace=%s err=%v", workspaceID, err)
+	}
 
 	if doCommit {
 		postSHA, err := commitArchiveChange(ctx, root, workspaceID, expectedFiles)
@@ -1066,8 +1069,13 @@ func listWorkspaceNonRepoFiles(wsPath string) ([]string, error) {
 	return files, nil
 }
 
-func resetArchiveStaging(ctx context.Context, root, archiveArg, workspacesArg string) {
-	_, _ = gitutil.Run(ctx, root, "reset", "-q", "--", archiveArg, workspacesArg)
+func resetArchiveStaging(ctx context.Context, root string, args ...string) {
+	if len(args) == 0 {
+		return
+	}
+	resetArgs := []string{"reset", "-q", "--"}
+	resetArgs = append(resetArgs, args...)
+	_, _ = gitutil.Run(ctx, root, resetArgs...)
 }
 
 func resetClosePreStaging(ctx context.Context, root, workspacesArg string) {
@@ -1128,6 +1136,17 @@ func commitArchiveChange(ctx context.Context, root string, workspaceID string, e
 
 	archiveArg := filepath.ToSlash(filepath.Join("archive", workspaceID))
 	workspacesArg := filepath.ToSlash(filepath.Join("workspaces", workspaceID))
+	baselineArg := filepath.ToSlash(filepath.Join(".kra", "state", workspaceBaselineDirName, workspaceID+".json"))
+	workStateArg := filepath.ToSlash(filepath.Join(".kra", "state", workspaceWorkStateCacheFilename))
+	baselinePath, err := toGitTopLevelPath(ctx, root, filepath.Join(".kra", "state", workspaceBaselineDirName, workspaceID+".json"))
+	if err != nil {
+		return "", err
+	}
+	workStatePath, err := toGitTopLevelPath(ctx, root, filepath.Join(".kra", "state", workspaceWorkStateCacheFilename))
+	if err != nil {
+		return "", err
+	}
+	resetArgs := []string{archiveArg, workspacesArg, baselineArg, workStateArg}
 
 	if _, err := gitutil.Run(ctx, root, "add", "-A", "--", archiveArg); err != nil {
 		return "", err
@@ -1136,25 +1155,42 @@ func commitArchiveChange(ctx context.Context, root string, workspaceID string, e
 		// In an uninitialized git history, `workspaces/<id>` may not be tracked at all yet.
 		// Still allow archiving so the archive can be committed.
 		if !strings.Contains(err.Error(), "did not match any files") && !strings.Contains(err.Error(), "did not match any file") {
-			resetArchiveStaging(ctx, root, archiveArg, workspacesArg)
+			resetArchiveStaging(ctx, root, resetArgs...)
+			return "", err
+		}
+	}
+	for _, arg := range []string{baselineArg, workStateArg} {
+		if _, err := gitutil.Run(ctx, root, "add", "-A", "--", arg); err != nil {
+			if strings.Contains(err.Error(), "did not match any files") || strings.Contains(err.Error(), "did not match any file") {
+				continue
+			}
+			resetArchiveStaging(ctx, root, resetArgs...)
 			return "", err
 		}
 	}
 
-	out, err := gitutil.Run(ctx, root, "diff", "--cached", "--name-only", "--", archiveArg, workspacesArg)
+	out, err := gitutil.Run(ctx, root, "diff", "--cached", "--name-only", "--", archiveArg, workspacesArg, baselineArg, workStateArg)
 	if err != nil {
-		resetArchiveStaging(ctx, root, archiveArg, workspacesArg)
+		resetArchiveStaging(ctx, root, resetArgs...)
 		return "", err
 	}
 
 	staged := strings.Fields(out)
 	stagedSet := make(map[string]struct{}, len(staged))
 	hasWorkspacesStage := false
+	hasBaselineStage := false
+	hasWorkStateStage := false
 	for _, p := range staged {
 		p = filepath.Clean(filepath.FromSlash(p))
 		stagedSet[p] = struct{}{}
 		if strings.HasPrefix(p, workspacesPrefix) {
 			hasWorkspacesStage = true
+		}
+		if p == baselinePath {
+			hasBaselineStage = true
+		}
+		if p == workStatePath {
+			hasWorkStateStage = true
 		}
 	}
 
@@ -1169,27 +1205,41 @@ func commitArchiveChange(ctx context.Context, root string, workspaceID string, e
 		}
 		ignored, ignoreErr := isGitIgnoredRelativeToRoot(root, filepath.Join("archive", workspaceID, filepath.FromSlash(rel)))
 		if ignoreErr != nil {
-			resetArchiveStaging(ctx, root, archiveArg, workspacesArg)
+			resetArchiveStaging(ctx, root, resetArgs...)
 			return "", ignoreErr
 		}
 		if ignored {
 			continue
 		}
-		resetArchiveStaging(ctx, root, archiveArg, workspacesArg)
+		resetArchiveStaging(ctx, root, resetArgs...)
 		return "", fmt.Errorf("workspace contains files ignored by git; cannot archive commit: %s", rel)
+	}
+	for _, p := range staged {
+		p = filepath.Clean(filepath.FromSlash(p))
+		if strings.HasPrefix(p, archivePrefix) || strings.HasPrefix(p, workspacesPrefix) || p == baselinePath || p == workStatePath {
+			continue
+		}
+		resetArchiveStaging(ctx, root, resetArgs...)
+		return "", fmt.Errorf("unexpected staged path outside allowlist: %s", p)
 	}
 
 	commitArgs := []string{"commit", "--only", "-m", fmt.Sprintf("archive: %s", workspaceID), "--", archiveArg}
 	if hasWorkspacesStage {
 		commitArgs = append(commitArgs, workspacesArg)
 	}
+	if hasBaselineStage {
+		commitArgs = append(commitArgs, baselineArg)
+	}
+	if hasWorkStateStage {
+		commitArgs = append(commitArgs, workStateArg)
+	}
 	if _, err := gitutil.Run(ctx, root, commitArgs...); err != nil {
-		resetArchiveStaging(ctx, root, archiveArg, workspacesArg)
+		resetArchiveStaging(ctx, root, resetArgs...)
 		return "", err
 	}
 	// commit --only does not clear index entries staged by earlier add commands.
 	// Unstage only the command scope so unrelated user staged changes stay intact.
-	resetArchiveStaging(ctx, root, archiveArg, workspacesArg)
+	resetArchiveStaging(ctx, root, resetArgs...)
 
 	sha, err := gitutil.Run(ctx, root, "rev-parse", "HEAD")
 	if err != nil {

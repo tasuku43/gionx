@@ -3,6 +3,7 @@ package cli
 import (
 	"bytes"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -20,6 +21,17 @@ func TestCLI_Run_StateChangingCommand_BootstrapsGlobalConfig(t *testing.T) {
 		t.Fatalf("create archive/: %v", err)
 	}
 	seedDefaultTemplate(t, root)
+	runGit := func(args ...string) {
+		t.Helper()
+		cmd := exec.Command("git", args...)
+		cmd.Dir = root
+		if out, err := cmd.CombinedOutput(); err != nil {
+			t.Fatalf("git %v failed: %v (output=%s)", args, err, string(out))
+		}
+	}
+	runGit("init", "-b", "main")
+	runGit("config", "user.email", "test@example.com")
+	runGit("config", "user.name", "test")
 	writeCurrentContextForTest(t, root)
 
 	globalConfigPath := filepath.Join(kraHome, "config.yaml")

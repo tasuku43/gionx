@@ -2,6 +2,7 @@ package cli
 
 import (
 	"bytes"
+	"context"
 	"os"
 	"path/filepath"
 	"strings"
@@ -282,7 +283,7 @@ func TestCLI_WS_List_SummaryDoesNotShowTextualRiskTags(t *testing.T) {
 	}
 }
 
-func TestRenderWSListSummaryRow_BulletPrefix(t *testing.T) {
+func TestRenderWSListSummaryRow_MarkerPrefix(t *testing.T) {
 	rowA := wsListRow{
 		ID:        "WS_A",
 		RepoCount: 1,
@@ -290,7 +291,20 @@ func TestRenderWSListSummaryRow_BulletPrefix(t *testing.T) {
 	}
 	lineA := renderWSListSummaryRow(rowA, 120, false)
 	if !strings.HasPrefix(lineA, "  • WS_A: ") {
-		t.Fatalf("summary row should be bullet list item: %q", lineA)
+		t.Fatalf("summary row should use default marker: %q", lineA)
+	}
+}
+
+func TestRenderWSListSummaryRow_InProgressUsesSameMarker(t *testing.T) {
+	rowA := wsListRow{
+		ID:        "WS_A",
+		RepoCount: 1,
+		Title:     "first title",
+		WorkState: workspaceWorkStateInProgress,
+	}
+	lineA := renderWSListSummaryRow(rowA, 120, false)
+	if !strings.HasPrefix(lineA, "  • WS_A: ") {
+		t.Fatalf("summary row should keep same marker for in-progress: %q", lineA)
 	}
 }
 
@@ -422,6 +436,45 @@ func TestCLI_WS_List_JSON_UsageError(t *testing.T) {
 	}
 	if err.Len() != 0 {
 		t.Fatalf("stderr should be empty in json usage error: %q", err.String())
+	}
+}
+
+func TestListRowsFromFilesystem_ActiveSortsInProgressFirst(t *testing.T) {
+	root := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(root, "workspaces", "WS-TODO"), 0o755); err != nil {
+		t.Fatalf("mkdir WS-TODO: %v", err)
+	}
+	if err := os.MkdirAll(filepath.Join(root, "workspaces", "WS-IP"), 0o755); err != nil {
+		t.Fatalf("mkdir WS-IP: %v", err)
+	}
+	if err := os.MkdirAll(filepath.Join(root, "archive"), 0o755); err != nil {
+		t.Fatalf("mkdir archive: %v", err)
+	}
+	if err := writeWorkspaceMetaFile(filepath.Join(root, "workspaces", "WS-TODO"), newWorkspaceMetaFileForCreate("WS-TODO", "todo", "", 300)); err != nil {
+		t.Fatalf("write WS-TODO meta: %v", err)
+	}
+	if err := writeWorkspaceMetaFile(filepath.Join(root, "workspaces", "WS-IP"), newWorkspaceMetaFileForCreate("WS-IP", "in progress", "", 100)); err != nil {
+		t.Fatalf("write WS-IP meta: %v", err)
+	}
+	cache := workspaceWorkStateCache{
+		Version: 1,
+		Workspaces: map[string]workspaceWorkStateCacheEntry{
+			"WS-IP": {State: workspaceWorkStateInProgress},
+		},
+	}
+	if err := saveWorkspaceWorkStateCache(root, cache); err != nil {
+		t.Fatalf("save workstate cache: %v", err)
+	}
+
+	rows, err := listRowsFromFilesystem(context.Background(), root, "active", false)
+	if err != nil {
+		t.Fatalf("listRowsFromFilesystem() error: %v", err)
+	}
+	if len(rows) != 2 {
+		t.Fatalf("row count = %d, want 2", len(rows))
+	}
+	if rows[0].ID != "WS-IP" || rows[0].WorkState != workspaceWorkStateInProgress {
+		t.Fatalf("first row should be in-progress workspace, got id=%s state=%s", rows[0].ID, rows[0].WorkState)
 	}
 }
 

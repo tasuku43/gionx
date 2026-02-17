@@ -68,6 +68,18 @@ Create a workspace from a root-local template.
   - if `<id>` was previously purged, allow creating it again as a new generation
 - Do not create repos at this stage (repos are added via `ws --act add-repo`).
 - If copy or metadata write fails after workspace dir creation, remove `workspaces/<id>/` and fail.
+- `ws create` must auto-commit the create scope in `KRA_ROOT`:
+  - commit message: `create: <workspace-id>`
+  - staging allowlist:
+    - `workspaces/<id>/`
+    - `.kra/state/workspace-baselines/<id>.json`
+    - `.kra/state/workspace-workstate.json`
+  - if staged paths contain entries outside the allowlist, abort.
+- `ws create` must initialize workspace baseline state at:
+  - `.kra/state/workspace-baselines/<id>.json`
+  - baseline captures:
+    - repo baselines: `repos/<alias>` `baseline_head`
+    - non-repo FS baselines: `path -> sha256` map (exclude `repos/**` and `.kra.meta.json`)
 
 ## Output
 
@@ -83,8 +95,9 @@ Create a workspace from a root-local template.
   - `action=ws.create`
   - `workspace_id=<id>`
   - `result.created=1`
-  - `result.path=<KRA_ROOT/workspaces/<id>>`
-  - `result.template=<resolved-template-name>`
+- `result.path=<KRA_ROOT/workspaces/<id>>`
+- `result.template=<resolved-template-name>`
+  - `result.commit_sha=<create-commit-sha>`
 
 ## FS metadata behavior
 
