@@ -32,6 +32,7 @@ const (
 	agentBrokerDialTimeout    = 300 * time.Millisecond
 	agentBrokerStartupTimeout = 4 * time.Second
 	agentBrokerIdleTimeout    = 60 * time.Second
+	agentBrokerAttachWriteTTL = 2 * time.Second
 	agentBrokerEmbeddedEnvKey = "KRA_AGENT_BROKER_EMBEDDED"
 )
 
@@ -642,8 +643,8 @@ func (s *agentBrokerServer) forwardSessionOutput(session *agentBrokerSession) {
 				if conn == nil {
 					continue
 				}
-				_ = conn.SetWriteDeadline(time.Now().Add(200 * time.Millisecond))
-				if _, werr := conn.Write(payload); werr != nil {
+				_ = conn.SetWriteDeadline(time.Now().Add(agentBrokerAttachWriteTTL))
+				if werr := writeAllUnixConn(conn, payload); werr != nil {
 					session.removeAttachmentByConn(conn)
 				}
 				_ = conn.SetWriteDeadline(time.Time{})
