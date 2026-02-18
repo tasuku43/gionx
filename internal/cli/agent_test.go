@@ -505,6 +505,72 @@ func TestCLI_AgentRun_DetachedViaBroker_AndStop(t *testing.T) {
 	}
 }
 
+func TestCLI_AgentAttach_RequiresSessionInNonInteractiveMode(t *testing.T) {
+	prepareCurrentRootForTest(t)
+	var out bytes.Buffer
+	var err bytes.Buffer
+	c := New(&out, &err)
+	c.In = strings.NewReader("")
+
+	code := c.Run([]string{"agent", "attach"})
+	if code != exitUsage {
+		t.Fatalf("exit code = %d, want %d", code, exitUsage)
+	}
+	if !strings.Contains(err.String(), "--session is required in non-interactive mode") {
+		t.Fatalf("stderr should include missing session error: %q", err.String())
+	}
+}
+
+func TestCLI_AgentAttach_BySession_StreamIO(t *testing.T) {
+	root := prepareCurrentRootForTest(t)
+	t.Setenv("KRA_AGENT_RUN_DRY_RUN", "")
+	t.Setenv(agentBrokerEmbeddedEnvKey, "1")
+	workspaceDir := filepath.Join(root, "workspaces", "WS-1")
+	if err := os.MkdirAll(workspaceDir, 0o755); err != nil {
+		t.Fatalf("mkdir workspace: %v", err)
+	}
+	agentStubPath := filepath.Join(workspaceDir, "agent-echo.sh")
+	agentStub := "#!/bin/sh\nwhile IFS= read -r line; do\n  if [ \"$line\" = \"exit\" ]; then\n    echo \"bye\"\n    exit 0\n  fi\n  echo \"ECHO:$line\"\ndone\n"
+	if err := os.WriteFile(agentStubPath, []byte(agentStub), 0o755); err != nil {
+		t.Fatalf("write agent stub: %v", err)
+	}
+
+	var runOut bytes.Buffer
+	var runErr bytes.Buffer
+	runCLI := New(&runOut, &runErr)
+	startCode := runCLI.Run([]string{"agent", "run", "--workspace", "WS-1", "--kind", agentStubPath})
+	if startCode != exitOK {
+		t.Fatalf("run exit code=%d, want=%d (stderr=%q)", startCode, exitOK, runErr.String())
+	}
+
+	sessionID := extractSessionIDFromAgentStarted(runOut.String())
+	if sessionID == "" {
+		t.Fatalf("session id should be printed, stdout=%q", runOut.String())
+	}
+	if _, ok := waitForSessionRuntimeState(root, sessionID, "running", 5*time.Second); !ok {
+		t.Fatalf("session should transition to running: session=%s", sessionID)
+	}
+
+	var attachOut bytes.Buffer
+	var attachErr bytes.Buffer
+	attachCLI := New(&attachOut, &attachErr)
+	attachCLI.In = strings.NewReader("hello\nexit\n")
+	attachCode := attachCLI.Run([]string{"agent", "attach", "--session", sessionID})
+	if attachCode != exitOK {
+		t.Fatalf("attach exit code=%d, want=%d (stderr=%q)", attachCode, exitOK, attachErr.String())
+	}
+	got := attachOut.String()
+	if !strings.Contains(got, "ECHO:hello") {
+		t.Fatalf("attach output should include echoed input, stdout=%q", got)
+	}
+	if !strings.Contains(got, "bye") {
+		t.Fatalf("attach output should include process exit marker, stdout=%q", got)
+	}
+	if _, ok := waitForSessionRuntimeState(root, sessionID, "exited", 5*time.Second); !ok {
+		t.Fatalf("session should transition to exited: session=%s", sessionID)
+	}
+}
+
 func TestCLI_AgentStop_RequiresSessionOrWorkspace(t *testing.T) {
 	prepareCurrentRootForTest(t)
 	var out bytes.Buffer

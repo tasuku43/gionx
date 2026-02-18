@@ -481,6 +481,7 @@ func (c *CLI) printAgentUsage(w io.Writer) {
 
 Subcommands:
   run               Start an agent activity
+  attach            Attach to a running agent session
   stop              Stop a running agent activity
   list              List agent activities
   ls                Alias of list
@@ -518,6 +519,25 @@ Options:
   --workspace       Workspace ID (required unless --session is set)
   --repo            Optional repo key selector
   --kind            Optional kind selector
+`)
+}
+
+func (c *CLI) printAgentAttachUsage(w io.Writer) {
+	fmt.Fprint(w, `Usage:
+  kra agent attach [--session <id>]
+
+Attach current terminal to one running runtime agent session.
+
+Resolution:
+  - if --session is set, attach to the explicit session
+  - if --session is omitted and stdin is TTY, select from current context scope
+  - attach scope:
+    - workspaces/<id>/repos/<repo-key>/... => same workspace+repo
+    - workspaces/<id>/... => same workspace
+    - KRA_ROOT root or outside => error
+
+Options:
+  --session         Session ID (required in non-interactive mode)
 `)
 }
 

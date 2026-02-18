@@ -22,9 +22,10 @@ import (
 )
 
 const (
-	agentBrokerActionPing  = "ping"
-	agentBrokerActionStart = "start"
-	agentBrokerActionStop  = "stop"
+	agentBrokerActionPing   = "ping"
+	agentBrokerActionStart  = "start"
+	agentBrokerActionStop   = "stop"
+	agentBrokerActionAttach = "attach"
 
 	agentBrokerAcceptDeadline = 1 * time.Second
 	agentBrokerDialTimeout    = 300 * time.Millisecond
@@ -67,10 +68,12 @@ type agentBrokerResponse struct {
 }
 
 type agentBrokerSession struct {
-	mu     sync.Mutex
-	cmd    *exec.Cmd
-	ptmx   *os.File
-	record agentRuntimeSessionRecord
+	mu           sync.Mutex
+	cmd          *exec.Cmd
+	ptmx         *os.File
+	record       agentRuntimeSessionRecord
+	attachments  map[string]*net.UnixConn
+	nextAttachID int64
 }
 
 func (s *agentBrokerSession) snapshot() agentRuntimeSessionRecord {
@@ -85,6 +88,78 @@ func (s *agentBrokerSession) update(mut func(*agentRuntimeSessionRecord)) {
 	record := s.record
 	s.mu.Unlock()
 	_ = saveAgentRuntimeSession(record)
+}
+
+func (s *agentBrokerSession) addAttachment(conn *net.UnixConn) string {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.attachments == nil {
+		s.attachments = map[string]*net.UnixConn{}
+	}
+	s.nextAttachID++
+	attachID := fmt.Sprintf("a-%d", s.nextAttachID)
+	s.attachments[attachID] = conn
+	return attachID
+}
+
+func (s *agentBrokerSession) removeAttachment(attachID string) {
+	attachID = strings.TrimSpace(attachID)
+	if attachID == "" {
+		return
+	}
+	s.mu.Lock()
+	conn := s.attachments[attachID]
+	delete(s.attachments, attachID)
+	s.mu.Unlock()
+	if conn != nil {
+		_ = conn.Close()
+	}
+}
+
+func (s *agentBrokerSession) removeAttachmentByConn(target *net.UnixConn) {
+	if target == nil {
+		return
+	}
+	s.mu.Lock()
+	attachID := ""
+	for id, conn := range s.attachments {
+		if conn == target {
+			attachID = id
+			delete(s.attachments, id)
+			break
+		}
+	}
+	s.mu.Unlock()
+	if attachID != "" {
+		_ = target.Close()
+	}
+}
+
+func (s *agentBrokerSession) snapshotAttachments() []*net.UnixConn {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	out := make([]*net.UnixConn, 0, len(s.attachments))
+	for _, conn := range s.attachments {
+		if conn != nil {
+			out = append(out, conn)
+		}
+	}
+	return out
+}
+
+func (s *agentBrokerSession) closeAllAttachments() {
+	s.mu.Lock()
+	conns := make([]*net.UnixConn, 0, len(s.attachments))
+	for _, conn := range s.attachments {
+		if conn != nil {
+			conns = append(conns, conn)
+		}
+	}
+	s.attachments = map[string]*net.UnixConn{}
+	s.mu.Unlock()
+	for _, conn := range conns {
+		_ = conn.Close()
+	}
 }
 
 type agentBrokerServer struct {
@@ -404,6 +479,10 @@ func (s *agentBrokerServer) handleConn(conn *net.UnixConn) {
 		_ = json.NewEncoder(conn).Encode(agentBrokerResponse{OK: false, Error: "decode request"})
 		return
 	}
+	if strings.TrimSpace(strings.ToLower(req.Action)) == agentBrokerActionAttach {
+		s.handleAttachRequest(conn, req)
+		return
+	}
 	resp := s.handleRequest(req)
 	_ = json.NewEncoder(conn).Encode(resp)
 }
@@ -416,6 +495,8 @@ func (s *agentBrokerServer) handleRequest(req agentBrokerRequest) agentBrokerRes
 		return s.handleStartRequest(req)
 	case agentBrokerActionStop:
 		return s.handleStopRequest(req)
+	case agentBrokerActionAttach:
+		return agentBrokerResponse{OK: false, Error: "attach action requires stream handler"}
 	default:
 		return agentBrokerResponse{OK: false, Error: "unknown broker action"}
 	}
@@ -464,15 +545,14 @@ func (s *agentBrokerServer) handleStartRequest(req agentBrokerRequest) agentBrok
 	}
 
 	session := &agentBrokerSession{
-		cmd:    cmd,
-		ptmx:   ptmx,
-		record: record,
+		cmd:         cmd,
+		ptmx:        ptmx,
+		record:      record,
+		attachments: map[string]*net.UnixConn{},
 	}
 	s.addSession(session)
 
-	go func() {
-		_, _ = io.Copy(io.Discard, ptmx)
-	}()
+	go s.forwardSessionOutput(session)
 	go s.waitSessionExit(session)
 
 	return agentBrokerResponse{
@@ -501,9 +581,55 @@ func (s *agentBrokerServer) handleStopRequest(req agentBrokerRequest) agentBroke
 	return agentBrokerResponse{OK: true}
 }
 
+func (s *agentBrokerServer) handleAttachRequest(conn *net.UnixConn, req agentBrokerRequest) {
+	sessionID := strings.TrimSpace(req.SessionID)
+	if sessionID == "" {
+		_ = json.NewEncoder(conn).Encode(agentBrokerResponse{OK: false, Error: "session_id is required"})
+		return
+	}
+	session, ok := s.getSession(sessionID)
+	if !ok {
+		_ = json.NewEncoder(conn).Encode(agentBrokerResponse{OK: false, Error: "session not found"})
+		return
+	}
+	if err := json.NewEncoder(conn).Encode(agentBrokerResponse{OK: true, SessionID: sessionID}); err != nil {
+		return
+	}
+
+	attachID := session.addAttachment(conn)
+	defer session.removeAttachment(attachID)
+
+	_, _ = io.Copy(session.ptmx, conn)
+}
+
+func (s *agentBrokerServer) forwardSessionOutput(session *agentBrokerSession) {
+	buf := make([]byte, 8192)
+	for {
+		n, err := session.ptmx.Read(buf)
+		if n > 0 {
+			payload := append([]byte(nil), buf[:n]...)
+			attachments := session.snapshotAttachments()
+			for _, conn := range attachments {
+				if conn == nil {
+					continue
+				}
+				_ = conn.SetWriteDeadline(time.Now().Add(200 * time.Millisecond))
+				if _, werr := conn.Write(payload); werr != nil {
+					session.removeAttachmentByConn(conn)
+				}
+				_ = conn.SetWriteDeadline(time.Time{})
+			}
+		}
+		if err != nil {
+			return
+		}
+	}
+}
+
 func (s *agentBrokerServer) waitSessionExit(session *agentBrokerSession) {
 	waitErr := session.cmd.Wait()
 	_ = session.ptmx.Close()
+	session.closeAllAttachments()
 
 	exitCode := 0
 	finalState := "exited"
@@ -525,4 +651,42 @@ func (s *agentBrokerServer) waitSessionExit(session *agentBrokerSession) {
 
 	record := session.snapshot()
 	s.deleteSession(record.SessionID)
+}
+
+func attachSessionWithAgentBroker(root string, sessionID string) (*net.UnixConn, error) {
+	socketPath, err := agentBrokerSocketPath(root)
+	if err != nil {
+		return nil, fmt.Errorf("resolve broker socket path: %w", err)
+	}
+	rawConn, err := net.DialTimeout("unix", socketPath, agentBrokerDialTimeout)
+	if err != nil {
+		return nil, err
+	}
+	conn, ok := rawConn.(*net.UnixConn)
+	if !ok {
+		_ = rawConn.Close()
+		return nil, errors.New("invalid broker connection type")
+	}
+	_ = conn.SetDeadline(time.Now().Add(3 * time.Second))
+	if err := json.NewEncoder(conn).Encode(agentBrokerRequest{
+		Action:    agentBrokerActionAttach,
+		SessionID: strings.TrimSpace(sessionID),
+	}); err != nil {
+		_ = conn.Close()
+		return nil, fmt.Errorf("send broker attach request: %w", err)
+	}
+	var resp agentBrokerResponse
+	if err := json.NewDecoder(conn).Decode(&resp); err != nil {
+		_ = conn.Close()
+		return nil, fmt.Errorf("decode broker attach response: %w", err)
+	}
+	if !resp.OK {
+		_ = conn.Close()
+		if strings.TrimSpace(resp.Error) == "" {
+			return nil, errors.New("broker attach request failed")
+		}
+		return nil, errors.New(resp.Error)
+	}
+	_ = conn.SetDeadline(time.Time{})
+	return conn, nil
 }
