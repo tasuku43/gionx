@@ -57,9 +57,20 @@ func (c *CLI) runAgentStop(args []string) int {
 		return exitOK
 	}
 
-	if err := terminateAgentPID(record.PID); err != nil {
+	stoppedByBroker := false
+	if err := stopSessionWithAgentBroker(root, record.SessionID); err == nil {
+		stoppedByBroker = true
+	} else if err := terminateAgentPID(record.PID); err != nil {
 		fmt.Fprintf(c.Err, "stop session process: %v\n", err)
 		return exitError
+	}
+
+	if stoppedByBroker {
+		if exitedRecord, ok := waitAgentRuntimeSessionState(root, record.SessionID, "exited", 2*time.Second); ok {
+			record = exitedRecord
+			fmt.Fprintf(c.Out, "agent stopped: session=%s\n", record.SessionID)
+			return exitOK
+		}
 	}
 
 	record.RuntimeState = "exited"
@@ -73,6 +84,26 @@ func (c *CLI) runAgentStop(args []string) int {
 
 	fmt.Fprintf(c.Out, "agent stopped: session=%s\n", record.SessionID)
 	return exitOK
+}
+
+func waitAgentRuntimeSessionState(root string, sessionID string, targetState string, timeout time.Duration) (agentRuntimeSessionRecord, bool) {
+	deadline := time.Now().Add(timeout)
+	for time.Now().Before(deadline) {
+		records, err := loadAgentRuntimeSessions(root)
+		if err != nil {
+			return agentRuntimeSessionRecord{}, false
+		}
+		for _, r := range records {
+			if r.SessionID != sessionID {
+				continue
+			}
+			if r.RuntimeState == targetState {
+				return r, true
+			}
+		}
+		time.Sleep(50 * time.Millisecond)
+	}
+	return agentRuntimeSessionRecord{}, false
 }
 
 func parseAgentStopOptions(args []string) (agentStopOptions, error) {

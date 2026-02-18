@@ -393,6 +393,56 @@ func TestCLI_AgentRun_WritesRuntimeSessionFile(t *testing.T) {
 	}
 }
 
+func TestCLI_AgentRun_DetachedViaBroker_AndStop(t *testing.T) {
+	root := prepareCurrentRootForTest(t)
+	t.Setenv("KRA_AGENT_RUN_DRY_RUN", "")
+	t.Setenv(agentBrokerEmbeddedEnvKey, "1")
+	workspaceDir := filepath.Join(root, "workspaces", "WS-1")
+	if err := os.MkdirAll(workspaceDir, 0o755); err != nil {
+		t.Fatalf("mkdir workspace: %v", err)
+	}
+	agentStubPath := filepath.Join(workspaceDir, "agent-stub.sh")
+	agentStub := "#!/bin/sh\nwhile true; do sleep 1; done\n"
+	if err := os.WriteFile(agentStubPath, []byte(agentStub), 0o755); err != nil {
+		t.Fatalf("write agent stub: %v", err)
+	}
+
+	var runOut bytes.Buffer
+	var runErr bytes.Buffer
+	runCLI := New(&runOut, &runErr)
+	startCode := runCLI.Run([]string{"agent", "run", "--workspace", "WS-1", "--kind", agentStubPath})
+	if startCode != exitOK {
+		t.Fatalf("run exit code=%d, want=%d (stderr=%q)", startCode, exitOK, runErr.String())
+	}
+
+	sessionID := extractSessionIDFromAgentStarted(runOut.String())
+	if sessionID == "" {
+		t.Fatalf("session id should be printed, stdout=%q", runOut.String())
+	}
+	if _, ok := waitForSessionRuntimeState(root, sessionID, "running", 5*time.Second); !ok {
+		t.Fatalf("session should transition to running: session=%s", sessionID)
+	}
+
+	var stopOut bytes.Buffer
+	var stopErr bytes.Buffer
+	stopCLI := New(&stopOut, &stopErr)
+	stopCode := stopCLI.Run([]string{"agent", "stop", "--session", sessionID})
+	if stopCode != exitOK {
+		t.Fatalf("stop exit code=%d, want=%d (stderr=%q)", stopCode, exitOK, stopErr.String())
+	}
+	if !strings.Contains(stopOut.String(), "agent stopped: session="+sessionID) {
+		t.Fatalf("stop stdout should include session id, stdout=%q", stopOut.String())
+	}
+
+	exited, ok := waitForSessionRuntimeState(root, sessionID, "exited", 5*time.Second)
+	if !ok {
+		t.Fatalf("session should transition to exited: session=%s", sessionID)
+	}
+	if exited.ExitCode == nil {
+		t.Fatalf("exit_code should be recorded on exited session")
+	}
+}
+
 func TestCLI_AgentStop_RequiresSessionOrWorkspace(t *testing.T) {
 	prepareCurrentRootForTest(t)
 	var out bytes.Buffer
@@ -508,4 +558,39 @@ func TestCLI_AgentLogs_SubcommandRemoved(t *testing.T) {
 	if !strings.Contains(err.String(), `unknown command: "agent logs"`) {
 		t.Fatalf("stderr should include unknown subcommand error: %q", err.String())
 	}
+}
+
+func extractSessionIDFromAgentStarted(stdout string) string {
+	marker := "session="
+	start := strings.Index(stdout, marker)
+	if start < 0 {
+		return ""
+	}
+	start += len(marker)
+	rest := stdout[start:]
+	parts := strings.Fields(rest)
+	if len(parts) == 0 {
+		return ""
+	}
+	return strings.TrimSpace(parts[0])
+}
+
+func waitForSessionRuntimeState(root string, sessionID string, state string, timeout time.Duration) (agentRuntimeSessionRecord, bool) {
+	deadline := time.Now().Add(timeout)
+	for time.Now().Before(deadline) {
+		rows, err := loadAgentRuntimeSessions(root)
+		if err != nil {
+			return agentRuntimeSessionRecord{}, false
+		}
+		for _, row := range rows {
+			if row.SessionID != sessionID {
+				continue
+			}
+			if row.RuntimeState == state {
+				return row, true
+			}
+		}
+		time.Sleep(50 * time.Millisecond)
+	}
+	return agentRuntimeSessionRecord{}, false
 }

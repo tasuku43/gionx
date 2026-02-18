@@ -493,7 +493,7 @@ func (c *CLI) printAgentRunUsage(w io.Writer) {
 	fmt.Fprint(w, `Usage:
   kra agent run --workspace <id> --kind <agent-kind> [--repo <repo-key>]
 
-Start/replace tracked running agent activity for one workspace.
+Start tracked runtime agent session for one workspace (detached by default).
 
 Options:
   --workspace       Workspace ID (required)

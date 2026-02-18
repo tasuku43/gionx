@@ -2,22 +2,15 @@ package cli
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"io"
 	"os"
-	"os/exec"
-	"os/signal"
 	"path/filepath"
 	"strings"
-	"sync"
-	"syscall"
 	"time"
 
-	"github.com/creack/pty"
 	"github.com/mattn/go-isatty"
 	"github.com/tasuku43/kra/internal/infra/paths"
-	"golang.org/x/term"
 )
 
 type agentRunOptions struct {
@@ -65,126 +58,99 @@ func (c *CLI) runAgentRun(args []string) int {
 		fmt.Fprintf(c.Err, "resolve run options: --kind is required\n")
 		return exitUsage
 	}
-	cmd := exec.Command(cmdName)
-	cmd.Dir = execDir
-	cmd.Env = append(os.Environ(), "KRA_AGENT_WORKSPACE="+opts.workspaceID)
-	ptmx, err := pty.Start(cmd)
-	if err != nil {
-		fmt.Fprintf(c.Err, "start agent process: %v\n", err)
-		return exitError
-	}
-	defer func() { _ = ptmx.Close() }()
 
 	nowTS := time.Now()
-	sessionID := newAgentRuntimeSessionID(nowTS, cmd.Process.Pid)
-	runtimeRecord := agentRuntimeSessionRecord{
-		SessionID:      sessionID,
-		RootPath:       root,
-		WorkspaceID:    opts.workspaceID,
-		ExecutionScope: scope,
-		RepoKey:        strings.TrimSpace(opts.repoKey),
-		Kind:           opts.agentKind,
-		PID:            cmd.Process.Pid,
-		StartedAt:      nowTS.Unix(),
-		UpdatedAt:      nowTS.Unix(),
-		Seq:            1,
-		RuntimeState:   "running",
-		ExitCode:       nil,
+	records, err := loadAgentRuntimeSessions(root)
+	if err == nil {
+		for _, record := range records {
+			if record.WorkspaceID != opts.workspaceID {
+				continue
+			}
+			if record.ExecutionScope != scope {
+				continue
+			}
+			if strings.TrimSpace(record.RepoKey) != strings.TrimSpace(opts.repoKey) {
+				continue
+			}
+			if strings.TrimSpace(strings.ToLower(record.Kind)) != strings.TrimSpace(strings.ToLower(opts.agentKind)) {
+				continue
+			}
+			if record.RuntimeState != "running" && record.RuntimeState != "idle" {
+				continue
+			}
+			fmt.Fprintf(
+				c.Err,
+				"warning: active session exists for workspace=%s kind=%s location=%s (session=%s)\n",
+				opts.workspaceID,
+				opts.agentKind,
+				scopeLabel(scope, opts.repoKey),
+				record.SessionID,
+			)
+			break
+		}
 	}
-	if err := saveAgentRuntimeSession(runtimeRecord); err != nil {
-		fmt.Fprintf(c.Err, "save runtime session: %v\n", err)
-		return exitError
-	}
-	fmt.Fprintf(c.Out, "agent started: workspace=%s kind=%s session=%s dir=%s\n", opts.workspaceID, opts.agentKind, sessionID, execDir)
+
 	if strings.TrimSpace(os.Getenv("KRA_AGENT_RUN_DRY_RUN")) == "1" {
+		pid := os.Getpid()
+		sessionID := newAgentRuntimeSessionID(nowTS, pid)
+		runtimeRecord := agentRuntimeSessionRecord{
+			SessionID:      sessionID,
+			RootPath:       root,
+			WorkspaceID:    opts.workspaceID,
+			ExecutionScope: scope,
+			RepoKey:        strings.TrimSpace(opts.repoKey),
+			Kind:           opts.agentKind,
+			PID:            pid,
+			StartedAt:      nowTS.Unix(),
+			UpdatedAt:      nowTS.Unix(),
+			Seq:            1,
+			RuntimeState:   "running",
+			ExitCode:       nil,
+		}
+		if err := saveAgentRuntimeSession(runtimeRecord); err != nil {
+			fmt.Fprintf(c.Err, "save runtime session: %v\n", err)
+			return exitError
+		}
 		zero := 0
 		runtimeRecord.Seq++
 		runtimeRecord.UpdatedAt = time.Now().Unix()
 		runtimeRecord.RuntimeState = "exited"
 		runtimeRecord.ExitCode = &zero
 		_ = saveAgentRuntimeSession(runtimeRecord)
+		fmt.Fprintf(c.Out, "agent started: workspace=%s kind=%s session=%s dir=%s\n", opts.workspaceID, opts.agentKind, sessionID, execDir)
 		return exitOK
 	}
 
-	var mu sync.Mutex
-	updateRuntime := func(state string, exitCode *int) {
-		mu.Lock()
-		defer mu.Unlock()
-		runtimeRecord.Seq++
-		runtimeRecord.UpdatedAt = time.Now().Unix()
-		if strings.TrimSpace(state) != "" {
-			runtimeRecord.RuntimeState = state
-		}
-		runtimeRecord.ExitCode = exitCode
-		_ = saveAgentRuntimeSession(runtimeRecord)
-	}
-
-	sigCh := make(chan os.Signal, 1)
-	signal.Notify(sigCh, syscall.SIGINT, syscall.SIGTERM, syscall.SIGHUP)
-	defer signal.Stop(sigCh)
-	go func() {
-		for sig := range sigCh {
-			if cmd.Process == nil {
-				return
-			}
-			_ = cmd.Process.Signal(sig)
-		}
-	}()
-
-	restoreTerminal, resizeCleanup := setupPTYBridgeTerminal(c.In, c.Out, ptmx)
-	defer restoreTerminal()
-	defer resizeCleanup()
-
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-	copyDone := make(chan struct{})
-	go func() {
-		defer close(copyDone)
-		buf := make([]byte, 4096)
-		lastPersist := time.Now()
-		for {
-			n, readErr := ptmx.Read(buf)
-			if n > 0 {
-				_, _ = c.Out.Write(buf[:n])
-				if time.Since(lastPersist) >= time.Second {
-					updateRuntime("running", nil)
-					lastPersist = time.Now()
-				}
-			}
-			if readErr != nil {
-				return
-			}
-			select {
-			case <-ctx.Done():
-				return
-			default:
-			}
-		}
-	}()
-	go func() {
-		_, _ = io.Copy(ptmx, c.In)
-	}()
-
-	waitErr := cmd.Wait()
-	cancel()
-	_ = ptmx.Close()
-	<-copyDone
-	exitCode := 0
-	finalState := "exited"
-	if waitErr != nil {
-		var exitErr *exec.ExitError
-		if errors.As(waitErr, &exitErr) {
-			exitCode = exitErr.ExitCode()
-		} else {
-			finalState = "unknown"
-		}
-	}
-	updateRuntime(finalState, &exitCode)
-	if finalState == "unknown" {
-		fmt.Fprintf(c.Err, "wait agent process: %v\n", waitErr)
+	if err := ensureAgentBroker(root); err != nil {
+		fmt.Fprintf(c.Err, "ensure broker: %v\n", err)
 		return exitError
 	}
-	return exitCode
+	startResult, err := startSessionWithAgentBroker(root, agentBrokerStartRequest{
+		WorkspaceID:    opts.workspaceID,
+		ExecutionScope: scope,
+		RepoKey:        strings.TrimSpace(opts.repoKey),
+		Kind:           cmdName,
+		ExecDir:        execDir,
+	})
+	if err != nil {
+		fmt.Fprintf(c.Err, "start agent session via broker: %v\n", err)
+		return exitError
+	}
+
+	sessionID := strings.TrimSpace(startResult.SessionID)
+	if sessionID == "" {
+		fmt.Fprintf(c.Err, "start agent session via broker: empty session id\n")
+		return exitError
+	}
+	fmt.Fprintf(c.Out, "agent started: workspace=%s kind=%s session=%s dir=%s\n", opts.workspaceID, opts.agentKind, sessionID, execDir)
+	return exitOK
+}
+
+func scopeLabel(scope string, repoKey string) string {
+	if strings.TrimSpace(scope) == "repo" && strings.TrimSpace(repoKey) != "" {
+		return "repo:" + strings.TrimSpace(repoKey)
+	}
+	return "workspace"
 }
 
 func parseAgentRunOptions(args []string) (agentRunOptions, error) {
@@ -300,41 +266,6 @@ func (c *CLI) completeAgentRunOptionsInteractive(root string, opts agentRunOptio
 func cliInputIsTTY(in io.Reader) bool {
 	inFile, ok := in.(*os.File)
 	return ok && isatty.IsTerminal(inFile.Fd())
-}
-
-func setupPTYBridgeTerminal(in io.Reader, out io.Writer, ptmx *os.File) (restore func(), cleanup func()) {
-	restore = func() {}
-	cleanup = func() {}
-
-	inFile, inOK := in.(*os.File)
-	outFile, outOK := out.(*os.File)
-	if !inOK || !outOK {
-		return restore, cleanup
-	}
-	if !isatty.IsTerminal(inFile.Fd()) || !isatty.IsTerminal(outFile.Fd()) {
-		return restore, cleanup
-	}
-
-	oldState, err := term.MakeRaw(int(inFile.Fd()))
-	if err == nil {
-		restore = func() {
-			_ = term.Restore(int(inFile.Fd()), oldState)
-		}
-	}
-
-	_ = pty.InheritSize(inFile, ptmx)
-	winchCh := make(chan os.Signal, 1)
-	signal.Notify(winchCh, syscall.SIGWINCH)
-	go func() {
-		for range winchCh {
-			_ = pty.InheritSize(inFile, ptmx)
-		}
-	}()
-	cleanup = func() {
-		signal.Stop(winchCh)
-		close(winchCh)
-	}
-	return restore, cleanup
 }
 
 func listAgentRunTargetCandidates(root string, workspaceID string) ([]workspaceSelectorCandidate, error) {
