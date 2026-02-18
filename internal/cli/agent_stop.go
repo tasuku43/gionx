@@ -3,6 +3,7 @@ package cli
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 	"slices"
 	"strings"
 	"syscall"
@@ -45,6 +46,13 @@ func (c *CLI) runAgentStop(args []string) int {
 	if err != nil {
 		fmt.Fprintf(c.Err, "load agent runtime sessions: %v\n", err)
 		return exitError
+	}
+
+	opts, err = c.completeAgentStopOptionsInteractive(root, wd, opts, records)
+	if err != nil {
+		fmt.Fprintf(c.Err, "resolve stop target: %v\n", err)
+		c.printAgentStopUsage(c.Err)
+		return exitUsage
 	}
 
 	record, err := resolveAgentStopTarget(records, opts)
@@ -157,10 +165,116 @@ func parseAgentStopOptions(args []string) (agentStopOptions, error) {
 	if len(rest) > 0 {
 		return agentStopOptions{}, fmt.Errorf("unexpected args for agent stop: %q", strings.Join(rest, " "))
 	}
-	if opts.sessionID == "" && opts.workspaceID == "" {
-		return agentStopOptions{}, fmt.Errorf("either --session or --workspace is required")
-	}
 	return opts, nil
+}
+
+func (c *CLI) completeAgentStopOptionsInteractive(root string, wd string, opts agentStopOptions, records []agentRuntimeSessionRecord) (agentStopOptions, error) {
+	if strings.TrimSpace(opts.sessionID) != "" || strings.TrimSpace(opts.workspaceID) != "" {
+		return opts, nil
+	}
+	if !cliInputIsTTY(c.In) {
+		return agentStopOptions{}, fmt.Errorf("either --session or --workspace is required in non-interactive mode")
+	}
+
+	scope, err := resolveAgentContextScope(root, wd)
+	if err != nil {
+		return agentStopOptions{}, err
+	}
+
+	candidates := filterStoppableSessionsByScope(records, scope)
+	if len(candidates) == 0 {
+		return agentStopOptions{}, fmt.Errorf("no running/idle session found in current context")
+	}
+
+	selectorItems := make([]workspaceSelectorCandidate, 0, len(candidates))
+	for _, record := range candidates {
+		location := "workspace"
+		if strings.TrimSpace(record.ExecutionScope) == "repo" {
+			location = "repo:" + strings.TrimSpace(record.RepoKey)
+		}
+		selectorItems = append(selectorItems, workspaceSelectorCandidate{
+			ID:          record.SessionID,
+			Description: fmt.Sprintf("%s  %s  state:%s  updated:%s", record.Kind, location, record.RuntimeState, formatRelativeAge(record.UpdatedAt)),
+		})
+	}
+
+	selected, err := c.promptWorkspaceSelectorWithOptionsAndMode("active", "stop", "Session to stop:", "session", selectorItems, true)
+	if err != nil {
+		return agentStopOptions{}, err
+	}
+	if len(selected) != 1 || strings.TrimSpace(selected[0]) == "" {
+		return agentStopOptions{}, fmt.Errorf("session selection canceled")
+	}
+	opts.sessionID = strings.TrimSpace(selected[0])
+	return opts, nil
+}
+
+type agentContextScope struct {
+	workspaceID string
+	repoKey     string
+}
+
+func resolveAgentContextScope(root string, wd string) (agentContextScope, error) {
+	root = filepath.Clean(strings.TrimSpace(root))
+	wd = filepath.Clean(strings.TrimSpace(wd))
+	if root == "" || wd == "" {
+		return agentContextScope{}, fmt.Errorf("invalid context path")
+	}
+
+	rel, err := filepath.Rel(root, wd)
+	if err != nil {
+		return agentContextScope{}, fmt.Errorf("resolve current context scope: %w", err)
+	}
+	rel = filepath.Clean(rel)
+	if rel == "." {
+		return agentContextScope{}, fmt.Errorf("current directory is KRA_ROOT; run inside workspaces/<id> or workspaces/<id>/repos/<repo-key>")
+	}
+	if strings.HasPrefix(rel, ".."+string(filepath.Separator)) || rel == ".." {
+		return agentContextScope{}, fmt.Errorf("current directory is outside KRA_ROOT; run inside workspaces/<id> or workspaces/<id>/repos/<repo-key>")
+	}
+
+	parts := strings.Split(rel, string(filepath.Separator))
+	if len(parts) < 2 || parts[0] != "workspaces" {
+		return agentContextScope{}, fmt.Errorf("current directory does not map to workspace scope; run inside workspaces/<id> or workspaces/<id>/repos/<repo-key>")
+	}
+	scope := agentContextScope{workspaceID: strings.TrimSpace(parts[1])}
+	if scope.workspaceID == "" {
+		return agentContextScope{}, fmt.Errorf("current workspace id is empty")
+	}
+	if len(parts) >= 4 && parts[2] == "repos" {
+		scope.repoKey = strings.TrimSpace(parts[3])
+	}
+	return scope, nil
+}
+
+func filterStoppableSessionsByScope(records []agentRuntimeSessionRecord, scope agentContextScope) []agentRuntimeSessionRecord {
+	out := make([]agentRuntimeSessionRecord, 0, len(records))
+	for _, record := range records {
+		if record.WorkspaceID != scope.workspaceID {
+			continue
+		}
+		if strings.TrimSpace(scope.repoKey) != "" && strings.TrimSpace(record.RepoKey) != strings.TrimSpace(scope.repoKey) {
+			continue
+		}
+		if record.RuntimeState == "exited" {
+			continue
+		}
+		out = append(out, record)
+	}
+
+	slices.SortFunc(out, func(a, b agentRuntimeSessionRecord) int {
+		if cmp := compareExecutionLocation(a, b); cmp != 0 {
+			return cmp
+		}
+		if a.UpdatedAt != b.UpdatedAt {
+			if a.UpdatedAt > b.UpdatedAt {
+				return -1
+			}
+			return 1
+		}
+		return strings.Compare(a.SessionID, b.SessionID)
+	})
+	return out
 }
 
 func resolveAgentStopTarget(records []agentRuntimeSessionRecord, opts agentStopOptions) (agentRuntimeSessionRecord, error) {

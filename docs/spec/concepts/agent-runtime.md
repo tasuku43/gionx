@@ -121,6 +121,21 @@ Notes:
 - same `KRA_ROOT` always maps to same broker socket.
 - different `KRA_ROOT`s are isolated by different hashes/sockets.
 
+## Broker Lifecycle (MVP)
+
+- Broker scope:
+  - one broker per `KRA_ROOT` (`<root-hash>.sock`)
+- Startup:
+  - client commands (`run/stop/attach/...`) connect to socket
+  - if missing/stale, spawn broker and reconnect
+- Idle auto-exit:
+  - broker exits when both conditions are true:
+    - no managed sessions are alive (`session_count=0`)
+    - no broker requests were received for 60 seconds
+- Non-idle behavior:
+  - while at least one session exists, broker must stay alive
+  - each request refreshes broker activity timestamp
+
 ## Lifecycle: `run` (detached default)
 
 ```mermaid
