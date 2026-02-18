@@ -9,8 +9,9 @@ status: implemented
 
 Attach current terminal to an existing broker-managed agent session.
 
-This command is for returning to an already running session from the current
-workspace/repo context, not for global manager discovery.
+This command is a reattach helper for returning to an already running session
+from the current workspace/repo context, not for global manager discovery.
+Primary daily flow is `kra agent run` foreground execution.
 
 ## Scope (implemented)
 

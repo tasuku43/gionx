@@ -494,12 +494,14 @@ func (c *CLI) printAgentRunUsage(w io.Writer) {
 	fmt.Fprint(w, `Usage:
   kra agent run [--workspace <id>] [--kind <agent-kind>] [--repo <repo-key>]
 
-Start tracked runtime agent session for one workspace (detached by default).
+Start tracked runtime agent session for one workspace.
 
 Resolution:
   - if --workspace is omitted and cwd is under workspaces/<id>/..., use that workspace
   - if workspace is still unresolved and stdin is TTY, prompt active workspace selection
   - if --repo is omitted and stdin is TTY, prompt target selection (workspace or repo)
+  - interactive TTY: start then attach in foreground on the same terminal
+  - non-interactive: start in detached mode (session id is printed)
 
 Options:
   --workspace       Workspace ID (required only in non-interactive mode when not inferable)
@@ -526,7 +528,7 @@ func (c *CLI) printAgentAttachUsage(w io.Writer) {
 	fmt.Fprint(w, `Usage:
   kra agent attach [--session <id>]
 
-Attach current terminal to one running runtime agent session.
+Attach current terminal to one running runtime agent session (reattach helper).
 
 Resolution:
   - if --session is set, attach to the explicit session

@@ -25,16 +25,20 @@ type agentAttachMode struct {
 	flushInput    bool
 	restoreShell  bool
 	clearOnEnter  bool
+	fullscreen    bool
+	localDetach   bool
 }
 
 var errAgentAttachDetached = errors.New("attach detached by user")
 
 var defaultAgentAttachMode = agentAttachMode{
 	forceRedraw:   true,
-	writeBoundary: true,
+	writeBoundary: false,
 	flushInput:    true,
 	restoreShell:  true,
-	clearOnEnter:  true,
+	clearOnEnter:  false,
+	fullscreen:    true,
+	localDetach:   true,
 }
 
 func (c *CLI) runAgentAttach(args []string) int {
@@ -113,10 +117,7 @@ func (c *CLI) runAgentAttachWithMode(args []string, mode agentAttachMode) int {
 
 	if err := proxyAgentAttachIO(root, record.SessionID, conn, c.In, c.Out, mode); err != nil {
 		if errors.Is(err, errAgentAttachDetached) {
-			if mode.restoreShell && isTerminalWriter(c.Out) {
-				writeAttachTerminalRestore(c.Out)
-			}
-			fmt.Fprintf(c.Out, "\r\ndetached: session=%s\n", record.SessionID)
+			fmt.Fprintf(c.Out, "detached: session=%s\n", record.SessionID)
 			return exitOK
 		}
 		fmt.Fprintf(c.Err, "attach session stream: %v\n", err)
@@ -226,10 +227,12 @@ func proxyAgentAttachIO(root string, sessionID string, conn *net.UnixConn, in io
 	if conn == nil {
 		return fmt.Errorf("broker connection is nil")
 	}
-	if mode.clearOnEnter && isTerminalWriter(out) {
+	if mode.fullscreen && isTerminalWriter(out) {
+		writeAttachTerminalEnter(out)
+	} else if mode.clearOnEnter && isTerminalWriter(out) {
 		writeAttachTerminalClear(out)
 	}
-	if mode.writeBoundary && isTerminalWriter(out) {
+	if !mode.fullscreen && mode.writeBoundary && isTerminalWriter(out) {
 		writeAttachSessionBoundary(out)
 	}
 	if mode.flushInput && isTerminalReader(in) {
@@ -261,7 +264,7 @@ func proxyAgentAttachIO(root string, sessionID string, conn *net.UnixConn, in io
 
 	inputResCh := make(chan attachInputResult, 1)
 	go func() {
-		inputResCh <- forwardAttachInput(conn, in)
+		inputResCh <- forwardAttachInput(conn, in, mode.localDetach)
 	}()
 
 	select {
@@ -293,23 +296,25 @@ type attachInputResult struct {
 	err      error
 }
 
-func forwardAttachInput(conn *net.UnixConn, in io.Reader) attachInputResult {
+func forwardAttachInput(conn *net.UnixConn, in io.Reader, localDetach bool) attachInputResult {
 	buf := make([]byte, 4096)
 	for {
 		n, err := in.Read(buf)
 		if n > 0 {
 			chunk := buf[:n]
 			start := 0
-			for i, b := range chunk {
-				if b != 0x03 { // Ctrl-C -> local detach
-					continue
-				}
-				if i > start {
-					if werr := writeAllUnixConn(conn, chunk[start:i]); isAgentAttachIOError(werr) {
-						return attachInputResult{err: werr}
+			if localDetach {
+				for i, b := range chunk {
+					if b != 0x03 { // Ctrl-C -> local detach
+						continue
 					}
+					if i > start {
+						if werr := writeAllUnixConn(conn, chunk[start:i]); isAgentAttachIOError(werr) {
+							return attachInputResult{err: werr}
+						}
+					}
+					return attachInputResult{detached: true}
 				}
-				return attachInputResult{detached: true}
 			}
 			if start < len(chunk) {
 				if werr := writeAllUnixConn(conn, chunk[start:]); isAgentAttachIOError(werr) {
@@ -447,6 +452,10 @@ func writeAttachSessionBoundary(out io.Writer) {
 
 func writeAttachTerminalClear(out io.Writer) {
 	_, _ = io.WriteString(out, "\r\x1b[2J\x1b[H")
+}
+
+func writeAttachTerminalEnter(out io.Writer) {
+	_, _ = io.WriteString(out, "\x1b[?1049h\x1b[2J\x1b[H")
 }
 
 func writeAttachTerminalRestore(out io.Writer) {

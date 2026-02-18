@@ -9,6 +9,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/creack/pty"
 )
 
 func TestCLI_RootHelp_HidesAgent(t *testing.T) {
@@ -505,6 +507,24 @@ func TestCLI_AgentRun_DetachedViaBroker_AndStop(t *testing.T) {
 	}
 	if exited.ExitCode == nil {
 		t.Fatalf("exit_code should be recorded on exited session")
+	}
+}
+
+func TestShouldRunAgentForeground(t *testing.T) {
+	if shouldRunAgentForeground(strings.NewReader(""), &bytes.Buffer{}) {
+		t.Fatalf("non-terminal IO should not trigger foreground run")
+	}
+
+	ptmx, tty, err := pty.Open()
+	if err != nil {
+		t.Fatalf("open pty: %v", err)
+	}
+	defer func() {
+		_ = ptmx.Close()
+		_ = tty.Close()
+	}()
+	if !shouldRunAgentForeground(tty, tty) {
+		t.Fatalf("tty IO should trigger foreground run")
 	}
 }
 

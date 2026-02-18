@@ -44,10 +44,13 @@ Start one agent session under broker-managed PTY and register runtime activity u
 - broker persists snapshot: `KRA_HOME/state/agents/<root-hash>/<session-id>.json`
 - if same target+kind has active session, print warning but still allow start
 - print confirmation line including `session_id`
-- run is detached by default
+- launch mode by terminal type:
+  - interactive TTY: run enters foreground stream for the newly started session
+  - non-interactive: run returns in detached mode
 
 ## Out of scope (current)
 
 - launch abstraction (`--launch default|resume|continue`)
 - run-time auto-attach option (`--attach`)
 - append-only events stream for runtime lifecycle
+- manager-side command injection to running sessions

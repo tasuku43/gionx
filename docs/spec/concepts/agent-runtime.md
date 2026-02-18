@@ -9,14 +9,15 @@ status: implemented
 
 Define a runtime architecture for `kra agent` that:
 
-- keeps agent sessions alive independently of terminal tabs
-- supports attach/reattach from another terminal
+- supports broker-managed runtime visibility and lifecycle control
+- uses foreground single-terminal execution as the default run experience
+- supports attach/reattach as an auxiliary recovery path
 - keeps runtime files outside `KRA_ROOT` Git working tree
 
 ## Decision Snapshot (implemented)
 
 - broker model: per-`KRA_ROOT` local broker over Unix socket
-- launch model: detached by default
+- launch model: interactive TTY foreground by default; non-interactive detached
 - connection model: multi-attach view is supported
 - attach replay model: broker keeps per-session PTY output history in memory and replays it on attach before live relay
 - attach scope: workspace/repo context only (root/outside is error)
@@ -36,7 +37,7 @@ Define a runtime architecture for `kra agent` that:
 flowchart LR
   subgraph Client["Client terminals"]
     C1["Terminal A<br>kra agent run"]
-    C2["Terminal B<br>kra agent attach --session <id>"]
+    C2["Terminal B<br>kra agent attach --session <id><br>(auxiliary path)"]
     C3["Terminal C<br>kra agent list / board"]
   end
 
@@ -51,7 +52,7 @@ flowchart LR
     S["~/.kra/state/agents/<root-hash>/<session-id>.json"]
   end
 
-  C1 -->|start| B
+  C1 -->|start + foreground stream| B
   C2 -->|attach + replay + live stream| B
   C3 -->|read snapshots| S
   B --> P --> A
@@ -101,7 +102,7 @@ Notes:
   - no broker requests for 60 seconds
 - while sessions exist, broker stays alive
 
-## Lifecycle: run (detached default)
+## Lifecycle: run (foreground default)
 
 ```mermaid
 sequenceDiagram
@@ -118,7 +119,13 @@ sequenceDiagram
   B->>PTY: allocate PTY
   B->>AG: spawn process
   B->>ST: write runtime_state=running
-  CLI-->>U: print session_id and return
+  alt interactive TTY
+    CLI->>B: attach started session
+    CLI<->>B: foreground stream
+    B->>ST: write runtime_state=exited on process end
+  else non-interactive
+    CLI-->>U: print session_id and return (detached)
+  end
 ```
 
 ## Lifecycle: attach / reattach

@@ -81,6 +81,17 @@ status: planned
   - Depends: AGENT-050, AGENT-060
   - Serial: yes
 
+- [x] AGENT-080: Run foreground default (single-owner terminal flow)
+  - What: make `kra agent run` foreground by default in interactive TTY
+    (start + immediate stream), while keeping broker/socket runtime and
+    detached behavior for non-interactive usage.
+  - Specs:
+    - `docs/spec/commands/agent/run.md`
+    - `docs/spec/commands/agent/attach.md`
+    - `docs/spec/concepts/agent-runtime.md`
+  - Depends: AGENT-050, AGENT-060
+  - Serial: yes
+
 - [ ] AGENT-100: Lease/takeover control plane and launch abstraction
   - What: implement writer lease/takeover + dangerous-key confirmation +
     snapshot/events dual-write and launch mode abstraction (`--launch` mapping).
@@ -88,5 +99,5 @@ status: planned
     - `docs/spec/commands/agent/run.md`
     - `docs/spec/commands/agent/activity.md`
     - `docs/spec/concepts/agent-runtime.md`
-  - Depends: AGENT-050, AGENT-060, AGENT-070
+  - Depends: AGENT-050, AGENT-060, AGENT-070, AGENT-080
   - Serial: yes

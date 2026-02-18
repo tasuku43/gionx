@@ -149,6 +149,35 @@ func (c *CLI) runAgentRun(args []string) int {
 		return exitError
 	}
 	fmt.Fprintf(c.Out, "agent started: workspace=%s kind=%s session=%s dir=%s\n", opts.workspaceID, opts.agentKind, sessionID, execDir)
+
+	// Single-owner interactive flow: start and stay attached in the same terminal.
+	if shouldRunAgentForeground(c.In, c.Out) {
+		conn, err := attachSessionWithAgentBroker(
+			root,
+			sessionID,
+			terminalCols(c.In, c.Out),
+			terminalRows(c.In, c.Out),
+			false,
+		)
+		if err != nil {
+			fmt.Fprintf(c.Err, "attach started session via broker: %v\n", err)
+			return exitError
+		}
+		defer func() { _ = conn.Close() }()
+		runAttachMode := agentAttachMode{
+			forceRedraw:   false,
+			writeBoundary: false,
+			flushInput:    true,
+			restoreShell:  true,
+			clearOnEnter:  false,
+			fullscreen:    false,
+			localDetach:   false,
+		}
+		if err := proxyAgentAttachIO(root, sessionID, conn, c.In, c.Out, runAttachMode); err != nil {
+			fmt.Fprintf(c.Err, "run foreground session stream: %v\n", err)
+			return exitError
+		}
+	}
 	return exitOK
 }
 
@@ -318,6 +347,10 @@ func inferWorkspaceIDByRel(root string, wd string) (string, bool) {
 func cliInputIsTTY(in io.Reader) bool {
 	inFile, ok := in.(*os.File)
 	return ok && isatty.IsTerminal(inFile.Fd())
+}
+
+func shouldRunAgentForeground(in io.Reader, out io.Writer) bool {
+	return isTerminalReader(in) && isTerminalWriter(out)
 }
 
 func listAgentRunTargetCandidates(root string, workspaceID string) ([]workspaceSelectorCandidate, error) {
