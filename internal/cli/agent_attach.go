@@ -6,7 +6,9 @@ import (
 	"io"
 	"net"
 	"os"
+	"os/signal"
 	"strings"
+	"syscall"
 
 	"github.com/mattn/go-isatty"
 	"github.com/tasuku43/kra/internal/infra/paths"
@@ -16,6 +18,8 @@ import (
 type agentAttachOptions struct {
 	sessionID string
 }
+
+var errAgentAttachDetached = errors.New("attach detached by user")
 
 func (c *CLI) runAgentAttach(args []string) int {
 	opts, err := parseAgentAttachOptions(args)
@@ -78,7 +82,11 @@ func (c *CLI) runAgentAttach(args []string) int {
 	}
 	defer func() { _ = conn.Close() }()
 
-	if err := proxyAgentAttachIO(conn, c.In, c.Out); err != nil {
+	if err := proxyAgentAttachIO(root, record.SessionID, conn, c.In, c.Out); err != nil {
+		if errors.Is(err, errAgentAttachDetached) {
+			fmt.Fprintf(c.Out, "detached: session=%s\n", record.SessionID)
+			return exitOK
+		}
 		fmt.Fprintf(c.Err, "attach session stream: %v\n", err)
 		return exitError
 	}
@@ -182,7 +190,7 @@ func formatAgentAttachSelectorTitle(scope agentContextScope) string {
 	return fmt.Sprintf("Session to attach (workspace: %s repo:%s):", workspaceID, repoKey)
 }
 
-func proxyAgentAttachIO(conn *net.UnixConn, in io.Reader, out io.Writer) error {
+func proxyAgentAttachIO(root string, sessionID string, conn *net.UnixConn, in io.Reader, out io.Writer) error {
 	if conn == nil {
 		return fmt.Errorf("broker connection is nil")
 	}
@@ -195,32 +203,125 @@ func proxyAgentAttachIO(conn *net.UnixConn, in io.Reader, out io.Writer) error {
 		defer restore()
 	}
 
-	terminalInput := isTerminalReader(in)
-	writeErrCh := make(chan error, 1)
+	stopResizeWatcher := startAttachResizeWatcher(root, sessionID, in, out)
+	defer stopResizeWatcher()
+
+	readErrCh := make(chan error, 1)
 	go func() {
-		_, writeErr := io.Copy(conn, in)
-		writeErrCh <- writeErr
+		_, readErr := io.Copy(out, conn)
+		readErrCh <- readErr
 	}()
 
-	_, readErr := io.Copy(out, conn)
-	_ = conn.Close()
+	inputResCh := make(chan attachInputResult, 1)
+	go func() {
+		inputResCh <- forwardAttachInput(conn, in)
+	}()
 
-	writeErr := error(nil)
-	if terminalInput {
-		select {
-		case writeErr = <-writeErrCh:
-		default:
+	select {
+	case inputRes := <-inputResCh:
+		if inputRes.detached {
+			_ = conn.Close()
+			return errAgentAttachDetached
 		}
-	} else {
-		writeErr = <-writeErrCh
+		if isAgentAttachIOError(inputRes.err) {
+			_ = conn.Close()
+			return inputRes.err
+		}
+		readErr := <-readErrCh
+		if isAgentAttachIOError(readErr) {
+			return readErr
+		}
+		return nil
+	case readErr := <-readErrCh:
+		_ = conn.Close()
+		if isAgentAttachIOError(readErr) {
+			return readErr
+		}
+		return nil
 	}
-	if isAgentAttachIOError(readErr) {
-		return readErr
+}
+
+type attachInputResult struct {
+	detached bool
+	err      error
+}
+
+func forwardAttachInput(conn *net.UnixConn, in io.Reader) attachInputResult {
+	buf := make([]byte, 4096)
+	for {
+		n, err := in.Read(buf)
+		if n > 0 {
+			chunk := buf[:n]
+			start := 0
+			for i, b := range chunk {
+				if b != 0x03 { // Ctrl-C -> local detach
+					continue
+				}
+				if i > start {
+					if werr := writeAllUnixConn(conn, chunk[start:i]); isAgentAttachIOError(werr) {
+						return attachInputResult{err: werr}
+					}
+				}
+				return attachInputResult{detached: true}
+			}
+			if start < len(chunk) {
+				if werr := writeAllUnixConn(conn, chunk[start:]); isAgentAttachIOError(werr) {
+					return attachInputResult{err: werr}
+				}
+			}
+		}
+		if err != nil {
+			if errors.Is(err, io.EOF) {
+				return attachInputResult{}
+			}
+			return attachInputResult{err: err}
+		}
 	}
-	if isAgentAttachIOError(writeErr) {
-		return writeErr
+}
+
+func writeAllUnixConn(conn *net.UnixConn, b []byte) error {
+	for len(b) > 0 {
+		n, err := conn.Write(b)
+		if err != nil {
+			return err
+		}
+		b = b[n:]
 	}
 	return nil
+}
+
+func startAttachResizeWatcher(root string, sessionID string, in io.Reader, out io.Writer) func() {
+	if strings.TrimSpace(root) == "" || strings.TrimSpace(sessionID) == "" {
+		return func() {}
+	}
+	if !isTerminalReader(in) && !isTerminalWriter(out) {
+		return func() {}
+	}
+	cols, rows := terminalSize(in, out)
+	if cols > 0 && rows > 0 {
+		_ = resizeSessionWithAgentBroker(root, sessionID, cols, rows)
+	}
+
+	sigch := make(chan os.Signal, 1)
+	signal.Notify(sigch, syscall.SIGWINCH)
+	done := make(chan struct{})
+	go func() {
+		for {
+			select {
+			case <-done:
+				return
+			case <-sigch:
+				cols, rows := terminalSize(in, out)
+				if cols > 0 && rows > 0 {
+					_ = resizeSessionWithAgentBroker(root, sessionID, cols, rows)
+				}
+			}
+		}
+	}()
+	return func() {
+		signal.Stop(sigch)
+		close(done)
+	}
 }
 
 func maybeEnterRawMode(in io.Reader, out io.Writer) (func(), error) {
@@ -247,6 +348,14 @@ func isTerminalReader(in io.Reader) bool {
 		return false
 	}
 	return isatty.IsTerminal(inFile.Fd())
+}
+
+func isTerminalWriter(out io.Writer) bool {
+	outFile, ok := out.(*os.File)
+	if !ok {
+		return false
+	}
+	return isatty.IsTerminal(outFile.Fd())
 }
 
 func terminalCols(in io.Reader, out io.Writer) int {

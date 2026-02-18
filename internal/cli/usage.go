@@ -531,6 +531,7 @@ Attach current terminal to one running runtime agent session.
 Resolution:
   - if --session is set, attach to the explicit session
   - if --session is omitted and stdin is TTY, select from current context scope
+  - during attach stream, Ctrl-C detaches local terminal (session keeps running)
   - attach scope:
     - workspaces/<id>/repos/<repo-key>/... => same workspace+repo
     - workspaces/<id>/... => same workspace

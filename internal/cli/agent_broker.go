@@ -26,6 +26,7 @@ const (
 	agentBrokerActionStart  = "start"
 	agentBrokerActionStop   = "stop"
 	agentBrokerActionAttach = "attach"
+	agentBrokerActionResize = "resize"
 
 	agentBrokerAcceptDeadline = 1 * time.Second
 	agentBrokerDialTimeout    = 300 * time.Millisecond
@@ -501,6 +502,8 @@ func (s *agentBrokerServer) handleRequest(req agentBrokerRequest) agentBrokerRes
 		return s.handleStartRequest(req)
 	case agentBrokerActionStop:
 		return s.handleStopRequest(req)
+	case agentBrokerActionResize:
+		return s.handleResizeRequest(req)
 	case agentBrokerActionAttach:
 		return agentBrokerResponse{OK: false, Error: "attach action requires stream handler"}
 	default:
@@ -587,6 +590,22 @@ func (s *agentBrokerServer) handleStopRequest(req agentBrokerRequest) agentBroke
 	if err := terminateAgentPID(record.PID); err != nil {
 		return agentBrokerResponse{OK: false, Error: fmt.Sprintf("terminate session process: %v", err)}
 	}
+	return agentBrokerResponse{OK: true}
+}
+
+func (s *agentBrokerServer) handleResizeRequest(req agentBrokerRequest) agentBrokerResponse {
+	sessionID := strings.TrimSpace(req.SessionID)
+	if sessionID == "" {
+		return agentBrokerResponse{OK: false, Error: "session_id is required"}
+	}
+	if req.Cols <= 0 || req.Rows <= 0 {
+		return agentBrokerResponse{OK: false, Error: "invalid terminal size"}
+	}
+	session, ok := s.getSession(sessionID)
+	if !ok {
+		return agentBrokerResponse{OK: false, Error: "session not found"}
+	}
+	applyPTYSize(session.ptmx, req.Cols, req.Rows)
 	return agentBrokerResponse{OK: true}
 }
 
@@ -701,6 +720,19 @@ func attachSessionWithAgentBroker(root string, sessionID string, cols int, rows 
 	}
 	_ = conn.SetDeadline(time.Time{})
 	return conn, nil
+}
+
+func resizeSessionWithAgentBroker(root string, sessionID string, cols int, rows int) error {
+	if cols <= 0 || rows <= 0 {
+		return nil
+	}
+	_, err := sendAgentBrokerRequest(root, agentBrokerRequest{
+		Action:    agentBrokerActionResize,
+		SessionID: strings.TrimSpace(sessionID),
+		Cols:      cols,
+		Rows:      rows,
+	})
+	return err
 }
 
 func applyPTYSize(ptmx *os.File, cols int, rows int) {

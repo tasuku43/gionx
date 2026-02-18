@@ -571,6 +571,51 @@ func TestCLI_AgentAttach_BySession_StreamIO(t *testing.T) {
 	}
 }
 
+func TestCLI_AgentAttach_CtrlCDetachesSessionKeepsRunning(t *testing.T) {
+	root := prepareCurrentRootForTest(t)
+	t.Setenv("KRA_AGENT_RUN_DRY_RUN", "")
+	t.Setenv(agentBrokerEmbeddedEnvKey, "1")
+	workspaceDir := filepath.Join(root, "workspaces", "WS-1")
+	if err := os.MkdirAll(workspaceDir, 0o755); err != nil {
+		t.Fatalf("mkdir workspace: %v", err)
+	}
+	agentStubPath := filepath.Join(workspaceDir, "agent-sleep.sh")
+	agentStub := "#!/bin/sh\nwhile true; do sleep 1; done\n"
+	if err := os.WriteFile(agentStubPath, []byte(agentStub), 0o755); err != nil {
+		t.Fatalf("write agent stub: %v", err)
+	}
+
+	var runOut bytes.Buffer
+	var runErr bytes.Buffer
+	runCLI := New(&runOut, &runErr)
+	startCode := runCLI.Run([]string{"agent", "run", "--workspace", "WS-1", "--kind", agentStubPath})
+	if startCode != exitOK {
+		t.Fatalf("run exit code=%d, want=%d (stderr=%q)", startCode, exitOK, runErr.String())
+	}
+	sessionID := extractSessionIDFromAgentStarted(runOut.String())
+	if sessionID == "" {
+		t.Fatalf("session id should be printed, stdout=%q", runOut.String())
+	}
+	if _, ok := waitForSessionRuntimeState(root, sessionID, "running", 5*time.Second); !ok {
+		t.Fatalf("session should transition to running: session=%s", sessionID)
+	}
+
+	var attachOut bytes.Buffer
+	var attachErr bytes.Buffer
+	attachCLI := New(&attachOut, &attachErr)
+	attachCLI.In = strings.NewReader(string([]byte{0x03}))
+	attachCode := attachCLI.Run([]string{"agent", "attach", "--session", sessionID})
+	if attachCode != exitOK {
+		t.Fatalf("attach exit code=%d, want=%d (stderr=%q)", attachCode, exitOK, attachErr.String())
+	}
+	if !strings.Contains(attachOut.String(), "detached: session="+sessionID) {
+		t.Fatalf("attach output should include detach message, stdout=%q", attachOut.String())
+	}
+	if _, ok := waitForSessionRuntimeState(root, sessionID, "running", 5*time.Second); !ok {
+		t.Fatalf("session should keep running after detach: session=%s", sessionID)
+	}
+}
+
 func TestFormatAgentAttachSelectorTitle(t *testing.T) {
 	if got := formatAgentAttachSelectorTitle(agentContextScope{}); got != "Session to attach:" {
 		t.Fatalf("unexpected title without scope: %q", got)
