@@ -21,6 +21,11 @@ type agentAttachOptions struct {
 
 var errAgentAttachDetached = errors.New("attach detached by user")
 
+const (
+	attachTerminalEnterSeq = "\r\x1b[2J\x1b[H"
+	attachTerminalExitSeq  = "\x1b[0m\x1b[?25h\x1b[?7h\x1b[?2004l\x1b[?1000l\x1b[?1002l\x1b[?1003l\x1b[?1004l\x1b[?1006l\x1b[?1049l\r\n"
+)
+
 func (c *CLI) runAgentAttach(args []string) int {
 	opts, err := parseAgentAttachOptions(args)
 	if err != nil {
@@ -193,6 +198,10 @@ func formatAgentAttachSelectorTitle(scope agentContextScope) string {
 func proxyAgentAttachIO(root string, sessionID string, conn *net.UnixConn, in io.Reader, out io.Writer) error {
 	if conn == nil {
 		return fmt.Errorf("broker connection is nil")
+	}
+	if isTerminalWriter(out) {
+		writeAttachTerminalEnter(out)
+		defer writeAttachTerminalExit(out)
 	}
 
 	restore, err := maybeEnterRawMode(in, out)
@@ -392,4 +401,12 @@ func isAgentAttachIOError(err error) bool {
 		return false
 	}
 	return !strings.Contains(strings.ToLower(err.Error()), "use of closed network connection")
+}
+
+func writeAttachTerminalEnter(out io.Writer) {
+	_, _ = io.WriteString(out, attachTerminalEnterSeq)
+}
+
+func writeAttachTerminalExit(out io.Writer) {
+	_, _ = io.WriteString(out, attachTerminalExitSeq)
 }
