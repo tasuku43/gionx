@@ -33,12 +33,11 @@ status: planned
   - Serial: yes
 
 - [x] AGENT-030: `kra agent logs` baseline
-  - What: add a log viewing command to inspect recent/streaming logs by workspace
-    and/or agent session, aligned with existing output contract conventions.
+  - What: retire `kra agent logs` from default agent surface and align
+    runtime visibility to PTY + state snapshot/events.
   - Specs:
     - `docs/spec/commands/agent/logs.md`
-    - `docs/spec/concepts/output-contract.md`
-    - `docs/spec/commands/agent/activity.md`
+    - `docs/spec/concepts/agent-runtime.md`
   - Depends: AGENT-010
   - Parallel: yes
 
@@ -52,31 +51,32 @@ status: planned
   - Depends: AGENT-001, OPS-003
   - Serial: yes
 
-- [ ] AGENT-050: tmux/zellij bridge (agent lifecycle auto-report)
-  - What: add operator-facing launcher/wrapper flow that reports
-    `run -> heartbeat/update -> stop` automatically from tmux/zellij sessions.
+- [ ] AGENT-050: Local broker runtime foundation (per-root socket + detached default)
+  - What: implement per-`KRA_ROOT` local broker runtime foundation
+    (Unix socket, broker spawn/reconnect, detached default session lifecycle).
   - Specs:
     - `docs/spec/commands/agent/run.md`
-    - `docs/spec/commands/agent/stop.md`
+    - `docs/spec/concepts/agent-runtime.md`
     - `docs/spec/commands/agent/activity.md`
   - Depends: AGENT-040
   - Serial: yes
 
-- [ ] AGENT-060: Current activity inspection (`agent list`/`agent logs`) v2 output
-  - What: expose v2 fields in human/json/tsv outputs so operators can answer:
-    who runs what, where, with what instruction summary, and whether user input is required.
+- [ ] AGENT-060: `kra agent attach` and scope-based reattach flow
+  - What: add `kra agent attach` with strict current-context scope resolution
+    and interactive session selection when `--session` is omitted.
   - Specs:
+    - `docs/spec/commands/agent/attach.md`
     - `docs/spec/commands/agent/activity.md`
-    - `docs/spec/commands/agent/logs.md`
-    - `docs/spec/concepts/output-contract.md`
-  - Depends: AGENT-040
-  - Parallel: yes
+    - `docs/spec/concepts/agent-runtime.md`
+  - Depends: AGENT-050
+  - Serial: yes
 
-- [ ] AGENT-100: Agent timeline and detailed execution history (Phase3)
-  - What: introduce append-only event timeline and richer transitions
-    for postmortem/debug/audit views (keep v2 snapshot compatibility).
+- [ ] AGENT-100: Lease/takeover control plane and launch abstraction
+  - What: implement writer lease/takeover + dangerous-key confirmation +
+    snapshot/events dual-write and launch mode abstraction (`--launch` mapping).
   - Specs:
+    - `docs/spec/commands/agent/run.md`
     - `docs/spec/commands/agent/activity.md`
-    - `docs/spec/concepts/output-contract.md`
+    - `docs/spec/concepts/agent-runtime.md`
   - Depends: AGENT-050, AGENT-060
   - Serial: yes
