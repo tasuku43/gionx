@@ -1,9 +1,9 @@
 ---
 title: "`kra agent attach` session reattach"
-status: planned
+status: implemented
 ---
 
-# `kra agent attach` v3 draft
+# `kra agent attach`
 
 ## Purpose
 
@@ -12,21 +12,21 @@ Attach current terminal to an existing broker-managed agent session.
 This command is for returning to an already running session from the current
 workspace/repo context, not for global manager discovery.
 
-## Scope (v3 draft)
+## Scope (implemented)
 
 - Command:
   - `kra agent attach [--session <id>]`
 - Behavior:
   - resolve current `KRA_ROOT`
-  - resolve current context scope from `cwd`
+  - when `--session` is omitted, resolve current context scope from `cwd`
   - connect broker socket for the root hash
-  - attach terminal stream to the selected session PTY stream
+  - attach terminal stream to selected session PTY stream
 - Session selection:
   - if `--session` is set:
     - attach directly, fail if not found
   - if `--session` is omitted:
-    - query broker for candidate sessions in current scope
-    - prompt interactive selector
+    - non-interactive: fail (`--session is required`)
+    - interactive: select from sessions in current scope
 
 ## Context Resolution Rules
 
@@ -39,25 +39,15 @@ workspace/repo context, not for global manager discovery.
 - Outside `KRA_ROOT`:
   - fail
 
-## Input and Lease Rules
-
-- Multi-attach is allowed (multiple viewers).
-- Input is allowed only for current writer lease owner.
-- If caller has no lease and sends input:
-  - prompt takeover confirmation
-  - on confirm, perform immediate takeover
-- Dangerous keys (`Ctrl-C`, `Ctrl-D`, `Ctrl-Z`) require confirmation.
-
 ## Output Contract
 
 - Success:
-  - terminal enters attached interactive stream
+  - terminal enters attached stream until session exits or connection closes
 - Errors:
   - clear reason + next action (missing broker, session not found, invalid context)
   - non-zero exit code
 
-## Out of scope (v3 draft)
+## Deferred to AGENT-100
 
-- Cross-root global attach selector from `attach` command.
-- Remote host attach.
-- Provider-specific conversation history browsing.
+- writer lease / takeover control
+- dangerous key confirmation (`Ctrl-C`, `Ctrl-D`, `Ctrl-Z`)

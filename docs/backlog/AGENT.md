@@ -51,7 +51,7 @@ status: planned
   - Depends: AGENT-001, OPS-003
   - Serial: yes
 
-- [ ] AGENT-050: Local broker runtime foundation (per-root socket + detached default)
+- [x] AGENT-050: Local broker runtime foundation (per-root socket + detached default)
   - What: implement per-`KRA_ROOT` local broker runtime foundation
     (Unix socket, broker spawn/reconnect, detached default session lifecycle).
   - Specs:
@@ -61,7 +61,7 @@ status: planned
   - Depends: AGENT-040
   - Serial: yes
 
-- [ ] AGENT-060: `kra agent attach` and scope-based reattach flow
+- [x] AGENT-060: `kra agent attach` and scope-based reattach flow
   - What: add `kra agent attach` with strict current-context scope resolution
     and interactive session selection when `--session` is omitted.
   - Specs:
