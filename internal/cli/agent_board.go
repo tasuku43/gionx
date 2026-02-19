@@ -184,7 +184,7 @@ func (c *CLI) shouldRunAgentBoardSelection(opts agentBoardOptions) bool {
 	if strings.TrimSpace(opts.sessionID) != "" {
 		return true
 	}
-	return cliInputIsTTY(c.In)
+	return c.inputIsTTY()
 }
 
 func (c *CLI) runAgentBoardInteractive(root string, records []agentRuntimeSessionRecord, opts agentBoardOptions) int {
@@ -204,7 +204,7 @@ func (c *CLI) runAgentBoardInteractive(root string, records []agentRuntimeSessio
 
 	action := strings.TrimSpace(strings.ToLower(opts.action))
 	if action == "" {
-		if !cliInputIsTTY(c.In) {
+		if !c.inputIsTTY() {
 			action = "show"
 		}
 	}
@@ -267,7 +267,7 @@ func (c *CLI) selectAgentBoardSession(records []agentRuntimeSessionRecord, opts 
 	if ws := strings.TrimSpace(opts.workspaceID); ws != "" {
 		title = fmt.Sprintf("Session (workspace: %s):", ws)
 	}
-	if !cliInputIsTTY(c.In) {
+	if !c.inputIsTTY() {
 		return agentRuntimeSessionRecord{}, fmt.Errorf("--session is required in non-interactive mode when board selection is enabled")
 	}
 	selected, err := c.promptWorkspaceSelectorWithOptionsAndMode("active", "select", title, "session", selectorItems, true)

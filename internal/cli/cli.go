@@ -27,6 +27,10 @@ type CLI struct {
 	Debug    bool
 
 	debugSession debugSession
+
+	// test hooks for fast, deterministic S-size tests.
+	isInputTTYHook       func() bool
+	selectorPromptRunner func(status string, action string, title string, itemLabel string, candidates []workspaceSelectorCandidate, single bool) ([]string, error)
 }
 
 func New(out io.Writer, err io.Writer) *CLI {
@@ -36,6 +40,13 @@ func New(out io.Writer, err io.Writer) *CLI {
 		Err:     err,
 		Version: "dev",
 	}
+}
+
+func (c *CLI) inputIsTTY() bool {
+	if c != nil && c.isInputTTYHook != nil {
+		return c.isInputTTYHook()
+	}
+	return cliInputIsTTY(c.In)
 }
 
 func (c *CLI) Run(args []string) int {

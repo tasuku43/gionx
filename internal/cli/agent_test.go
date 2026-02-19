@@ -306,6 +306,93 @@ func TestCLI_AgentBoard_GroupsByWorkspace(t *testing.T) {
 	}
 }
 
+func TestCLI_AgentBoard_InteractiveSelection_Show_SSize(t *testing.T) {
+	root := prepareCurrentRootForTest(t)
+	now := time.Now().Unix()
+	if err := saveAgentRuntimeSession(agentRuntimeSessionRecord{
+		SessionID:      "s-1",
+		RootPath:       root,
+		WorkspaceID:    "WS-1",
+		ExecutionScope: "workspace",
+		Kind:           "codex",
+		PID:            101,
+		StartedAt:      now - 10,
+		UpdatedAt:      now - 1,
+		Seq:            1,
+		RuntimeState:   "running",
+	}); err != nil {
+		t.Fatalf("save session: %v", err)
+	}
+
+	var out bytes.Buffer
+	var err bytes.Buffer
+	c := New(&out, &err)
+	c.isInputTTYHook = func() bool { return true }
+	c.selectorPromptRunner = func(status string, action string, title string, itemLabel string, candidates []workspaceSelectorCandidate, single bool) ([]string, error) {
+		switch itemLabel {
+		case "session":
+			return []string{"s-1"}, nil
+		case "action":
+			return []string{"show"}, nil
+		default:
+			t.Fatalf("unexpected selector itemLabel: %s", itemLabel)
+			return nil, nil
+		}
+	}
+
+	code := c.Run([]string{"agent", "board"})
+	if code != exitOK {
+		t.Fatalf("exit code=%d, want=%d (stderr=%q)", code, exitOK, err.String())
+	}
+	got := out.String()
+	if !strings.Contains(got, "Agent Session:") || !strings.Contains(got, "session:   s-1") {
+		t.Fatalf("board show output missing selected session details: %q", got)
+	}
+}
+
+func TestCLI_AgentBoard_InteractiveSelection_Stop_SSize(t *testing.T) {
+	root := prepareCurrentRootForTest(t)
+	now := time.Now().Unix()
+	if err := saveAgentRuntimeSession(agentRuntimeSessionRecord{
+		SessionID:      "s-1",
+		RootPath:       root,
+		WorkspaceID:    "WS-1",
+		ExecutionScope: "workspace",
+		Kind:           "codex",
+		PID:            0,
+		StartedAt:      now - 10,
+		UpdatedAt:      now - 1,
+		Seq:            1,
+		RuntimeState:   "running",
+	}); err != nil {
+		t.Fatalf("save session: %v", err)
+	}
+
+	var out bytes.Buffer
+	var err bytes.Buffer
+	c := New(&out, &err)
+	c.isInputTTYHook = func() bool { return true }
+	c.selectorPromptRunner = func(status string, action string, title string, itemLabel string, candidates []workspaceSelectorCandidate, single bool) ([]string, error) {
+		switch itemLabel {
+		case "session":
+			return []string{"s-1"}, nil
+		case "action":
+			return []string{"stop"}, nil
+		default:
+			t.Fatalf("unexpected selector itemLabel: %s", itemLabel)
+			return nil, nil
+		}
+	}
+
+	code := c.Run([]string{"agent", "board"})
+	if code != exitOK {
+		t.Fatalf("exit code=%d, want=%d (stderr=%q)", code, exitOK, err.String())
+	}
+	if !strings.Contains(out.String(), "agent stopped: session=s-1") {
+		t.Fatalf("board stop output missing: %q", out.String())
+	}
+}
+
 func TestCLI_AgentRun_RequiresWorkspaceAndKind(t *testing.T) {
 	prepareCurrentRootForTest(t)
 	var out bytes.Buffer

@@ -176,7 +176,7 @@ func (c *CLI) completeAgentStopOptionsInteractive(root string, wd string, opts a
 	if strings.TrimSpace(opts.sessionID) != "" || strings.TrimSpace(opts.workspaceID) != "" {
 		return opts, nil
 	}
-	if !cliInputIsTTY(c.In) {
+	if !c.inputIsTTY() {
 		return agentStopOptions{}, fmt.Errorf("either --session or --workspace is required in non-interactive mode")
 	}
 

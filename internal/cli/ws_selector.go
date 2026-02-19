@@ -388,6 +388,9 @@ func (c *CLI) promptWorkspaceSelectorWithOptionsAndMode(status string, action st
 	if len(candidates) == 0 {
 		return nil, fmt.Errorf("no workspace candidates")
 	}
+	if c.selectorPromptRunner != nil {
+		return c.selectorPromptRunner(status, action, title, itemLabel, candidates, single)
+	}
 
 	inFile, ok := c.In.(*os.File)
 	if !ok || !isatty.IsTerminal(inFile.Fd()) {
