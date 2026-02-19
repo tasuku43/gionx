@@ -22,6 +22,7 @@ type agentBoardOptions struct {
 	sessionID   string
 	action      string
 	noSelect    bool
+	ui          bool
 }
 
 func (c *CLI) runAgentBoard(args []string) int {
@@ -59,6 +60,9 @@ func (c *CLI) runAgentBoard(args []string) int {
 		kind:        opts.kind,
 		all:         opts.all,
 	})
+	if opts.ui {
+		return c.runAgentBoardUI(root, opts, records)
+	}
 
 	if opts.format == "human" && c.shouldRunAgentBoardSelection(opts) {
 		return c.runAgentBoardInteractive(root, records, opts)
@@ -150,6 +154,9 @@ func parseAgentBoardOptions(args []string) (agentBoardOptions, error) {
 		case arg == "--no-select":
 			opts.noSelect = true
 			rest = rest[1:]
+		case arg == "--ui":
+			opts.ui = true
+			rest = rest[1:]
 		default:
 			return agentBoardOptions{}, fmt.Errorf("unknown flag for agent board: %q", arg)
 		}
@@ -161,6 +168,9 @@ func parseAgentBoardOptions(args []string) (agentBoardOptions, error) {
 	case "human", "tsv":
 	default:
 		return agentBoardOptions{}, fmt.Errorf("unsupported --format: %q (supported: human, tsv)", opts.format)
+	}
+	if opts.ui && opts.format != "human" {
+		return agentBoardOptions{}, fmt.Errorf("--ui requires --format human")
 	}
 	switch opts.state {
 	case "", "running", "waiting_input", "idle", "exited", "unknown":

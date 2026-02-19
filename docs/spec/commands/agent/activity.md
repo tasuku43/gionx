@@ -98,6 +98,10 @@ Provide runtime visibility for agent sessions across workspaces with state files
     - persisted-only rows are retained (for exited history)
   - missing directory means empty persisted rows
 - `board` output contract:
+  - `--ui`:
+    - full-screen TUI mode (interactive TTY only)
+    - live refresh list + detail panes
+    - session actions are available from key bindings (implemented: stop)
   - `human`:
     - interactive TTY default: selection flow
       - select one session from filtered scope

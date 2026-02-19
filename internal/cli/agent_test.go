@@ -161,6 +161,49 @@ func TestCLI_AgentBoard_StateFilterWaitingAlias(t *testing.T) {
 	}
 }
 
+func TestCLI_AgentBoard_UIRequiresHumanFormat(t *testing.T) {
+	prepareCurrentRootForTest(t)
+	var out bytes.Buffer
+	var err bytes.Buffer
+	c := New(&out, &err)
+
+	code := c.Run([]string{"agent", "board", "--ui", "--format", "tsv"})
+	if code != exitUsage {
+		t.Fatalf("exit code = %d, want %d", code, exitUsage)
+	}
+	if !strings.Contains(err.String(), "--ui requires --format human") {
+		t.Fatalf("stderr should include ui/format error: %q", err.String())
+	}
+}
+
+func TestCLI_AgentBoard_UIRequiresTTY(t *testing.T) {
+	root := prepareCurrentRootForTest(t)
+	if err := saveAgentRuntimeSession(agentRuntimeSessionRecord{
+		SessionID:      "s-1",
+		RootPath:       root,
+		WorkspaceID:    "WS-1",
+		ExecutionScope: "workspace",
+		Kind:           "codex",
+		PID:            101,
+		StartedAt:      100,
+		UpdatedAt:      110,
+		Seq:            1,
+		RuntimeState:   "running",
+	}); err != nil {
+		t.Fatalf("save session: %v", err)
+	}
+	var out bytes.Buffer
+	var err bytes.Buffer
+	c := New(&out, &err)
+	code := c.Run([]string{"agent", "board", "--ui"})
+	if code != exitUsage {
+		t.Fatalf("exit code = %d, want %d", code, exitUsage)
+	}
+	if !strings.Contains(err.String(), "agent board --ui requires an interactive TTY") {
+		t.Fatalf("stderr should include tty requirement: %q", err.String())
+	}
+}
+
 func TestCLI_AgentBoard_DefaultHidesExited_AndAllShowsExited(t *testing.T) {
 	root := prepareCurrentRootForTest(t)
 	now := time.Now().Unix()

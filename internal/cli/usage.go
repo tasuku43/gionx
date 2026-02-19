@@ -543,7 +543,7 @@ Options:
 
 func (c *CLI) printAgentBoardUsage(w io.Writer) {
 	fmt.Fprint(w, `Usage:
-  kra agent board [--workspace <id>] [--state <active|running|waiting|waiting_input|idle|exited|unknown>] [--location <query>] [--kind <agent-kind>] [--all] [--format human|tsv] [--session <id>] [--act <show|stop>] [--no-select]
+  kra agent board [--workspace <id>] [--state <active|running|waiting|waiting_input|idle|exited|unknown>] [--location <query>] [--kind <agent-kind>] [--all] [--format human|tsv] [--session <id>] [--act <show|stop>] [--no-select] [--ui]
 
 Show runtime activity board. In TTY + human mode, board opens selection flow by default.
 
@@ -557,5 +557,6 @@ Options:
   --session         Directly target one session in current filtered scope
   --act             Board action (show or stop; when omitted in TTY, board prompts action)
   --no-select       Disable interactive selection and print grouped board directly
+  --ui              Run full-screen board UI (requires interactive TTY, human format)
 `)
 }
