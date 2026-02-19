@@ -54,8 +54,8 @@ func TestCLI_Agent_Help(t *testing.T) {
 	if !strings.Contains(out.String(), "kra agent <subcommand>") {
 		t.Fatalf("stdout missing agent usage: %q", out.String())
 	}
-	if strings.Contains(out.String(), "attach") {
-		t.Fatalf("stdout should not include attach command: %q", out.String())
+	if !strings.Contains(out.String(), "attach") {
+		t.Fatalf("stdout should include attach command: %q", out.String())
 	}
 	if strings.Contains(out.String(), "list") || strings.Contains(out.String(), "ls") {
 		t.Fatalf("stdout should not include list/ls commands: %q", out.String())
@@ -675,6 +675,34 @@ func TestCLI_AgentRun_DetachedViaBroker_AndStop(t *testing.T) {
 	}
 }
 
+func TestCLI_AgentRun_AttachRequiresTTY(t *testing.T) {
+	root := prepareCurrentRootForTest(t)
+	t.Setenv("KRA_AGENT_RUN_DRY_RUN", "")
+	t.Setenv(agentBrokerEmbeddedEnvKey, "1")
+	workspaceDir := filepath.Join(root, "workspaces", "WS-1")
+	if err := os.MkdirAll(workspaceDir, 0o755); err != nil {
+		t.Fatalf("mkdir workspace: %v", err)
+	}
+	agentStubPath := filepath.Join(workspaceDir, "agent-stub.sh")
+	agentStub := "#!/bin/sh\nwhile true; do sleep 1; done\n"
+	if err := os.WriteFile(agentStubPath, []byte(agentStub), 0o755); err != nil {
+		t.Fatalf("write agent stub: %v", err)
+	}
+
+	var out bytes.Buffer
+	var stderr bytes.Buffer
+	c := New(&out, &stderr)
+	c.In = strings.NewReader("")
+
+	code := c.Run([]string{"agent", "run", "--workspace", "WS-1", "--kind", agentStubPath, "--attach"})
+	if code != exitUsage {
+		t.Fatalf("exit code=%d, want=%d (stderr=%q)", code, exitUsage, stderr.String())
+	}
+	if !strings.Contains(stderr.String(), "--attach requires an interactive TTY") {
+		t.Fatalf("stderr should include attach tty requirement: %q", stderr.String())
+	}
+}
+
 func TestCLI_AgentBoard_PrefersBrokerLiveStateOverPersistedFile(t *testing.T) {
 	root := prepareCurrentRootForTest(t)
 	t.Setenv("KRA_AGENT_RUN_DRY_RUN", "")
@@ -764,7 +792,7 @@ func TestShouldRunAgentForeground(t *testing.T) {
 	}
 }
 
-func TestCLI_AgentAttach_SubcommandUnavailable(t *testing.T) {
+func TestCLI_AgentAttach_SubcommandAvailable(t *testing.T) {
 	prepareCurrentRootForTest(t)
 	var out bytes.Buffer
 	var err bytes.Buffer
@@ -775,8 +803,8 @@ func TestCLI_AgentAttach_SubcommandUnavailable(t *testing.T) {
 	if code != exitUsage {
 		t.Fatalf("exit code=%d, want=%d", code, exitUsage)
 	}
-	if !strings.Contains(err.String(), "unknown command: \"agent attach\"") {
-		t.Fatalf("stderr should include unknown command error: %q", err.String())
+	if !strings.Contains(err.String(), "--session is required in non-interactive mode") {
+		t.Fatalf("stderr should include missing session error: %q", err.String())
 	}
 }
 

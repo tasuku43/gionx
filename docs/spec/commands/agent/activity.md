@@ -14,10 +14,11 @@ Provide runtime visibility for agent sessions across workspaces with state files
 - Command boundary: `kra agent ...`
 - Command surface:
   - `kra agent run`
+  - `kra agent attach`
   - `kra agent stop`
   - `kra agent board`
-  - internal transport primitive (not exposed as direct CLI subcommand):
-    - broker attach stream RPC
+  - internal transport primitive:
+    - broker attach stream RPC (used by `attach`/`board`)
 - Discoverability policy:
   - `kra agent` is executable directly
   - root help intentionally does not list `agent`

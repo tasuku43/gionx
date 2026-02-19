@@ -10,14 +10,13 @@ status: implemented
 Define a runtime architecture for `kra agent` that:
 
 - supports broker-managed runtime visibility and lifecycle control
-- uses foreground single-terminal execution as the default run experience
-- keeps attach/reattach as an auxiliary internal recovery path
+- uses detached run as default and explicit attach/reattach when needed
 - keeps runtime files outside `KRA_ROOT` Git working tree
 
 ## Decision Snapshot (implemented)
 
 - broker model: per-`KRA_ROOT` local broker over Unix socket
-- launch model: interactive TTY foreground by default; non-interactive detached
+- launch model: detached by default; optional foreground via `run --attach`
 - connection model: multi-attach view is supported
 - attach replay model: broker keeps per-session PTY output history in memory and replays it on attach before live relay
 - attach scope: workspace/repo context only (root/outside is error)
@@ -39,7 +38,7 @@ Define a runtime architecture for `kra agent` that:
 flowchart LR
   subgraph Client["Client terminals"]
     C1["Terminal A<br>kra agent run"]
-    C2["Terminal B<br>manager-side connect path<br>(auxiliary/internal)"]
+    C2["Terminal B<br>kra agent attach"]
     C3["Terminal C<br>kra agent board"]
   end
 
@@ -54,7 +53,7 @@ flowchart LR
     S["~/.kra/state/agents/<root-hash>/<session-id>.json"]
   end
 
-  C1 -->|start + foreground stream| B
+  C1 -->|start session (detached default)| B
   C2 -->|attach + replay + live stream| B
   C3 -->|primary: broker sessions RPC| B
   C3 -->|fallback/merge: persisted snapshots| S
@@ -98,14 +97,14 @@ Notes:
 ## Broker Lifecycle
 
 - one broker per `KRA_ROOT`
-- `run/stop/attach` connect to socket
+- `run/attach/stop` connect to socket
 - when socket is missing/stale, `run` starts broker and reconnects
 - broker auto-exits only when:
   - `session_count=0`
   - no broker requests for 60 seconds
 - while sessions exist, broker stays alive
 
-## Lifecycle: run (foreground default)
+## Lifecycle: run (detached default)
 
 ```mermaid
 sequenceDiagram
@@ -122,21 +121,21 @@ sequenceDiagram
   B->>PTY: allocate PTY
   B->>AG: spawn process
   B->>ST: write runtime_state=running
-  alt interactive TTY
+  alt --attach is set
     CLI->>B: attach started session
     CLI<->>B: foreground stream
     B->>ST: write runtime_state=exited on process end
-  else non-interactive
+  else detached default
     CLI-->>U: print session_id and return (detached)
   end
 ```
 
-## Lifecycle: attach / reattach (internal primitive)
+## Lifecycle: attach / reattach
 
 ```mermaid
 sequenceDiagram
   participant U as User
-  participant CLI as manager/connect caller
+  participant CLI as kra agent attach
   participant B as Broker
   participant H as Session history buffer
   participant PTY as Session PTY
@@ -196,7 +195,6 @@ Snapshot updates are atomic and increment session `seq`.
 
 - broker infers runtime state from PTY output activity plus terminal-sequence
   completion hints, not provider-specific screen text phrases
-  screen text phrases
 - broker keeps I/O directions separate:
   - input path: attached client bytes written into PTY
   - output path: bytes read from PTY and fanned out to attachments

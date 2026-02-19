@@ -481,6 +481,7 @@ func (c *CLI) printAgentUsage(w io.Writer) {
 
 Subcommands:
   run               Start an agent activity
+  attach            Attach to a running agent session
   stop              Stop a running agent activity
   board             Show workspace-grouped activity view
   help              Show this help
@@ -489,7 +490,7 @@ Subcommands:
 
 func (c *CLI) printAgentRunUsage(w io.Writer) {
 	fmt.Fprint(w, `Usage:
-  kra agent run [--workspace <id>] [--kind <agent-kind>] [--repo <repo-key>]
+  kra agent run [--workspace <id>] [--kind <agent-kind>] [--repo <repo-key>] [--attach]
 
 Start tracked runtime agent session for one workspace.
 
@@ -497,13 +498,14 @@ Resolution:
   - if --workspace is omitted and cwd is under workspaces/<id>/..., use that workspace
   - if workspace is still unresolved and stdin is TTY, prompt active workspace selection
   - if --repo is omitted and stdin is TTY, prompt target selection (workspace or repo)
-  - interactive TTY: start then connect foreground stream on the same terminal
-  - non-interactive: start in detached mode (session id is printed)
+  - default launch mode is detached (session id is printed)
+  - when --attach is set, connect foreground stream on the same terminal
 
 Options:
   --workspace       Workspace ID (required only in non-interactive mode when not inferable)
   --kind            Agent kind label (required only in non-interactive mode)
   --repo            Optional repository key in workspace scope
+  --attach          Immediately attach to started session (interactive TTY only)
 `)
 }
 

@@ -18,6 +18,7 @@ type agentRunOptions struct {
 	workspaceID string
 	repoKey     string
 	agentKind   string
+	attach      bool
 }
 
 func (c *CLI) runAgentRun(args []string) int {
@@ -150,8 +151,12 @@ func (c *CLI) runAgentRun(args []string) int {
 	}
 	fmt.Fprintf(c.Out, "agent started: workspace=%s kind=%s session=%s dir=%s\n", opts.workspaceID, opts.agentKind, sessionID, execDir)
 
-	// Single-owner interactive flow: start and stay attached in the same terminal.
-	if shouldRunAgentForeground(c.In, c.Out) {
+	// Detached is the default launch mode. Attach only when explicitly requested.
+	if opts.attach {
+		if !shouldRunAgentForeground(c.In, c.Out) {
+			fmt.Fprintln(c.Err, "--attach requires an interactive TTY")
+			return exitUsage
+		}
 		conn, err := attachSessionWithAgentBroker(
 			root,
 			sessionID,
@@ -174,6 +179,10 @@ func (c *CLI) runAgentRun(args []string) int {
 			localDetach:   false,
 		}
 		if err := proxyAgentAttachIO(root, sessionID, conn, c.In, c.Out, runAttachMode); err != nil {
+			if errors.Is(err, errAgentAttachDetached) {
+				fmt.Fprintf(c.Out, "detached: session=%s\n", sessionID)
+				return exitOK
+			}
 			fmt.Fprintf(c.Err, "run foreground session stream: %v\n", err)
 			return exitError
 		}
@@ -223,6 +232,9 @@ func parseAgentRunOptions(args []string) (agentRunOptions, error) {
 			}
 			opts.agentKind = strings.TrimSpace(rest[1])
 			rest = rest[2:]
+		case arg == "--attach":
+			opts.attach = true
+			rest = rest[1:]
 		default:
 			return agentRunOptions{}, fmt.Errorf("unknown flag for agent run: %q", arg)
 		}
