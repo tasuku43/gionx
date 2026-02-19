@@ -531,6 +531,9 @@ func sendInputToAgentBroker(root string, sessionID string, input string) error {
 		SessionID: strings.TrimSpace(sessionID),
 		Input:     input,
 	})
+	if err != nil && strings.Contains(strings.ToLower(strings.TrimSpace(err.Error())), "unknown broker action") {
+		return fmt.Errorf("broker does not support input action yet (likely old process); restart target agent session and retry")
+	}
 	return err
 }
 

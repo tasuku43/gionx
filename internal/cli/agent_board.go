@@ -236,6 +236,9 @@ func (c *CLI) runAgentBoardInteractive(root string, records []agentRuntimeSessio
 	case "send":
 		if err := c.sendPromptToAgentSession(root, selected); err != nil {
 			fmt.Fprintf(c.Err, "send prompt: %v\n", err)
+			if strings.Contains(strings.ToLower(err.Error()), "old process") {
+				fmt.Fprintf(c.Err, "hint: stop this session and start it again to refresh broker capabilities\n")
+			}
 			return exitError
 		}
 		fmt.Fprintf(c.Out, "prompt sent: session=%s\n", selected.SessionID)
