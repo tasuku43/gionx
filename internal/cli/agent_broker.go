@@ -30,6 +30,7 @@ const (
 	agentBrokerActionList   = "sessions"
 	agentBrokerActionInput  = "input"
 	agentBrokerActionScreen = "screen_snapshot"
+	agentBrokerActionClaim  = "claim_control"
 
 	agentBrokerDialTimeout       = 300 * time.Millisecond
 	agentBrokerStartupTimeout    = 4 * time.Second
@@ -100,22 +101,20 @@ type agentBrokerAttachmentTarget struct {
 }
 
 type agentBrokerSession struct {
-	mu                  sync.Mutex
-	cmd                 *exec.Cmd
-	ptmx                *os.File
-	record              agentRuntimeSessionRecord
-	attachments         map[string]*agentBrokerAttachment
-	outputHistory       []byte
-	nextAttachID        int64
-	inputOwnerClientID  string
-	resizeOwnerClientID string
-	seqParser           *agentTerminalSequenceParser
-	lastWriteAt         time.Time
-	lastOutputAt        time.Time
-	screenSeq           int64
-	screenLines         []string
-	screenPartial       string
-	screenAt            int64
+	mu            sync.Mutex
+	cmd           *exec.Cmd
+	ptmx          *os.File
+	record        agentRuntimeSessionRecord
+	attachments   map[string]*agentBrokerAttachment
+	outputHistory []byte
+	nextAttachID  int64
+	seqParser     *agentTerminalSequenceParser
+	lastWriteAt   time.Time
+	lastOutputAt  time.Time
+	screenSeq     int64
+	screenLines   []string
+	screenPartial string
+	screenAt      int64
 }
 
 func (s *agentBrokerSession) snapshot() agentRuntimeSessionRecord {
@@ -149,36 +148,15 @@ func (s *agentBrokerSession) addAttachment(conn *net.UnixConn, paused bool, clie
 }
 
 func (s *agentBrokerSession) acquireControl(clientID string, mode string) (bool, bool) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	clientID = strings.TrimSpace(clientID)
-	mode = strings.TrimSpace(strings.ToLower(mode))
-	if mode == "" {
-		mode = "interactive"
-	}
-	if mode != "interactive" {
-		return false, false
-	}
-	if clientID == "" {
-		return false, false
-	}
-	if s.inputOwnerClientID == "" || !s.hasAttachedClientLocked(s.inputOwnerClientID) {
-		s.inputOwnerClientID = clientID
-	}
-	if s.resizeOwnerClientID == "" || !s.hasAttachedClientLocked(s.resizeOwnerClientID) {
-		s.resizeOwnerClientID = clientID
-	}
-	return s.inputOwnerClientID == clientID, s.resizeOwnerClientID == clientID
+	return true, false
+}
+
+func (s *agentBrokerSession) claimControl(clientID string) (bool, bool) {
+	return true, false
 }
 
 func (s *agentBrokerSession) canResize(clientID string) bool {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	clientID = strings.TrimSpace(clientID)
-	if clientID == "" {
-		return false
-	}
-	return s.resizeOwnerClientID == clientID
+	return false
 }
 
 func (s *agentBrokerSession) hasAttachedClientLocked(clientID string) bool {
@@ -349,17 +327,6 @@ func (s *agentBrokerSession) removeAttachment(attachID string) {
 	s.mu.Lock()
 	attachment := s.attachments[attachID]
 	delete(s.attachments, attachID)
-	if attachment != nil {
-		clientID := strings.TrimSpace(attachment.clientID)
-		if clientID != "" {
-			if s.inputOwnerClientID == clientID && !s.hasAttachedClientLocked(clientID) {
-				s.inputOwnerClientID = ""
-			}
-			if s.resizeOwnerClientID == clientID && !s.hasAttachedClientLocked(clientID) {
-				s.resizeOwnerClientID = ""
-			}
-		}
-	}
 	s.mu.Unlock()
 	if attachment != nil && attachment.conn != nil {
 		_ = attachment.conn.Close()
@@ -649,6 +616,18 @@ func sendInputToAgentBroker(root string, sessionID string, input string) error {
 	return err
 }
 
+func claimControlWithAgentBroker(root string, sessionID string, clientID string) (bool, bool, error) {
+	resp, err := sendAgentBrokerRequest(root, agentBrokerRequest{
+		Action:    agentBrokerActionClaim,
+		SessionID: strings.TrimSpace(sessionID),
+		ClientID:  strings.TrimSpace(clientID),
+	})
+	if err != nil {
+		return false, false, err
+	}
+	return resolveAttachLeaseCompat(resp.InputOK), resolveAttachLeaseCompat(resp.ResizeOK), nil
+}
+
 type agentScreenSnapshot struct {
 	SessionID string
 	Seq       int64
@@ -807,6 +786,8 @@ func (s *agentBrokerServer) handleRequest(req agentBrokerRequest) agentBrokerRes
 		return s.handleInputRequest(req)
 	case agentBrokerActionScreen:
 		return s.handleScreenSnapshotRequest(req)
+	case agentBrokerActionClaim:
+		return s.handleClaimControlRequest(req)
 	case agentBrokerActionAttach:
 		return agentBrokerResponse{OK: false, Error: "attach action requires stream handler"}
 	default:
@@ -984,6 +965,31 @@ func (s *agentBrokerServer) handleScreenSnapshotRequest(req agentBrokerRequest) 
 		ScreenSeq: seq,
 		ScreenAt:  at,
 		Screen:    screen,
+	}
+}
+
+func (s *agentBrokerServer) handleClaimControlRequest(req agentBrokerRequest) agentBrokerResponse {
+	sessionID := strings.TrimSpace(req.SessionID)
+	if sessionID == "" {
+		return agentBrokerResponse{OK: false, Error: "session_id is required"}
+	}
+	clientID := strings.TrimSpace(req.ClientID)
+	if clientID == "" {
+		return agentBrokerResponse{OK: false, Error: "client_id is required"}
+	}
+	session, ok := s.getSession(sessionID)
+	if !ok {
+		return agentBrokerResponse{OK: false, Error: "session not found"}
+	}
+	inputOK, resizeOK := session.claimControl(clientID)
+	if !inputOK {
+		return agentBrokerResponse{OK: false, Error: "claim control denied"}
+	}
+	return agentBrokerResponse{
+		OK:        true,
+		SessionID: sessionID,
+		InputOK:   leaseBoolPtr(inputOK),
+		ResizeOK:  leaseBoolPtr(resizeOK),
 	}
 }
 

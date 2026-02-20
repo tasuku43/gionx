@@ -259,7 +259,7 @@ func proxyAgentAttachIO(root string, sessionID string, clientID string, conn *ne
 		defer writeAttachTerminalRestore(out)
 	}
 
-	stopResizeWatcher := startAttachResizeWatcher(root, sessionID, clientID, in, out, resizeOK)
+	stopResizeWatcher := startAttachResizeWatcher(root, sessionID, clientID, in, out, false)
 	defer stopResizeWatcher()
 
 	readErrCh := make(chan error, 1)
@@ -270,7 +270,7 @@ func proxyAgentAttachIO(root string, sessionID string, clientID string, conn *ne
 
 	inputResCh := make(chan attachInputResult, 1)
 	go func() {
-		inputResCh <- forwardAttachInput(conn, in, mode.localDetach, inputOK)
+		inputResCh <- forwardAttachInput(conn, in, mode.localDetach, inputOK, root, sessionID, clientID)
 	}()
 
 	var sigintCh chan os.Signal
@@ -312,7 +312,7 @@ type attachInputResult struct {
 	err      error
 }
 
-func forwardAttachInput(conn *net.UnixConn, in io.Reader, localDetach bool, forward bool) attachInputResult {
+func forwardAttachInput(conn *net.UnixConn, in io.Reader, localDetach bool, forward bool, root string, sessionID string, clientID string) attachInputResult {
 	buf := make([]byte, 4096)
 	for {
 		n, err := in.Read(buf)
@@ -330,6 +330,12 @@ func forwardAttachInput(conn *net.UnixConn, in io.Reader, localDetach bool, forw
 						}
 					}
 					return attachInputResult{detached: true}
+				}
+			}
+			if start < len(chunk) && !forward {
+				inputOK, _, claimErr := claimControlWithAgentBroker(root, sessionID, clientID)
+				if claimErr == nil && inputOK {
+					forward = true
 				}
 			}
 			if start < len(chunk) && forward {
