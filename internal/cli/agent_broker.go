@@ -68,6 +68,8 @@ type agentBrokerRequest struct {
 	SessionID   string `json:"session_id,omitempty"`
 	ForceRedraw bool   `json:"force_redraw,omitempty"`
 	Input       string `json:"input,omitempty"`
+	ClientID    string `json:"client_id,omitempty"`
+	AttachMode  string `json:"attach_mode,omitempty"`
 }
 
 type agentBrokerResponse struct {
@@ -77,11 +79,14 @@ type agentBrokerResponse struct {
 	SessionID string                      `json:"session_id,omitempty"`
 	PID       int                         `json:"pid,omitempty"`
 	Sessions  []agentRuntimeSessionRecord `json:"sessions,omitempty"`
+	InputOK   *bool                       `json:"input_ok,omitempty"`
+	ResizeOK  *bool                       `json:"resize_ok,omitempty"`
 }
 
 type agentBrokerAttachment struct {
-	conn   *net.UnixConn
-	paused bool
+	conn     *net.UnixConn
+	paused   bool
+	clientID string
 }
 
 type agentBrokerAttachmentTarget struct {
@@ -90,16 +95,18 @@ type agentBrokerAttachmentTarget struct {
 }
 
 type agentBrokerSession struct {
-	mu            sync.Mutex
-	cmd           *exec.Cmd
-	ptmx          *os.File
-	record        agentRuntimeSessionRecord
-	attachments   map[string]*agentBrokerAttachment
-	outputHistory []byte
-	nextAttachID  int64
-	seqParser     *agentTerminalSequenceParser
-	lastWriteAt   time.Time
-	lastOutputAt  time.Time
+	mu                  sync.Mutex
+	cmd                 *exec.Cmd
+	ptmx                *os.File
+	record              agentRuntimeSessionRecord
+	attachments         map[string]*agentBrokerAttachment
+	outputHistory       []byte
+	nextAttachID        int64
+	inputOwnerClientID  string
+	resizeOwnerClientID string
+	seqParser           *agentTerminalSequenceParser
+	lastWriteAt         time.Time
+	lastOutputAt        time.Time
 }
 
 func (s *agentBrokerSession) snapshot() agentRuntimeSessionRecord {
@@ -116,7 +123,7 @@ func (s *agentBrokerSession) update(mut func(*agentRuntimeSessionRecord)) {
 	_ = saveAgentRuntimeSession(record)
 }
 
-func (s *agentBrokerSession) addAttachment(conn *net.UnixConn, paused bool) string {
+func (s *agentBrokerSession) addAttachment(conn *net.UnixConn, paused bool, clientID string) string {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if s.attachments == nil {
@@ -125,10 +132,60 @@ func (s *agentBrokerSession) addAttachment(conn *net.UnixConn, paused bool) stri
 	s.nextAttachID++
 	attachID := fmt.Sprintf("a-%d", s.nextAttachID)
 	s.attachments[attachID] = &agentBrokerAttachment{
-		conn:   conn,
-		paused: paused,
+		conn:     conn,
+		paused:   paused,
+		clientID: strings.TrimSpace(clientID),
 	}
 	return attachID
+}
+
+func (s *agentBrokerSession) acquireControl(clientID string, mode string) (bool, bool) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	clientID = strings.TrimSpace(clientID)
+	mode = strings.TrimSpace(strings.ToLower(mode))
+	if mode == "" {
+		mode = "interactive"
+	}
+	if mode != "interactive" {
+		return false, false
+	}
+	if clientID == "" {
+		return false, false
+	}
+	if s.inputOwnerClientID == "" || !s.hasAttachedClientLocked(s.inputOwnerClientID) {
+		s.inputOwnerClientID = clientID
+	}
+	if s.resizeOwnerClientID == "" || !s.hasAttachedClientLocked(s.resizeOwnerClientID) {
+		s.resizeOwnerClientID = clientID
+	}
+	return s.inputOwnerClientID == clientID, s.resizeOwnerClientID == clientID
+}
+
+func (s *agentBrokerSession) canResize(clientID string) bool {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	clientID = strings.TrimSpace(clientID)
+	if clientID == "" {
+		return false
+	}
+	return s.resizeOwnerClientID == clientID
+}
+
+func (s *agentBrokerSession) hasAttachedClientLocked(clientID string) bool {
+	clientID = strings.TrimSpace(clientID)
+	if clientID == "" {
+		return false
+	}
+	for _, attachment := range s.attachments {
+		if attachment == nil {
+			continue
+		}
+		if strings.TrimSpace(attachment.clientID) == clientID {
+			return true
+		}
+	}
+	return false
 }
 
 func (s *agentBrokerSession) replayOutputHistory(attachID string) error {
@@ -248,6 +305,17 @@ func (s *agentBrokerSession) removeAttachment(attachID string) {
 	s.mu.Lock()
 	attachment := s.attachments[attachID]
 	delete(s.attachments, attachID)
+	if attachment != nil {
+		clientID := strings.TrimSpace(attachment.clientID)
+		if clientID != "" {
+			if s.inputOwnerClientID == clientID && !s.hasAttachedClientLocked(clientID) {
+				s.inputOwnerClientID = ""
+			}
+			if s.resizeOwnerClientID == clientID && !s.hasAttachedClientLocked(clientID) {
+				s.resizeOwnerClientID = ""
+			}
+		}
+	}
 	s.mu.Unlock()
 	if attachment != nil && attachment.conn != nil {
 		_ = attachment.conn.Close()
@@ -800,6 +868,9 @@ func (s *agentBrokerServer) handleResizeRequest(req agentBrokerRequest) agentBro
 	if !ok {
 		return agentBrokerResponse{OK: false, Error: "session not found"}
 	}
+	if !session.canResize(req.ClientID) {
+		return agentBrokerResponse{OK: false, Error: "resize lease denied"}
+	}
 	applyPTYSize(session.ptmx, req.Cols, req.Rows)
 	return agentBrokerResponse{OK: true}
 }
@@ -843,27 +914,34 @@ func (s *agentBrokerServer) handleAttachRequest(conn *net.UnixConn, req agentBro
 	} else {
 		applyPTYSize(session.ptmx, req.Cols, req.Rows)
 	}
-	if err := json.NewEncoder(conn).Encode(agentBrokerResponse{OK: true, SessionID: sessionID}); err != nil {
+	clientID := strings.TrimSpace(req.ClientID)
+	inputOK, resizeOK := session.acquireControl(clientID, req.AttachMode)
+	if err := json.NewEncoder(conn).Encode(agentBrokerResponse{
+		OK:        true,
+		SessionID: sessionID,
+		InputOK:   leaseBoolPtr(inputOK),
+		ResizeOK:  leaseBoolPtr(resizeOK),
+	}); err != nil {
 		return
 	}
 
-	attachID := session.addAttachment(conn, true)
+	attachID := session.addAttachment(conn, true, clientID)
 	defer session.removeAttachment(attachID)
 	if err := session.replayOutputHistory(attachID); err != nil {
 		return
 	}
 
-	s.forwardAttachInputToSession(session, conn)
+	s.forwardAttachInputToSession(session, conn, inputOK)
 }
 
-func (s *agentBrokerServer) forwardAttachInputToSession(session *agentBrokerSession, conn *net.UnixConn) {
+func (s *agentBrokerServer) forwardAttachInputToSession(session *agentBrokerSession, conn *net.UnixConn, inputOK bool) {
 	if session == nil || conn == nil || session.ptmx == nil {
 		return
 	}
 	buf := make([]byte, 4096)
 	for {
 		n, err := conn.Read(buf)
-		if n > 0 {
+		if n > 0 && inputOK {
 			chunk := append([]byte(nil), buf[:n]...)
 			if werr := writeAllFile(session.ptmx, chunk); werr != nil {
 				return
@@ -946,54 +1024,73 @@ func (s *agentBrokerServer) waitSessionExit(session *agentBrokerSession) {
 	s.deleteSession(record.SessionID)
 }
 
-func attachSessionWithAgentBroker(root string, sessionID string, cols int, rows int, forceRedraw bool) (*net.UnixConn, error) {
+type agentBrokerAttachResult struct {
+	Conn     *net.UnixConn
+	ClientID string
+	InputOK  bool
+	ResizeOK bool
+}
+
+func attachSessionWithAgentBroker(root string, sessionID string, cols int, rows int, forceRedraw bool, clientID string, attachMode string) (agentBrokerAttachResult, error) {
 	socketPath, err := agentBrokerSocketPath(root)
 	if err != nil {
-		return nil, fmt.Errorf("resolve broker socket path: %w", err)
+		return agentBrokerAttachResult{}, fmt.Errorf("resolve broker socket path: %w", err)
 	}
 	rawConn, err := net.DialTimeout("unix", socketPath, agentBrokerDialTimeout)
 	if err != nil {
-		return nil, err
+		return agentBrokerAttachResult{}, err
 	}
 	conn, ok := rawConn.(*net.UnixConn)
 	if !ok {
 		_ = rawConn.Close()
-		return nil, errors.New("invalid broker connection type")
+		return agentBrokerAttachResult{}, errors.New("invalid broker connection type")
 	}
 	_ = conn.SetDeadline(time.Now().Add(3 * time.Second))
+	clientID = strings.TrimSpace(clientID)
+	if clientID == "" {
+		clientID = fmt.Sprintf("c-%d-%d", os.Getpid(), time.Now().UnixNano())
+	}
 	if err := json.NewEncoder(conn).Encode(agentBrokerRequest{
 		Action:      agentBrokerActionAttach,
 		SessionID:   strings.TrimSpace(sessionID),
 		Cols:        cols,
 		Rows:        rows,
 		ForceRedraw: forceRedraw,
+		ClientID:    clientID,
+		AttachMode:  strings.TrimSpace(attachMode),
 	}); err != nil {
 		_ = conn.Close()
-		return nil, fmt.Errorf("send broker attach request: %w", err)
+		return agentBrokerAttachResult{}, fmt.Errorf("send broker attach request: %w", err)
 	}
 	var resp agentBrokerResponse
 	if err := json.NewDecoder(conn).Decode(&resp); err != nil {
 		_ = conn.Close()
-		return nil, fmt.Errorf("decode broker attach response: %w", err)
+		return agentBrokerAttachResult{}, fmt.Errorf("decode broker attach response: %w", err)
 	}
 	if !resp.OK {
 		_ = conn.Close()
 		if strings.TrimSpace(resp.Error) == "" {
-			return nil, errors.New("broker attach request failed")
+			return agentBrokerAttachResult{}, errors.New("broker attach request failed")
 		}
-		return nil, errors.New(resp.Error)
+		return agentBrokerAttachResult{}, errors.New(resp.Error)
 	}
 	_ = conn.SetDeadline(time.Time{})
-	return conn, nil
+	return agentBrokerAttachResult{
+		Conn:     conn,
+		ClientID: clientID,
+		InputOK:  resolveAttachLeaseCompat(resp.InputOK),
+		ResizeOK: resolveAttachLeaseCompat(resp.ResizeOK),
+	}, nil
 }
 
-func resizeSessionWithAgentBroker(root string, sessionID string, cols int, rows int) error {
+func resizeSessionWithAgentBroker(root string, sessionID string, clientID string, cols int, rows int) error {
 	if cols <= 0 || rows <= 0 {
 		return nil
 	}
 	_, err := sendAgentBrokerRequest(root, agentBrokerRequest{
 		Action:    agentBrokerActionResize,
 		SessionID: strings.TrimSpace(sessionID),
+		ClientID:  strings.TrimSpace(clientID),
 		Cols:      cols,
 		Rows:      rows,
 	})
@@ -1028,4 +1125,16 @@ func applyPTYSizeForAttach(ptmx *os.File, cols int, rows int) {
 		})
 	}
 	applyPTYSize(ptmx, cols, rows)
+}
+
+func leaseBoolPtr(v bool) *bool {
+	return &v
+}
+
+func resolveAttachLeaseCompat(v *bool) bool {
+	// Legacy broker does not emit lease fields.
+	if v == nil {
+		return true
+	}
+	return *v
 }

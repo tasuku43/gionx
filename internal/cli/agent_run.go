@@ -157,17 +157,20 @@ func (c *CLI) runAgentRun(args []string) int {
 			fmt.Fprintln(c.Err, "--attach requires an interactive TTY")
 			return exitUsage
 		}
-		conn, err := attachSessionWithAgentBroker(
+		attachRes, err := attachSessionWithAgentBroker(
 			root,
 			sessionID,
 			terminalCols(c.In, c.Out),
 			terminalRows(c.In, c.Out),
 			false,
+			"",
+			"interactive",
 		)
 		if err != nil {
 			fmt.Fprintf(c.Err, "attach started session via broker: %v\n", err)
 			return exitError
 		}
+		conn := attachRes.Conn
 		defer func() { _ = conn.Close() }()
 		runAttachMode := agentAttachMode{
 			forceRedraw:   false,
@@ -178,7 +181,7 @@ func (c *CLI) runAgentRun(args []string) int {
 			fullscreen:    false,
 			localDetach:   false,
 		}
-		if err := proxyAgentAttachIO(root, sessionID, conn, c.In, c.Out, runAttachMode); err != nil {
+		if err := proxyAgentAttachIO(root, sessionID, attachRes.ClientID, conn, c.In, c.Out, runAttachMode, attachRes.InputOK, attachRes.ResizeOK); err != nil {
 			if errors.Is(err, errAgentAttachDetached) {
 				fmt.Fprintf(c.Out, "detached: session=%s\n", sessionID)
 				return exitOK

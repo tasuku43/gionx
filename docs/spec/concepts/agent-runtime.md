@@ -18,6 +18,7 @@ Define a runtime architecture for `kra agent` that:
 - broker model: per-`KRA_ROOT` local broker over Unix socket
 - launch model: detached by default; optional foreground via `run --attach`
 - connection model: multi-attach view is supported
+- lease model (phase 1): single input/resize owner + multi spectator attach
 - attach replay model: broker keeps per-session PTY output history in memory and replays it on attach before live relay
 - attach scope: workspace/repo context only (root/outside is error)
 - state model: snapshot JSON per session under `KRA_HOME`
@@ -161,6 +162,17 @@ sequenceDiagram
   - drain catch-up bytes produced during replay
   - switch attachment to live relay mode
 - this design avoids output gaps between replay and live stream for the attaching client
+
+## Attach Lease Model (implemented phase 1)
+
+- broker keeps one control lease per session:
+  - `input owner` (can send PTY input)
+  - `resize owner` (can apply PTY size updates)
+- first interactive attach acquires both leases
+- concurrent attaches are accepted as spectator:
+  - output stream is delivered
+  - input and resize are denied
+- when owner detaches, lease is released and next interactive attach can acquire it
 
 Notes:
 

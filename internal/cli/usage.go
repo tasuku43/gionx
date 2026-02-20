@@ -533,6 +533,7 @@ Resolution:
   - if --session is set, attach to the explicit session
   - if --session is omitted and stdin is TTY, select from current context scope
   - during attach stream, Ctrl-C detaches local terminal (session keeps running)
+  - broker allows only one interactive owner for input/resize; concurrent attach becomes spectator
   - attach scope:
     - workspaces/<id>/repos/<repo-key>/... => same workspace+repo
     - workspaces/<id>/... => same workspace

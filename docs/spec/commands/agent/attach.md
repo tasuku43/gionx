@@ -18,6 +18,9 @@ Attach current terminal to an existing broker-managed agent session.
   - connect broker socket for the root hash
   - broker replays buffered PTY output for selected session
   - after replay catch-up, switch to live attach stream for selected session PTY
+  - broker grants control lease to at most one attached client:
+    - lease owner: input + resize enabled
+    - non-owner: spectator (read-only stream, no input/resize)
 - Selection:
   - if `--session` is omitted and stdin is TTY, prompt session selection in scope
   - if `--session` is omitted in non-interactive mode, fail with usage error

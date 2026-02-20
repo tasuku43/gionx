@@ -102,20 +102,26 @@ func (c *CLI) runAgentAttachWithMode(args []string, mode agentAttachMode) int {
 		return exitError
 	}
 
-	conn, err := attachSessionWithAgentBroker(
+	attachRes, err := attachSessionWithAgentBroker(
 		root,
 		record.SessionID,
 		terminalCols(c.In, c.Out),
 		terminalRows(c.In, c.Out),
 		mode.forceRedraw,
+		"",
+		"interactive",
 	)
 	if err != nil {
 		fmt.Fprintf(c.Err, "attach session via broker: %v\n", err)
 		return exitError
 	}
+	conn := attachRes.Conn
 	defer func() { _ = conn.Close() }()
+	if !attachRes.InputOK {
+		fmt.Fprintln(c.Err, "note: attached as spectator (another client owns input/resize lease)")
+	}
 
-	if err := proxyAgentAttachIO(root, record.SessionID, conn, c.In, c.Out, mode); err != nil {
+	if err := proxyAgentAttachIO(root, record.SessionID, attachRes.ClientID, conn, c.In, c.Out, mode, attachRes.InputOK, attachRes.ResizeOK); err != nil {
 		if errors.Is(err, errAgentAttachDetached) {
 			fmt.Fprintf(c.Out, "detached: session=%s\n", record.SessionID)
 			return exitOK
@@ -223,7 +229,7 @@ func formatAgentAttachSelectorTitle(scope agentContextScope) string {
 	return fmt.Sprintf("Session to attach (workspace: %s repo:%s):", workspaceID, repoKey)
 }
 
-func proxyAgentAttachIO(root string, sessionID string, conn *net.UnixConn, in io.Reader, out io.Writer, mode agentAttachMode) error {
+func proxyAgentAttachIO(root string, sessionID string, clientID string, conn *net.UnixConn, in io.Reader, out io.Writer, mode agentAttachMode, inputOK bool, resizeOK bool) error {
 	if conn == nil {
 		return fmt.Errorf("broker connection is nil")
 	}
@@ -253,7 +259,7 @@ func proxyAgentAttachIO(root string, sessionID string, conn *net.UnixConn, in io
 		defer writeAttachTerminalRestore(out)
 	}
 
-	stopResizeWatcher := startAttachResizeWatcher(root, sessionID, in, out)
+	stopResizeWatcher := startAttachResizeWatcher(root, sessionID, clientID, in, out, resizeOK)
 	defer stopResizeWatcher()
 
 	readErrCh := make(chan error, 1)
@@ -264,7 +270,7 @@ func proxyAgentAttachIO(root string, sessionID string, conn *net.UnixConn, in io
 
 	inputResCh := make(chan attachInputResult, 1)
 	go func() {
-		inputResCh <- forwardAttachInput(conn, in, mode.localDetach)
+		inputResCh <- forwardAttachInput(conn, in, mode.localDetach, inputOK)
 	}()
 
 	var sigintCh chan os.Signal
@@ -306,7 +312,7 @@ type attachInputResult struct {
 	err      error
 }
 
-func forwardAttachInput(conn *net.UnixConn, in io.Reader, localDetach bool) attachInputResult {
+func forwardAttachInput(conn *net.UnixConn, in io.Reader, localDetach bool, forward bool) attachInputResult {
 	buf := make([]byte, 4096)
 	for {
 		n, err := in.Read(buf)
@@ -326,7 +332,7 @@ func forwardAttachInput(conn *net.UnixConn, in io.Reader, localDetach bool) atta
 					return attachInputResult{detached: true}
 				}
 			}
-			if start < len(chunk) {
+			if start < len(chunk) && forward {
 				if werr := writeAllUnixConn(conn, chunk[start:]); isAgentAttachIOError(werr) {
 					return attachInputResult{err: werr}
 				}
@@ -352,7 +358,10 @@ func writeAllUnixConn(conn *net.UnixConn, b []byte) error {
 	return nil
 }
 
-func startAttachResizeWatcher(root string, sessionID string, in io.Reader, out io.Writer) func() {
+func startAttachResizeWatcher(root string, sessionID string, clientID string, in io.Reader, out io.Writer, resizeOK bool) func() {
+	if !resizeOK {
+		return func() {}
+	}
 	if strings.TrimSpace(root) == "" || strings.TrimSpace(sessionID) == "" {
 		return func() {}
 	}
@@ -361,7 +370,7 @@ func startAttachResizeWatcher(root string, sessionID string, in io.Reader, out i
 	}
 	cols, rows := terminalSize(in, out)
 	if cols > 0 && rows > 0 {
-		_ = resizeSessionWithAgentBroker(root, sessionID, cols, rows)
+		_ = resizeSessionWithAgentBroker(root, sessionID, clientID, cols, rows)
 	}
 
 	sigch := make(chan os.Signal, 1)
@@ -375,7 +384,7 @@ func startAttachResizeWatcher(root string, sessionID string, in io.Reader, out i
 			case <-sigch:
 				cols, rows := terminalSize(in, out)
 				if cols > 0 && rows > 0 {
-					_ = resizeSessionWithAgentBroker(root, sessionID, cols, rows)
+					_ = resizeSessionWithAgentBroker(root, sessionID, clientID, cols, rows)
 				}
 			}
 		}

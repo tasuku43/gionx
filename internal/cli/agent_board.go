@@ -414,10 +414,11 @@ func sendPromptAsKeystrokes(root string, sessionID string, prompt string) error 
 }
 
 func sendPromptViaAttachFallback(root string, sessionID string, prompt string) error {
-	conn, err := attachSessionWithAgentBroker(root, sessionID, 0, 0, false)
+	attachRes, err := attachSessionWithAgentBroker(root, sessionID, 0, 0, false, "", "interactive")
 	if err != nil {
 		return fmt.Errorf("attach fallback failed: %w", err)
 	}
+	conn := attachRes.Conn
 	defer func() { _ = conn.Close() }()
 	done := make(chan struct{})
 	go func() {

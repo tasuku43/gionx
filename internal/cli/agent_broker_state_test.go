@@ -104,3 +104,61 @@ func TestAgentBrokerSessionMarkIdleOnSilence_DoesNotChangeWaitingInput(t *testin
 		t.Fatalf("waiting_input should not be downgraded to idle by silence timeout")
 	}
 }
+
+func TestAgentBrokerSessionAcquireControl_FirstOwnerThenSpectator(t *testing.T) {
+	session := &agentBrokerSession{
+		attachments: map[string]*agentBrokerAttachment{
+			"a-1": {clientID: "c-1"},
+			"a-2": {clientID: "c-2"},
+		},
+	}
+
+	inputOK1, resizeOK1 := session.acquireControl("c-1", "interactive")
+	if !inputOK1 || !resizeOK1 {
+		t.Fatalf("first interactive client should own input/resize lease")
+	}
+	inputOK2, resizeOK2 := session.acquireControl("c-2", "interactive")
+	if inputOK2 || resizeOK2 {
+		t.Fatalf("second interactive client should be spectator while first owner is attached")
+	}
+}
+
+func TestAgentBrokerSessionAcquireControl_SpectatorModeNeverOwns(t *testing.T) {
+	session := &agentBrokerSession{
+		attachments: map[string]*agentBrokerAttachment{
+			"a-1": {clientID: "c-1"},
+		},
+	}
+	inputOK, resizeOK := session.acquireControl("c-1", "spectator")
+	if inputOK || resizeOK {
+		t.Fatalf("spectator mode should never acquire input/resize lease")
+	}
+}
+
+func TestAgentBrokerHandleResizeRequest_DeniesNonOwner(t *testing.T) {
+	session := &agentBrokerSession{
+		record: agentRuntimeSessionRecord{SessionID: "s-1"},
+		attachments: map[string]*agentBrokerAttachment{
+			"a-1": {clientID: "c-owner"},
+			"a-2": {clientID: "c-other"},
+		},
+		inputOwnerClientID:  "c-owner",
+		resizeOwnerClientID: "c-owner",
+	}
+	server := &agentBrokerServer{
+		sessions: map[string]*agentBrokerSession{"s-1": session},
+	}
+
+	resp := server.handleResizeRequest(agentBrokerRequest{
+		SessionID: "s-1",
+		ClientID:  "c-other",
+		Cols:      120,
+		Rows:      40,
+	})
+	if resp.OK {
+		t.Fatalf("non-owner resize should be denied")
+	}
+	if resp.Error != "resize lease denied" {
+		t.Fatalf("error=%q, want=resize lease denied", resp.Error)
+	}
+}
