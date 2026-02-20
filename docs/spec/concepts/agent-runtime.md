@@ -174,6 +174,16 @@ sequenceDiagram
   - input and resize are denied
 - when owner detaches, lease is released and next interactive attach can acquire it
 
+## Screen Snapshot Model (implemented foundation)
+
+- broker keeps an in-memory plain-text screen buffer per session
+  from PTY output (control sequence sanitized, line-buffered tail)
+- broker provides `screen_snapshot` RPC:
+  - input: `session_id`, optional `rows`
+  - output: `screen_seq`, `screen_at`, `screen`
+- current snapshot model is a foundation for manager-side read-only rendering
+  and is not yet a full VT-compatible frame model
+
 Notes:
 
 - replay source is memory owned by broker process (not persisted to disk)

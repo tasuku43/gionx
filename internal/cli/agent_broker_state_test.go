@@ -162,3 +162,47 @@ func TestAgentBrokerHandleResizeRequest_DeniesNonOwner(t *testing.T) {
 		t.Fatalf("error=%q, want=resize lease denied", resp.Error)
 	}
 }
+
+func TestAgentBrokerSessionScreenSnapshot_TracksLatestLines(t *testing.T) {
+	now := time.Unix(600, 0)
+	session := &agentBrokerSession{
+		record:    agentRuntimeSessionRecord{SessionID: "s-1", RuntimeState: "running"},
+		seqParser: newAgentTerminalSequenceParser(),
+	}
+
+	payload := []byte("line1\nline2\nline3\n")
+	_, _, _ = session.appendOutputAndSnapshotWritable(payload, now)
+	seq, at, screen := session.screenSnapshot(2)
+	if seq == 0 {
+		t.Fatalf("screen seq should increase after output")
+	}
+	if at != now.Unix() {
+		t.Fatalf("screen_at=%d, want=%d", at, now.Unix())
+	}
+	if screen != "line2\nline3" {
+		t.Fatalf("screen=%q, want=%q", screen, "line2\nline3")
+	}
+}
+
+func TestAgentBrokerHandleScreenSnapshotRequest(t *testing.T) {
+	session := &agentBrokerSession{
+		record:      agentRuntimeSessionRecord{SessionID: "s-1", RuntimeState: "running"},
+		screenSeq:   3,
+		screenAt:    1000,
+		screenLines: []string{"a", "b", "c"},
+	}
+	server := &agentBrokerServer{
+		sessions: map[string]*agentBrokerSession{"s-1": session},
+	}
+
+	resp := server.handleScreenSnapshotRequest(agentBrokerRequest{SessionID: "s-1", Rows: 2})
+	if !resp.OK {
+		t.Fatalf("screen snapshot should succeed: error=%q", resp.Error)
+	}
+	if resp.ScreenSeq != 3 || resp.ScreenAt != 1000 {
+		t.Fatalf("unexpected screen metadata: seq=%d at=%d", resp.ScreenSeq, resp.ScreenAt)
+	}
+	if resp.Screen != "b\nc" {
+		t.Fatalf("screen=%q, want=%q", resp.Screen, "b\nc")
+	}
+}

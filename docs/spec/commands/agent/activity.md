@@ -19,6 +19,7 @@ Provide runtime visibility for agent sessions across workspaces with state files
   - `kra agent board`
   - internal transport primitive:
     - broker attach stream RPC (used by `attach`/`board`)
+    - broker `screen_snapshot` RPC (manager-side read model foundation)
 - Discoverability policy:
   - `kra agent` is executable directly
   - root help intentionally does not list `agent`

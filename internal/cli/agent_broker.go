@@ -29,6 +29,7 @@ const (
 	agentBrokerActionResize = "resize"
 	agentBrokerActionList   = "sessions"
 	agentBrokerActionInput  = "input"
+	agentBrokerActionScreen = "screen_snapshot"
 
 	agentBrokerDialTimeout       = 300 * time.Millisecond
 	agentBrokerStartupTimeout    = 4 * time.Second
@@ -37,6 +38,7 @@ const (
 	agentRuntimeWriteInterval    = 1 * time.Second
 	agentRuntimeIdleAfterSilence = 3 * time.Second
 	agentBrokerEmbeddedEnvKey    = "KRA_AGENT_BROKER_EMBEDDED"
+	agentScreenStateMaxLines     = 2000
 )
 
 type agentBrokerStartRequest struct {
@@ -81,6 +83,9 @@ type agentBrokerResponse struct {
 	Sessions  []agentRuntimeSessionRecord `json:"sessions,omitempty"`
 	InputOK   *bool                       `json:"input_ok,omitempty"`
 	ResizeOK  *bool                       `json:"resize_ok,omitempty"`
+	ScreenSeq int64                       `json:"screen_seq,omitempty"`
+	ScreenAt  int64                       `json:"screen_at,omitempty"`
+	Screen    string                      `json:"screen,omitempty"`
 }
 
 type agentBrokerAttachment struct {
@@ -107,6 +112,10 @@ type agentBrokerSession struct {
 	seqParser           *agentTerminalSequenceParser
 	lastWriteAt         time.Time
 	lastOutputAt        time.Time
+	screenSeq           int64
+	screenLines         []string
+	screenPartial       string
+	screenAt            int64
 }
 
 func (s *agentBrokerSession) snapshot() agentRuntimeSessionRecord {
@@ -238,6 +247,7 @@ func (s *agentBrokerSession) appendOutputAndSnapshotWritable(payload []byte, now
 	if len(payload) > 0 {
 		s.lastOutputAt = now
 		s.outputHistory = append(s.outputHistory, payload...)
+		s.updateScreenLocked(payload, now.Unix())
 		currentState := s.record.RuntimeState
 		nextState := currentState
 		if currentState != "exited" && currentState != "running" {
@@ -275,6 +285,40 @@ func (s *agentBrokerSession) appendOutputAndSnapshotWritable(payload []byte, now
 	}
 	s.mu.Unlock()
 	return out, snapshot, signalEvents
+}
+
+func (s *agentBrokerSession) updateScreenLocked(payload []byte, at int64) {
+	text := sanitizeTerminalOutput(payload)
+	if text == "" {
+		return
+	}
+	full := s.screenPartial + text
+	parts := strings.Split(full, "\n")
+	s.screenPartial = parts[len(parts)-1]
+	if len(parts) > 1 {
+		s.screenLines = append(s.screenLines, parts[:len(parts)-1]...)
+		if len(s.screenLines) > agentScreenStateMaxLines {
+			s.screenLines = append([]string(nil), s.screenLines[len(s.screenLines)-agentScreenStateMaxLines:]...)
+		}
+	}
+	s.screenSeq++
+	s.screenAt = at
+}
+
+func (s *agentBrokerSession) screenSnapshot(rows int) (int64, int64, string) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if rows <= 0 {
+		rows = 40
+	}
+	lines := append([]string(nil), s.screenLines...)
+	if strings.TrimSpace(s.screenPartial) != "" {
+		lines = append(lines, s.screenPartial)
+	}
+	if len(lines) > rows {
+		lines = lines[len(lines)-rows:]
+	}
+	return s.screenSeq, s.screenAt, strings.Join(lines, "\n")
 }
 
 func (s *agentBrokerSession) markIdleOnSilence(now time.Time) *agentRuntimeSessionRecord {
@@ -605,6 +649,30 @@ func sendInputToAgentBroker(root string, sessionID string, input string) error {
 	return err
 }
 
+type agentScreenSnapshot struct {
+	SessionID string
+	Seq       int64
+	At        int64
+	Screen    string
+}
+
+func getAgentScreenSnapshotViaBroker(root string, sessionID string, rows int) (agentScreenSnapshot, error) {
+	resp, err := sendAgentBrokerRequest(root, agentBrokerRequest{
+		Action:    agentBrokerActionScreen,
+		SessionID: strings.TrimSpace(sessionID),
+		Rows:      rows,
+	})
+	if err != nil {
+		return agentScreenSnapshot{}, err
+	}
+	return agentScreenSnapshot{
+		SessionID: strings.TrimSpace(resp.SessionID),
+		Seq:       resp.ScreenSeq,
+		At:        resp.ScreenAt,
+		Screen:    resp.Screen,
+	}, nil
+}
+
 func listAgentRuntimeSessionsViaBroker(root string) ([]agentRuntimeSessionRecord, error) {
 	resp, err := sendAgentBrokerRequest(root, agentBrokerRequest{Action: agentBrokerActionList})
 	if err != nil {
@@ -737,6 +805,8 @@ func (s *agentBrokerServer) handleRequest(req agentBrokerRequest) agentBrokerRes
 		return s.handleListRequest()
 	case agentBrokerActionInput:
 		return s.handleInputRequest(req)
+	case agentBrokerActionScreen:
+		return s.handleScreenSnapshotRequest(req)
 	case agentBrokerActionAttach:
 		return agentBrokerResponse{OK: false, Error: "attach action requires stream handler"}
 	default:
@@ -896,6 +966,25 @@ func (s *agentBrokerServer) handleInputRequest(req agentBrokerRequest) agentBrok
 		return agentBrokerResponse{OK: false, Error: fmt.Sprintf("write input to pty: %v", err)}
 	}
 	return agentBrokerResponse{OK: true}
+}
+
+func (s *agentBrokerServer) handleScreenSnapshotRequest(req agentBrokerRequest) agentBrokerResponse {
+	sessionID := strings.TrimSpace(req.SessionID)
+	if sessionID == "" {
+		return agentBrokerResponse{OK: false, Error: "session_id is required"}
+	}
+	session, ok := s.getSession(sessionID)
+	if !ok {
+		return agentBrokerResponse{OK: false, Error: "session not found"}
+	}
+	seq, at, screen := session.screenSnapshot(req.Rows)
+	return agentBrokerResponse{
+		OK:        true,
+		SessionID: sessionID,
+		ScreenSeq: seq,
+		ScreenAt:  at,
+		Screen:    screen,
+	}
 }
 
 func (s *agentBrokerServer) handleAttachRequest(conn *net.UnixConn, req agentBrokerRequest) {
@@ -1137,4 +1226,48 @@ func resolveAttachLeaseCompat(v *bool) bool {
 		return true
 	}
 	return *v
+}
+
+func sanitizeTerminalOutput(payload []byte) string {
+	var out strings.Builder
+	for i := 0; i < len(payload); i++ {
+		c := payload[i]
+		if c == 0x1b { // ESC
+			if i+1 >= len(payload) {
+				continue
+			}
+			next := payload[i+1]
+			if next == '[' {
+				i += 2
+				for ; i < len(payload); i++ {
+					if payload[i] >= 0x40 && payload[i] <= 0x7e {
+						break
+					}
+				}
+				continue
+			}
+			if next == ']' {
+				i += 2
+				for ; i < len(payload); i++ {
+					if payload[i] == 0x07 {
+						break
+					}
+					if payload[i] == 0x1b && i+1 < len(payload) && payload[i+1] == '\\' {
+						i++
+						break
+					}
+				}
+				continue
+			}
+			continue
+		}
+		if c == '\r' {
+			continue
+		}
+		if c < 0x20 && c != '\n' && c != '\t' {
+			continue
+		}
+		out.WriteByte(c)
+	}
+	return out.String()
 }
