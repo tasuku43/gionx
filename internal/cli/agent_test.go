@@ -809,12 +809,12 @@ func TestCLI_AgentAttach_SubcommandAvailable(t *testing.T) {
 }
 
 func TestParseAgentAttachOptions_Renderer(t *testing.T) {
-	opts, err := parseAgentAttachOptions([]string{"--session", "s-1", "--renderer", "vterm"})
+	opts, err := parseAgentAttachOptions([]string{"--session", "s-1", "--renderer", "vt10x"})
 	if err != nil {
 		t.Fatalf("parseAgentAttachOptions error: %v", err)
 	}
-	if opts.renderer != "vterm" {
-		t.Fatalf("renderer=%q, want=vterm", opts.renderer)
+	if opts.renderer != "vt10x" {
+		t.Fatalf("renderer=%q, want=vt10x", opts.renderer)
 	}
 }
 

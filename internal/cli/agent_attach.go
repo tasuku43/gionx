@@ -31,12 +31,11 @@ type agentAttachMode struct {
 }
 
 var errAgentAttachDetached = errors.New("attach detached by user")
-var errAgentAttachRendererUnavailable = errors.New("attach renderer is not available in this build")
 
 const (
 	attachRendererRaw   = "raw"
 	attachRendererAuto  = "auto"
-	attachRendererVTerm = "vterm"
+	attachRendererVT10X = "vt10x"
 )
 
 var defaultAgentAttachMode = agentAttachMode{
@@ -130,11 +129,11 @@ func (c *CLI) runAgentAttachWithMode(args []string, mode agentAttachMode) int {
 		} else if errors.Is(err, errAgentAttachDetached) {
 			fmt.Fprintf(c.Out, "detached: session=%s\n", record.SessionID)
 			return exitOK
-		} else if renderer == attachRendererVTerm {
+		} else if renderer == attachRendererVT10X {
 			fmt.Fprintf(c.Err, "attach session stream: %v\n", err)
 			return exitError
-		} else if !errors.Is(err, errAgentAttachRendererUnavailable) {
-			fmt.Fprintf(c.Err, "warning: vterm renderer failed, fallback to raw stream: %v\n", err)
+		} else {
+			fmt.Fprintf(c.Err, "warning: vt10x renderer failed, fallback to raw stream: %v\n", err)
 		}
 	}
 
@@ -183,7 +182,7 @@ func parseAgentAttachOptions(args []string) (agentAttachOptions, error) {
 		return agentAttachOptions{}, fmt.Errorf("unexpected args for agent attach: %q", strings.Join(rest, " "))
 	}
 	switch normalizeAgentAttachRenderer(opts.renderer) {
-	case attachRendererAuto, attachRendererRaw, attachRendererVTerm:
+	case attachRendererAuto, attachRendererRaw, attachRendererVT10X:
 	default:
 		return agentAttachOptions{}, fmt.Errorf("unknown renderer for agent attach: %q", opts.renderer)
 	}
