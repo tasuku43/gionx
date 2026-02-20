@@ -1,6 +1,8 @@
 package cli
 
-import "testing"
+import (
+	"testing"
+)
 
 func TestFindAttachDetachTrigger_ControlByte(t *testing.T) {
 	i, n := findAttachDetachTrigger([]byte("abc\x1dxyz"))

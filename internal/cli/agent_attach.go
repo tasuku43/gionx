@@ -8,6 +8,7 @@ import (
 	"net"
 	"os"
 	"os/signal"
+	"strconv"
 	"strings"
 	"syscall"
 
@@ -121,6 +122,7 @@ func (c *CLI) runAgentAttachWithMode(args []string, mode agentAttachMode) int {
 	if !attachRes.InputOK {
 		fmt.Fprintln(c.Err, "note: attached as spectator (another client owns input/resize lease)")
 	}
+	fmt.Fprintln(c.Err, "hint: detach with Ctrl-]")
 
 	if err := proxyAgentAttachIO(root, record.SessionID, attachRes.ClientID, conn, c.In, c.Out, mode, attachRes.InputOK, attachRes.ResizeOK); err != nil {
 		if errors.Is(err, errAgentAttachDetached) {
@@ -313,15 +315,6 @@ type attachInputResult struct {
 	err      error
 }
 
-var attachDetachSequences = [][]byte{
-	{0x1d},                  // Ctrl-]
-	{0x1c},                  // Ctrl-\
-	[]byte("\x1b[93;5u"),    // kitty/CSI-u: Ctrl-]
-	[]byte("\x1b[92;5u"),    // kitty/CSI-u: Ctrl-\
-	[]byte("\x1b[27;5;93~"), // modifyOtherKeys: Ctrl-]
-	[]byte("\x1b[27;5;92~"), // modifyOtherKeys: Ctrl-\
-}
-
 func forwardAttachInput(conn *net.UnixConn, in io.Reader, localDetach bool, forward bool, root string, sessionID string, clientID string) attachInputResult {
 	buf := make([]byte, 4096)
 	pending := make([]byte, 0, 16)
@@ -371,44 +364,98 @@ func forwardAttachInput(conn *net.UnixConn, in io.Reader, localDetach bool, forw
 }
 
 func findAttachDetachTrigger(chunk []byte) (idx int, seqLen int) {
-	idx = -1
-	seqLen = 0
-	for _, seq := range attachDetachSequences {
-		if len(seq) == 0 || len(seq) > len(chunk) {
-			continue
-		}
-		i := bytes.Index(chunk, seq)
-		if i < 0 {
-			continue
-		}
-		if idx < 0 || i < idx {
-			idx = i
-			seqLen = len(seq)
-		}
-	}
-	return idx, seqLen
-}
-
-func trailingDetachPrefixLength(chunk []byte) int {
-	max := 0
-	for _, seq := range attachDetachSequences {
-		if len(seq) <= 1 {
-			continue
-		}
-		limit := len(seq) - 1
-		if limit > len(chunk) {
-			limit = len(chunk)
-		}
-		for n := limit; n > 0; n-- {
-			if bytes.Equal(chunk[len(chunk)-n:], seq[:n]) {
-				if n > max {
-					max = n
+	for i := 0; i < len(chunk); i++ {
+		switch chunk[i] {
+		case 0x1d, 0x1c: // Ctrl-], Ctrl-\
+			return i, 1
+		case 0x1b:
+			if i+1 >= len(chunk) || chunk[i+1] != '[' {
+				continue
+			}
+			j := i + 2
+			for ; j < len(chunk) && j-i <= 48; j++ {
+				c := chunk[j]
+				if (c >= '0' && c <= '9') || c == ';' || c == ':' {
+					continue
+				}
+				if c == 'u' || c == '~' {
+					seq := chunk[i : j+1]
+					if isDetachCSISequence(seq) {
+						return i, len(seq)
+					}
 				}
 				break
 			}
 		}
 	}
+	return -1, 0
+}
+
+func trailingDetachPrefixLength(chunk []byte) int {
+	if len(chunk) == 0 {
+		return 0
+	}
+	max := 0
+	for n := 1; n <= len(chunk) && n <= 48; n++ {
+		suffix := chunk[len(chunk)-n:]
+		if !bytes.HasPrefix(suffix, []byte{0x1b}) {
+			continue
+		}
+		if n == 1 {
+			max = 1
+			continue
+		}
+		if suffix[1] != '[' {
+			continue
+		}
+		valid := true
+		for i := 2; i < len(suffix); i++ {
+			c := suffix[i]
+			if !((c >= '0' && c <= '9') || c == ';' || c == ':') {
+				valid = false
+				break
+			}
+		}
+		if valid && n > max {
+			max = n
+		}
+	}
 	return max
+}
+
+func isDetachCSISequence(seq []byte) bool {
+	if len(seq) < 4 || seq[0] != 0x1b || seq[1] != '[' {
+		return false
+	}
+	final := seq[len(seq)-1]
+	if final != 'u' && final != '~' {
+		return false
+	}
+	body := string(seq[2 : len(seq)-1])
+	if body == "" {
+		return false
+	}
+	parts := strings.FieldsFunc(body, func(r rune) bool { return r == ';' || r == ':' })
+	if len(parts) == 0 {
+		return false
+	}
+	hasTargetKey := false
+	hasCtrlMod := false
+	for _, p := range parts {
+		n, convErr := strconv.Atoi(p)
+		if convErr != nil {
+			continue
+		}
+		switch n {
+		case 92, 93, 28, 29, 220, 221:
+			hasTargetKey = true
+		}
+		// common modifier values where Ctrl is included
+		if n >= 5 && n <= 8 {
+			hasCtrlMod = true
+		}
+	}
+	return hasTargetKey && hasCtrlMod
 }
 
 func writeAllUnixConn(conn *net.UnixConn, b []byte) error {
