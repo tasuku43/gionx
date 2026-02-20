@@ -333,7 +333,7 @@ func forwardAttachInput(conn *net.UnixConn, in io.Reader, localDetach bool, forw
 					}
 					return attachInputResult{detached: true}
 				}
-				hold := trailingDetachPrefixLength(chunk)
+				hold := trailingAttachControlPrefixLength(chunk)
 				if hold > 0 && hold < len(chunk) {
 					pending = append(pending[:0], chunk[len(chunk)-hold:]...)
 					chunk = chunk[:len(chunk)-hold]
@@ -341,6 +341,9 @@ func forwardAttachInput(conn *net.UnixConn, in io.Reader, localDetach bool, forw
 					pending = append(pending[:0], chunk...)
 					chunk = chunk[:0]
 				}
+			}
+			if len(chunk) > 0 {
+				chunk = translateAttachWheelToPaging(chunk)
 			}
 			if start < len(chunk) && !forward {
 				inputOK, _, claimErr := claimControlWithAgentBroker(root, sessionID, clientID)
@@ -391,7 +394,7 @@ func findAttachDetachTrigger(chunk []byte) (idx int, seqLen int) {
 	return -1, 0
 }
 
-func trailingDetachPrefixLength(chunk []byte) int {
+func trailingAttachControlPrefixLength(chunk []byte) int {
 	if len(chunk) == 0 {
 		return 0
 	}
@@ -411,7 +414,7 @@ func trailingDetachPrefixLength(chunk []byte) int {
 		valid := true
 		for i := 2; i < len(suffix); i++ {
 			c := suffix[i]
-			if !((c >= '0' && c <= '9') || c == ';' || c == ':') {
+			if !isAttachControlPrefixChar(c) {
 				valid = false
 				break
 			}
@@ -421,6 +424,88 @@ func trailingDetachPrefixLength(chunk []byte) int {
 		}
 	}
 	return max
+}
+
+func isAttachControlPrefixChar(c byte) bool {
+	if c >= '0' && c <= '9' {
+		return true
+	}
+	switch c {
+	case ';', ':', '<', '>', '?':
+		return true
+	default:
+		return false
+	}
+}
+
+func translateAttachWheelToPaging(chunk []byte) []byte {
+	if len(chunk) == 0 {
+		return chunk
+	}
+	out := make([]byte, 0, len(chunk))
+	for i := 0; i < len(chunk); {
+		if chunk[i] != 0x1b || i+2 >= len(chunk) || chunk[i+1] != '[' {
+			out = append(out, chunk[i])
+			i++
+			continue
+		}
+		// SGR mouse: ESC [ < Cb ; Cx ; Cy (M|m)
+		if chunk[i+2] == '<' {
+			j := i + 3
+			for j < len(chunk) && ((chunk[j] >= '0' && chunk[j] <= '9') || chunk[j] == ';') {
+				j++
+			}
+			if j < len(chunk) && (chunk[j] == 'M' || chunk[j] == 'm') {
+				first := firstNumberIn(chunk[i+3 : j])
+				if first == 64 {
+					out = append(out, []byte("\x1b[5~")...)
+					i = j + 1
+					continue
+				}
+				if first == 65 {
+					out = append(out, []byte("\x1b[6~")...)
+					i = j + 1
+					continue
+				}
+			}
+		}
+		// URXVT-style mouse: ESC [ Cb ; Cx ; Cy (M|m)
+		j := i + 2
+		for j < len(chunk) && ((chunk[j] >= '0' && chunk[j] <= '9') || chunk[j] == ';') {
+			j++
+		}
+		if j < len(chunk) && (chunk[j] == 'M' || chunk[j] == 'm') {
+			first := firstNumberIn(chunk[i+2 : j])
+			if first == 64 {
+				out = append(out, []byte("\x1b[5~")...)
+				i = j + 1
+				continue
+			}
+			if first == 65 {
+				out = append(out, []byte("\x1b[6~")...)
+				i = j + 1
+				continue
+			}
+		}
+		out = append(out, chunk[i])
+		i++
+	}
+	return out
+}
+
+func firstNumberIn(raw []byte) int {
+	if len(raw) == 0 {
+		return -1
+	}
+	parts := strings.Split(string(raw), ";")
+	if len(parts) == 0 {
+		return -1
+	}
+	n, err := strconv.Atoi(strings.TrimSpace(parts[0]))
+	if err != nil {
+		return -1
+	}
+	return n
 }
 
 func isDetachCSISequence(seq []byte) bool {

@@ -18,16 +18,44 @@ func TestFindAttachDetachTrigger_CSIU(t *testing.T) {
 	}
 }
 
-func TestTrailingDetachPrefixLength(t *testing.T) {
-	got := trailingDetachPrefixLength([]byte("ab\x1b[93;"))
+func TestTrailingAttachControlPrefixLength(t *testing.T) {
+	got := trailingAttachControlPrefixLength([]byte("ab\x1b[93;"))
 	if got != len("\x1b[93;") {
 		t.Fatalf("hold=%d, want=%d", got, len("\x1b[93;"))
 	}
 }
 
-func TestTrailingDetachPrefixLength_ZeroForNoPrefix(t *testing.T) {
-	got := trailingDetachPrefixLength([]byte("hello"))
+func TestTrailingAttachControlPrefixLength_WheelPrefix(t *testing.T) {
+	got := trailingAttachControlPrefixLength([]byte("ab\x1b[<64;10;"))
+	if got != len("\x1b[<64;10;") {
+		t.Fatalf("hold=%d, want=%d", got, len("\x1b[<64;10;"))
+	}
+}
+
+func TestTrailingAttachControlPrefixLength_ZeroForNoPrefix(t *testing.T) {
+	got := trailingAttachControlPrefixLength([]byte("hello"))
 	if got != 0 {
 		t.Fatalf("hold=%d, want=0", got)
+	}
+}
+
+func TestTranslateAttachWheelToPaging_SGR(t *testing.T) {
+	got := string(translateAttachWheelToPaging([]byte("\x1b[<64;10;20M\x1b[<65;10;21M")))
+	if got != "\x1b[5~\x1b[6~" {
+		t.Fatalf("translated=%q", got)
+	}
+}
+
+func TestTranslateAttachWheelToPaging_URXVT(t *testing.T) {
+	got := string(translateAttachWheelToPaging([]byte("\x1b[64;10;20M\x1b[65;10;21M")))
+	if got != "\x1b[5~\x1b[6~" {
+		t.Fatalf("translated=%q", got)
+	}
+}
+
+func TestTranslateAttachWheelToPaging_KeepOtherInput(t *testing.T) {
+	got := string(translateAttachWheelToPaging([]byte("abc\x1b[Adef")))
+	if got != "abc\x1b[Adef" {
+		t.Fatalf("translated=%q", got)
 	}
 }
