@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"bytes"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
@@ -354,6 +355,11 @@ type agentBrokerServer struct {
 	mu         sync.Mutex
 	lastActive time.Time
 	sessions   map[string]*agentBrokerSession
+
+	traceAttachInput bool
+	traceLogPath     string
+	traceLogFile     *os.File
+	traceMu          sync.Mutex
 }
 
 var (
@@ -362,11 +368,21 @@ var (
 )
 
 func newAgentBrokerServer(rootPath string) *agentBrokerServer {
-	return &agentBrokerServer{
+	server := &agentBrokerServer{
 		rootPath:   strings.TrimSpace(rootPath),
 		lastActive: time.Now(),
 		sessions:   map[string]*agentBrokerSession{},
 	}
+	if strings.TrimSpace(os.Getenv("KRA_AGENT_BROKER_TRACE_INPUT")) == "1" {
+		if path, err := agentBrokerTraceLogPath(rootPath); err == nil {
+			if f, openErr := os.OpenFile(path, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0o644); openErr == nil {
+				server.traceAttachInput = true
+				server.traceLogPath = path
+				server.traceLogFile = f
+			}
+		}
+	}
+	return server
 }
 
 func (s *agentBrokerServer) refreshSessionStates(now time.Time) {
@@ -446,6 +462,10 @@ func (c *CLI) runAgentBroker(args []string) int {
 	defer func() { _ = os.Remove(socketPath) }()
 
 	server := newAgentBrokerServer(root)
+	defer server.closeTraceLog()
+	if server.traceAttachInput && strings.TrimSpace(server.traceLogPath) != "" {
+		fmt.Fprintf(c.Err, "broker trace enabled: %s\n", server.traceLogPath)
+	}
 	done := make(chan struct{})
 	go func() {
 		ticker := time.NewTicker(1 * time.Second)
@@ -1030,18 +1050,20 @@ func (s *agentBrokerServer) handleAttachRequest(conn *net.UnixConn, req agentBro
 		return
 	}
 
-	s.forwardAttachInputToSession(session, conn, inputOK)
+	s.forwardAttachInputToSession(session, conn, inputOK, clientID)
 }
 
-func (s *agentBrokerServer) forwardAttachInputToSession(session *agentBrokerSession, conn *net.UnixConn, inputOK bool) {
+func (s *agentBrokerServer) forwardAttachInputToSession(session *agentBrokerSession, conn *net.UnixConn, inputOK bool, clientID string) {
 	if session == nil || conn == nil || session.ptmx == nil {
 		return
 	}
+	sessionID := strings.TrimSpace(session.record.SessionID)
 	buf := make([]byte, 4096)
 	for {
 		n, err := conn.Read(buf)
 		if n > 0 && inputOK {
 			chunk := append([]byte(nil), buf[:n]...)
+			s.traceAttachInputChunk(sessionID, clientID, chunk)
 			if werr := writeAllFile(session.ptmx, chunk); werr != nil {
 				return
 			}
@@ -1050,6 +1072,83 @@ func (s *agentBrokerServer) forwardAttachInputToSession(session *agentBrokerSess
 			return
 		}
 	}
+}
+
+func (s *agentBrokerServer) traceAttachInputChunk(sessionID string, clientID string, chunk []byte) {
+	if s == nil || !s.traceAttachInput || len(chunk) == 0 {
+		return
+	}
+	if !shouldTraceAttachChunk(chunk) {
+		return
+	}
+	ts := time.Now().UTC().Format(time.RFC3339Nano)
+	preview := truncateBytesForTrace(chunk, 96)
+	line := fmt.Sprintf(
+		"%s session=%s client=%s bytes=%d hex=%s raw=%q\n",
+		ts,
+		strings.TrimSpace(sessionID),
+		strings.TrimSpace(clientID),
+		len(chunk),
+		strings.ToUpper(hex.EncodeToString(preview)),
+		string(preview),
+	)
+	s.traceMu.Lock()
+	defer s.traceMu.Unlock()
+	if s.traceLogFile == nil {
+		return
+	}
+	_, _ = s.traceLogFile.WriteString(line)
+}
+
+func shouldTraceAttachChunk(chunk []byte) bool {
+	for _, b := range chunk {
+		if b == 0x1b {
+			return true
+		}
+		if b < 0x20 && b != '\n' && b != '\r' && b != '\t' {
+			return true
+		}
+	}
+	// Also capture likely mouse wheel prefixes explicitly.
+	if bytes.Contains(chunk, []byte("\x1b[<64;")) || bytes.Contains(chunk, []byte("\x1b[<65;")) {
+		return true
+	}
+	if bytes.Contains(chunk, []byte("\x1b[64;")) || bytes.Contains(chunk, []byte("\x1b[65;")) {
+		return true
+	}
+	return false
+}
+
+func truncateBytesForTrace(chunk []byte, limit int) []byte {
+	if limit <= 0 || len(chunk) <= limit {
+		return chunk
+	}
+	return chunk[:limit]
+}
+
+func (s *agentBrokerServer) closeTraceLog() {
+	if s == nil {
+		return
+	}
+	s.traceMu.Lock()
+	defer s.traceMu.Unlock()
+	if s.traceLogFile == nil {
+		return
+	}
+	_ = s.traceLogFile.Close()
+	s.traceLogFile = nil
+}
+
+func agentBrokerTraceLogPath(root string) (string, error) {
+	kraHome, err := paths.KraHomeDir()
+	if err != nil {
+		return "", fmt.Errorf("resolve KRA_HOME: %w", err)
+	}
+	dir := filepath.Join(kraHome, "state", "agents", hashRootPath(root))
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		return "", fmt.Errorf("create broker trace dir: %w", err)
+	}
+	return filepath.Join(dir, "broker-input-trace.log"), nil
 }
 
 func writeAllFile(file *os.File, b []byte) error {
