@@ -61,7 +61,7 @@ Backlog is managed by epic/prefix under `docs/backlog/*.md`.
 - [x] `docs/backlog/TEMPLATE-WS.md` (`4/4` done)
 - [x] `docs/backlog/OPS.md` (`14/14` done)
 - [x] `docs/backlog/PUBLIC.md` (`7/7` done)
-- [ ] `docs/backlog/PROVIDER.md` (`0/1` done)
+- [x] `docs/backlog/PROVIDER.md` (`1/1` done)
 - [x] `docs/backlog/WS-STATE.md` (`1/1` done)
 
 Update this section whenever any ticket checkbox changes.

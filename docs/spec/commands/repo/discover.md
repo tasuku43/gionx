@@ -28,6 +28,10 @@ Discover repositories from provider API and bulk-add selected repos into the sha
 - `--provider` is optional (default: `github`)
 - implementation uses provider interface + adapter separation
 - current adapter: GitHub via `gh` CLI
+- provider resolution is registry-based (not hardcoded switch-only):
+  - built-ins are registered in `internal/repodiscovery`
+  - future providers can be added via `RegisterProvider(name, factory)`
+- unsupported provider errors must include currently supported provider names
 
 ## Discovery behavior (github)
 
