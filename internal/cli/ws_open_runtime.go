@@ -26,7 +26,7 @@ type cmuxOpenClient interface {
 var newCMUXOpenClient = func() cmuxOpenClient { return cmuxctl.NewClient() }
 var newCMUXMapStore = func(root string) cmuxmap.Store { return cmuxmap.NewStore(root) }
 
-func (c *CLI) runCMUXOpen(args []string) int {
+func (c *CLI) runWSOpenRuntime(args []string) int {
 	outputFormat := "human"
 	multi := false
 	concurrency := 1
@@ -34,7 +34,7 @@ func (c *CLI) runCMUXOpen(args []string) int {
 	for len(args) > 0 && strings.HasPrefix(args[0], "-") {
 		switch args[0] {
 		case "-h", "--help", "help":
-			c.printCMUXOpenUsage(c.Out)
+			c.printWSOpenUsage(c.Out)
 			return exitOK
 		case "--multi":
 			multi = true
@@ -42,7 +42,7 @@ func (c *CLI) runCMUXOpen(args []string) int {
 		case "--format":
 			if len(args) < 2 {
 				fmt.Fprintln(c.Err, "--format requires a value")
-				c.printCMUXOpenUsage(c.Err)
+				c.printWSOpenUsage(c.Err)
 				return exitUsage
 			}
 			outputFormat = strings.TrimSpace(args[1])
@@ -50,13 +50,13 @@ func (c *CLI) runCMUXOpen(args []string) int {
 		case "--concurrency":
 			if len(args) < 2 {
 				fmt.Fprintln(c.Err, "--concurrency requires a value")
-				c.printCMUXOpenUsage(c.Err)
+				c.printWSOpenUsage(c.Err)
 				return exitUsage
 			}
 			n, perr := parseIntArg(strings.TrimSpace(args[1]), "--concurrency")
 			if perr != nil {
 				fmt.Fprintln(c.Err, perr.Error())
-				c.printCMUXOpenUsage(c.Err)
+				c.printWSOpenUsage(c.Err)
 				return exitUsage
 			}
 			concurrency = n
@@ -64,7 +64,7 @@ func (c *CLI) runCMUXOpen(args []string) int {
 		case "--workspace":
 			if len(args) < 2 {
 				fmt.Fprintln(c.Err, "--workspace requires a value")
-				c.printCMUXOpenUsage(c.Err)
+				c.printWSOpenUsage(c.Err)
 				return exitUsage
 			}
 			targetIDs = append(targetIDs, strings.TrimSpace(args[1]))
@@ -84,15 +84,15 @@ func (c *CLI) runCMUXOpen(args []string) int {
 				n, perr := parseIntArg(strings.TrimSpace(strings.TrimPrefix(args[0], "--concurrency=")), "--concurrency")
 				if perr != nil {
 					fmt.Fprintln(c.Err, perr.Error())
-					c.printCMUXOpenUsage(c.Err)
+					c.printWSOpenUsage(c.Err)
 					return exitUsage
 				}
 				concurrency = n
 				args = args[1:]
 				continue
 			}
-			fmt.Fprintf(c.Err, "unknown flag for cmux open: %q\n", args[0])
-			c.printCMUXOpenUsage(c.Err)
+			fmt.Fprintf(c.Err, "unknown flag for ws open: %q\n", args[0])
+			c.printWSOpenUsage(c.Err)
 			return exitUsage
 		}
 	}
@@ -100,12 +100,12 @@ func (c *CLI) runCMUXOpen(args []string) int {
 	case "human", "json":
 	default:
 		fmt.Fprintf(c.Err, "unsupported --format: %q (supported: human, json)\n", outputFormat)
-		c.printCMUXOpenUsage(c.Err)
+		c.printWSOpenUsage(c.Err)
 		return exitUsage
 	}
 	if len(args) > 1 {
-		fmt.Fprintf(c.Err, "unexpected args for cmux open: %q\n", strings.Join(args[1:], " "))
-		c.printCMUXOpenUsage(c.Err)
+		fmt.Fprintf(c.Err, "unexpected args for ws open: %q\n", strings.Join(args[1:], " "))
+		c.printWSOpenUsage(c.Err)
 		return exitUsage
 	}
 	if len(args) == 1 {
@@ -113,20 +113,20 @@ func (c *CLI) runCMUXOpen(args []string) int {
 	}
 	targetIDs = dedupeNonEmpty(targetIDs)
 	if concurrency < 1 {
-		return c.writeCMUXOpenError(outputFormat, "invalid_argument", "", "--concurrency must be >= 1", exitUsage)
+		return c.writeWSOpenError(outputFormat, "invalid_argument", "", "--concurrency must be >= 1", exitUsage)
 	}
 	if concurrency > 1 && !multi {
-		return c.writeCMUXOpenError(outputFormat, "invalid_argument", "", "--concurrency requires --multi", exitUsage)
+		return c.writeWSOpenError(outputFormat, "invalid_argument", "", "--concurrency requires --multi", exitUsage)
 	}
 	if !multi && len(targetIDs) > 1 {
-		return c.writeCMUXOpenError(outputFormat, "invalid_argument", "", "multiple targets require --multi", exitUsage)
+		return c.writeWSOpenError(outputFormat, "invalid_argument", "", "multiple targets require --multi", exitUsage)
 	}
 	if multi && len(targetIDs) == 0 && outputFormat == "json" {
-		return c.writeCMUXOpenError(outputFormat, "non_interactive_selection_required", "", "open --multi requires explicit targets in --format json mode", exitUsage)
+		return c.writeWSOpenError(outputFormat, "non_interactive_selection_required", "", "open --multi requires explicit targets in --format json mode", exitUsage)
 	}
 	for _, workspaceID := range targetIDs {
 		if err := validateWorkspaceID(workspaceID); err != nil {
-			return c.writeCMUXOpenError(outputFormat, "invalid_argument", workspaceID, fmt.Sprintf("invalid workspace id: %v", err), exitUsage)
+			return c.writeWSOpenError(outputFormat, "invalid_argument", workspaceID, fmt.Sprintf("invalid workspace id: %v", err), exitUsage)
 		}
 	}
 	workspaceHint := ""
@@ -136,55 +136,55 @@ func (c *CLI) runCMUXOpen(args []string) int {
 
 	wd, err := os.Getwd()
 	if err != nil {
-		return c.writeCMUXOpenError(outputFormat, "internal_error", workspaceHint, fmt.Sprintf("get working dir: %v", err), exitError)
+		return c.writeWSOpenError(outputFormat, "internal_error", workspaceHint, fmt.Sprintf("get working dir: %v", err), exitError)
 	}
 	root, err := paths.ResolveExistingRoot(wd)
 	if err != nil {
-		return c.writeCMUXOpenError(outputFormat, "internal_error", workspaceHint, fmt.Sprintf("resolve KRA_ROOT: %v", err), exitError)
+		return c.writeWSOpenError(outputFormat, "internal_error", workspaceHint, fmt.Sprintf("resolve KRA_ROOT: %v", err), exitError)
 	}
 
 	if len(targetIDs) == 0 {
 		if outputFormat == "json" {
-			return c.writeCMUXOpenError(outputFormat, "invalid_argument", "", "workspace id is required in --format json mode", exitUsage)
+			return c.writeWSOpenError(outputFormat, "invalid_argument", "", "workspace id is required in --format json mode", exitUsage)
 		}
-		selectedIDs, selErr := c.selectWorkspacesForCMUXOpen(root, multi)
+		selectedIDs, selErr := c.selectWorkspacesForWSOpen(root, multi)
 		if selErr != nil {
-			return c.writeCMUXOpenError(outputFormat, "workspace_not_found", "", selErr.Error(), exitError)
+			return c.writeWSOpenError(outputFormat, "workspace_not_found", "", selErr.Error(), exitError)
 		}
 		targetIDs = selectedIDs
 	}
 
 	targets := make([]appcmux.OpenTarget, 0, len(targetIDs))
-	preFailures := make([]cmuxOpenFailure, 0)
+	preFailures := make([]wsOpenFailure, 0)
 	for _, id := range targetIDs {
-		target, code, msg := resolveCMUXOpenTarget(root, id)
+		target, code, msg := resolveWSOpenTarget(root, id)
 		if code != "" {
 			if multi && concurrency > 1 {
-				preFailures = append(preFailures, cmuxOpenFailure{
+				preFailures = append(preFailures, wsOpenFailure{
 					WorkspaceID: id,
 					Code:        code,
 					Message:     msg,
 				})
 				continue
 			}
-			return c.writeCMUXOpenError(outputFormat, code, id, msg, exitError)
+			return c.writeWSOpenError(outputFormat, code, id, msg, exitError)
 		}
 		targets = append(targets, target)
 	}
 
 	svc := appcmux.NewService(func() appcmux.Client {
-		return cmuxOpenClientAdapter{inner: newCMUXOpenClient()}
+		return wsOpenClientAdapter{inner: newCMUXOpenClient()}
 	}, newCMUXMapStore)
 	openResult, code, msg := svc.Open(context.Background(), root, targets, concurrency, multi)
 	if code != "" {
 		if code == "cmux_capability_missing" {
-			return c.writeCMUXOpenCDFallback(outputFormat, workspaceHint, targets, multi, msg)
+			return c.writeWSOpenCDFallback(outputFormat, workspaceHint, targets, multi, msg)
 		}
-		return c.writeCMUXOpenError(outputFormat, code, workspaceHint, msg, exitError)
+		return c.writeWSOpenError(outputFormat, code, workspaceHint, msg, exitError)
 	}
-	results := make([]cmuxOpenResult, 0, len(openResult.Results))
+	results := make([]wsOpenResult, 0, len(openResult.Results))
 	for _, r := range openResult.Results {
-		results = append(results, cmuxOpenResult{
+		results = append(results, wsOpenResult{
 			WorkspaceID:     r.WorkspaceID,
 			WorkspacePath:   r.WorkspacePath,
 			CMUXWorkspaceID: r.CMUXWorkspaceID,
@@ -193,43 +193,43 @@ func (c *CLI) runCMUXOpen(args []string) int {
 			ReusedExisting:  r.ReusedExisting,
 		})
 	}
-	failures := make([]cmuxOpenFailure, 0, len(openResult.Failures))
+	failures := make([]wsOpenFailure, 0, len(openResult.Failures))
 	for _, f := range openResult.Failures {
-		failures = append(failures, cmuxOpenFailure{
+		failures = append(failures, wsOpenFailure{
 			WorkspaceID: f.WorkspaceID,
 			Code:        f.Code,
 			Message:     f.Message,
 		})
 	}
 	failures = append(failures, preFailures...)
-	return c.writeCMUXOpenResult(outputFormat, multi, results, failures)
+	return c.writeWSOpenResult(outputFormat, multi, results, failures)
 }
 
-func (c *CLI) writeCMUXOpenCDFallback(format string, workspaceHint string, targets []appcmux.OpenTarget, multi bool, reason string) int {
+func (c *CLI) writeWSOpenCDFallback(format string, workspaceHint string, targets []appcmux.OpenTarget, multi bool, reason string) int {
 	trimmedReason := strings.TrimSpace(reason)
 	if trimmedReason == "" {
-		trimmedReason = "cmux is not available"
+		trimmedReason = "workspace runtime is not available"
 	}
 	if len(targets) != 1 {
 		message := fmt.Sprintf("%s; directory fallback supports a single target only", trimmedReason)
-		return c.writeCMUXOpenError(format, "cmux_capability_missing", workspaceHint, message, exitError)
+		return c.writeWSOpenError(format, "cmux_capability_missing", workspaceHint, message, exitError)
 	}
 	target := targets[0]
 	if err := emitShellActionCD(target.WorkspacePath); err != nil {
-		return c.writeCMUXOpenError(format, "internal_error", target.WorkspaceID, fmt.Sprintf("write shell action: %v", err), exitError)
+		return c.writeWSOpenError(format, "internal_error", target.WorkspaceID, fmt.Sprintf("write shell action: %v", err), exitError)
 	}
 
 	if format == "json" {
 		_ = writeCLIJSON(c.Out, cliJSONResponse{
 			OK:          true,
-			Action:      "cmux.open",
+			Action:      "ws.open",
 			WorkspaceID: target.WorkspaceID,
 			Result: map[string]any{
 				"kra_workspace_id":   target.WorkspaceID,
 				"kra_workspace_path": target.WorkspacePath,
 				"mode":               "fallback-cd",
 				"cwd_synced":         true,
-				"cmux_available":     false,
+				"runtime_available":  false,
 				"fallback_reason":    trimmedReason,
 			},
 		})
@@ -251,7 +251,7 @@ func (c *CLI) writeCMUXOpenCDFallback(format string, workspaceHint string, targe
 	return exitOK
 }
 
-type cmuxOpenResult struct {
+type wsOpenResult struct {
 	WorkspaceID     string
 	WorkspacePath   string
 	CMUXWorkspaceID string
@@ -260,13 +260,13 @@ type cmuxOpenResult struct {
 	ReusedExisting  bool
 }
 
-type cmuxOpenFailure struct {
+type wsOpenFailure struct {
 	WorkspaceID string
 	Code        string
 	Message     string
 }
 
-func resolveCMUXOpenTarget(root string, workspaceID string) (appcmux.OpenTarget, string, string) {
+func resolveWSOpenTarget(root string, workspaceID string) (appcmux.OpenTarget, string, string) {
 	wsPath := filepath.Join(root, "workspaces", workspaceID)
 	fi, err := os.Stat(wsPath)
 	if err != nil || !fi.IsDir() {
@@ -283,13 +283,13 @@ func resolveCMUXOpenTarget(root string, workspaceID string) (appcmux.OpenTarget,
 	}, "", ""
 }
 
-func (c *CLI) writeCMUXOpenResult(format string, multi bool, results []cmuxOpenResult, failures []cmuxOpenFailure) int {
+func (c *CLI) writeWSOpenResult(format string, multi bool, results []wsOpenResult, failures []wsOpenFailure) int {
 	if format == "json" {
 		if !multi && len(results) == 1 && len(failures) == 0 {
 			result := results[0]
 			_ = writeCLIJSON(c.Out, cliJSONResponse{
 				OK:          true,
-				Action:      "cmux.open",
+				Action:      "ws.open",
 				WorkspaceID: result.WorkspaceID,
 				Result: map[string]any{
 					"kra_workspace_id":   result.WorkspaceID,
@@ -325,7 +325,7 @@ func (c *CLI) writeCMUXOpenResult(format string, multi bool, results []cmuxOpenR
 		}
 		payload := cliJSONResponse{
 			OK:     len(failures) == 0,
-			Action: "cmux.open",
+			Action: "ws.open",
 			Result: map[string]any{
 				"count":     len(successes) + len(failureItems),
 				"succeeded": len(successes),
@@ -353,7 +353,7 @@ func (c *CLI) writeCMUXOpenResult(format string, multi bool, results []cmuxOpenR
 			fmt.Sprintf("%s%s", uiIndent, styleSuccess("Opened 1 / 1", useColor)),
 			fmt.Sprintf("%s%s %s: %s", uiIndent, styleMuted("•", useColor), styleMuted("mode", useColor), map[bool]string{true: "switched", false: "created"}[result.ReusedExisting]),
 			fmt.Sprintf("%s%s %s: %s", uiIndent, styleMuted("•", useColor), styleAccent("kra", useColor), result.WorkspaceID),
-			fmt.Sprintf("%s%s %s: %s", uiIndent, styleMuted("•", useColor), styleAccent("cmux", useColor), result.CMUXWorkspaceID),
+			fmt.Sprintf("%s%s %s: %s", uiIndent, styleMuted("•", useColor), styleAccent("runtime", useColor), result.CMUXWorkspaceID),
 			fmt.Sprintf("%s%s %s: %s", uiIndent, styleMuted("•", useColor), styleMuted("title", useColor), result.Title),
 			fmt.Sprintf("%s%s %s: %s", uiIndent, styleMuted("•", useColor), styleMuted("cwd", useColor), result.WorkspacePath),
 		}
@@ -385,7 +385,7 @@ func (c *CLI) writeCMUXOpenResult(format string, multi bool, results []cmuxOpenR
 		trailingBlank:     true,
 	})
 	for _, fail := range failures {
-		fmt.Fprintf(c.Err, "cmux open (%s): %s\n", fail.WorkspaceID, fail.Message)
+		fmt.Fprintf(c.Err, "ws open (%s): %s\n", fail.WorkspaceID, fail.Message)
 	}
 	if len(failures) > 0 {
 		return exitError
@@ -428,7 +428,7 @@ func dedupeNonEmpty(ids []string) []string {
 	return out
 }
 
-func (c *CLI) selectWorkspacesForCMUXOpen(root string, multi bool) ([]string, error) {
+func (c *CLI) selectWorkspacesForWSOpen(root string, multi bool) ([]string, error) {
 	candidates, err := listWorkspaceCandidatesByStatus(context.Background(), root, "active")
 	if err != nil {
 		return nil, fmt.Errorf("list workspaces: %w", err)
@@ -448,48 +448,48 @@ func (c *CLI) selectWorkspacesForCMUXOpen(root string, multi bool) ([]string, er
 		return nil, err
 	}
 	if len(ids) != 1 {
-		return nil, fmt.Errorf("cmux open requires exactly one workspace selected")
+		return nil, fmt.Errorf("ws open requires exactly one workspace selected")
 	}
 	return []string{strings.TrimSpace(ids[0])}, nil
 }
 
-type cmuxOpenClientAdapter struct {
+type wsOpenClientAdapter struct {
 	inner cmuxOpenClient
 }
 
-func (a cmuxOpenClientAdapter) Capabilities(ctx context.Context) (cmuxctl.Capabilities, error) {
+func (a wsOpenClientAdapter) Capabilities(ctx context.Context) (cmuxctl.Capabilities, error) {
 	return a.inner.Capabilities(ctx)
 }
 
-func (a cmuxOpenClientAdapter) CreateWorkspaceWithCommand(ctx context.Context, command string) (string, error) {
+func (a wsOpenClientAdapter) CreateWorkspaceWithCommand(ctx context.Context, command string) (string, error) {
 	return a.inner.CreateWorkspaceWithCommand(ctx, command)
 }
 
-func (a cmuxOpenClientAdapter) RenameWorkspace(ctx context.Context, workspace string, title string) error {
+func (a wsOpenClientAdapter) RenameWorkspace(ctx context.Context, workspace string, title string) error {
 	return a.inner.RenameWorkspace(ctx, workspace, title)
 }
 
-func (a cmuxOpenClientAdapter) SelectWorkspace(ctx context.Context, workspace string) error {
+func (a wsOpenClientAdapter) SelectWorkspace(ctx context.Context, workspace string) error {
 	return a.inner.SelectWorkspace(ctx, workspace)
 }
 
-func (a cmuxOpenClientAdapter) SetStatus(ctx context.Context, workspace string, label string, text string, icon string, color string) error {
+func (a wsOpenClientAdapter) SetStatus(ctx context.Context, workspace string, label string, text string, icon string, color string) error {
 	return a.inner.SetStatus(ctx, workspace, label, text, icon, color)
 }
 
-func (a cmuxOpenClientAdapter) ListWorkspaces(context.Context) ([]cmuxctl.Workspace, error) {
+func (a wsOpenClientAdapter) ListWorkspaces(context.Context) ([]cmuxctl.Workspace, error) {
 	return nil, fmt.Errorf("unsupported")
 }
 
-func (a cmuxOpenClientAdapter) Identify(ctx context.Context, workspace string, surface string) (map[string]any, error) {
+func (a wsOpenClientAdapter) Identify(ctx context.Context, workspace string, surface string) (map[string]any, error) {
 	return a.inner.Identify(ctx, workspace, surface)
 }
 
-func (c *CLI) writeCMUXOpenError(format string, code string, workspaceID string, message string, exitCode int) int {
+func (c *CLI) writeWSOpenError(format string, code string, workspaceID string, message string, exitCode int) int {
 	if format == "json" {
 		_ = writeCLIJSON(c.Out, cliJSONResponse{
 			OK:          false,
-			Action:      "cmux.open",
+			Action:      "ws.open",
 			WorkspaceID: workspaceID,
 			Error: &cliJSONError{
 				Code:    code,
@@ -499,9 +499,9 @@ func (c *CLI) writeCMUXOpenError(format string, code string, workspaceID string,
 		return exitCode
 	}
 	if workspaceID != "" {
-		fmt.Fprintf(c.Err, "cmux open (%s): %s\n", workspaceID, message)
+		fmt.Fprintf(c.Err, "ws open (%s): %s\n", workspaceID, message)
 	} else {
-		fmt.Fprintf(c.Err, "cmux open: %s\n", message)
+		fmt.Fprintf(c.Err, "ws open: %s\n", message)
 	}
 	return exitCode
 }

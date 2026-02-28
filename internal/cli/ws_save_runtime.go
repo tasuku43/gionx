@@ -10,7 +10,7 @@ import (
 	"github.com/tasuku43/kra/internal/infra/paths"
 )
 
-func (c *CLI) runCMUXSave(args []string) int {
+func (c *CLI) runWSSaveRuntime(args []string) int {
 	outputFormat := "human"
 	workspaceID := ""
 	label := ""

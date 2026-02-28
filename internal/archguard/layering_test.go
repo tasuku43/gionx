@@ -50,7 +50,6 @@ func TestCLIDirectInfraImportsAreAllowlisted(t *testing.T) {
 	// Transitional guard:
 	// - All direct infra imports from CLI must be explicit and reviewable.
 	// - New files cannot start importing infra unless added here intentionally.
-	// - cmux commands are excluded because the command group is planned for removal.
 	allowed := map[string]struct{}{
 		"config.go":              {},
 		"config_bootstrap.go":    {},
@@ -79,11 +78,15 @@ func TestCLIDirectInfraImportsAreAllowlisted(t *testing.T) {
 		"ws_list.go":             {},
 		"ws_lock.go":             {},
 		"ws_open.go":             {},
+		"ws_open_runtime.go":     {},
 		"ws_purge.go":            {},
 		"ws_remove_repo.go":      {},
 		"ws_reopen.go":           {},
 		"ws_resume.go":           {},
+		"ws_resume_runtime.go":   {},
 		"ws_save.go":             {},
+		"ws_save_runtime.go":     {},
+		"ws_session_runtime.go":  {},
 	}
 
 	seen := map[string]struct{}{}
@@ -100,9 +103,6 @@ func TestCLIDirectInfraImportsAreAllowlisted(t *testing.T) {
 		}
 		name := filepath.Base(path)
 		if !strings.HasSuffix(name, ".go") || strings.HasSuffix(name, "_test.go") {
-			return nil
-		}
-		if strings.HasPrefix(name, "cmux_") {
 			return nil
 		}
 		file, parseErr := parser.ParseFile(fset, path, nil, parser.ImportsOnly)

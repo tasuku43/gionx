@@ -92,12 +92,12 @@ func (c *CLI) runWSOpen(args []string) int {
 		c.printWSOpenUsage(c.Err)
 		return exitUsage
 	}
-	return c.runCMUXOpen(passthrough)
+	return c.runWSOpenRuntime(passthrough)
 }
 
 func flagNeedsValue(arg string) bool {
 	switch arg {
-	case "--format", "--workspace", "--concurrency", "--cmux":
+	case "--format", "--workspace", "--concurrency":
 		return true
 	default:
 		return false

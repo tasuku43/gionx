@@ -148,7 +148,7 @@ func TestCLI_CMUX_Open_JSON_Success_PersistsMapping(t *testing.T) {
 	if uerr := json.Unmarshal(out.Bytes(), &resp); uerr != nil {
 		t.Fatalf("json unmarshal error: %v (out=%q)", uerr, out.String())
 	}
-	if !resp.OK || resp.Action != "cmux.open" || resp.WorkspaceID != "WS1" {
+	if !resp.OK || resp.Action != "ws.open" || resp.WorkspaceID != "WS1" {
 		t.Fatalf("unexpected json response: %+v", resp)
 	}
 	if fake.renameWorkspace != "CMUX-WS-1" {
@@ -218,16 +218,16 @@ func TestCLI_CMUX_Open_JSON_FallbacksToDirectoryWhenCapabilityMissing(t *testing
 	if uerr := json.Unmarshal(out.Bytes(), &resp); uerr != nil {
 		t.Fatalf("json unmarshal error: %v", uerr)
 	}
-	if !resp.OK || resp.Action != "cmux.open" || resp.WorkspaceID != "WS1" {
+	if !resp.OK || resp.Action != "ws.open" || resp.WorkspaceID != "WS1" {
 		t.Fatalf("unexpected json response: %+v", resp)
 	}
 	mode, _ := resp.Result["mode"].(string)
 	if mode != "fallback-cd" {
 		t.Fatalf("mode = %q, want %q (result=%+v)", mode, "fallback-cd", resp.Result)
 	}
-	cmuxAvailable, ok := resp.Result["cmux_available"].(bool)
-	if !ok || cmuxAvailable {
-		t.Fatalf("cmux_available = %v, want false", resp.Result["cmux_available"])
+	runtimeAvailable, ok := resp.Result["runtime_available"].(bool)
+	if !ok || runtimeAvailable {
+		t.Fatalf("runtime_available = %v, want false", resp.Result["runtime_available"])
 	}
 
 	action, readErr := os.ReadFile(actionFile)
@@ -382,7 +382,7 @@ func TestCLI_CMUX_Open_JSON_Multi_Success(t *testing.T) {
 	if uerr := json.Unmarshal(out.Bytes(), &resp); uerr != nil {
 		t.Fatalf("json unmarshal error: %v (out=%q)", uerr, out.String())
 	}
-	if !resp.OK || resp.Action != "cmux.open" || resp.Result.Count != 2 || len(resp.Result.Items) != 2 {
+	if !resp.OK || resp.Action != "ws.open" || resp.Result.Count != 2 || len(resp.Result.Items) != 2 {
 		t.Fatalf("unexpected json response: %+v", resp)
 	}
 
@@ -487,7 +487,7 @@ func TestCLI_CMUX_Open_JSON_MultiConcurrency_PartialFailure(t *testing.T) {
 	if uerr := json.Unmarshal(out.Bytes(), &resp); uerr != nil {
 		t.Fatalf("json unmarshal error: %v (out=%q)", uerr, out.String())
 	}
-	if resp.OK || resp.Action != "cmux.open" || resp.Error.Code != "partial_failure" {
+	if resp.OK || resp.Action != "ws.open" || resp.Error.Code != "partial_failure" {
 		t.Fatalf("unexpected json response: %+v", resp)
 	}
 	if resp.Result.Count != 2 || resp.Result.Succeeded != 1 || resp.Result.Failed != 1 {
@@ -635,7 +635,7 @@ func TestCLI_WS_Open_JSON_ReusesExistingMapping_AsSwitchFallback(t *testing.T) {
 	if uerr := json.Unmarshal(out.Bytes(), &resp); uerr != nil {
 		t.Fatalf("json unmarshal error: %v (out=%q)", uerr, out.String())
 	}
-	if !resp.OK || resp.Action != "cmux.open" || resp.Result.CMUXWorkspaceID != "CMUX-EXISTING" || !resp.Result.ReusedExisting {
+	if !resp.OK || resp.Action != "ws.open" || resp.Result.CMUXWorkspaceID != "CMUX-EXISTING" || !resp.Result.ReusedExisting {
 		t.Fatalf("unexpected response: %+v", resp)
 	}
 }
@@ -713,7 +713,7 @@ func TestCLI_WS_Open_JSON_RecreatesWhenMappedWorkspaceBecomesNotFoundOnSelect(t 
 	if uerr := json.Unmarshal(out.Bytes(), &resp); uerr != nil {
 		t.Fatalf("json unmarshal error: %v (out=%q)", uerr, out.String())
 	}
-	if !resp.OK || resp.Action != "cmux.open" || resp.Result.CMUXWorkspaceID != "CMUX-NEW" || resp.Result.ReusedExisting {
+	if !resp.OK || resp.Action != "ws.open" || resp.Result.CMUXWorkspaceID != "CMUX-NEW" || resp.Result.ReusedExisting {
 		t.Fatalf("unexpected response: %+v", resp)
 	}
 }

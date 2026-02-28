@@ -90,7 +90,7 @@ func (c *CLI) runWSSave(args []string) int {
 		c.printWSSaveUsage(c.Err)
 		return exitUsage
 	}
-	return c.runCMUXSave(passthrough)
+	return c.runWSSaveRuntime(passthrough)
 }
 
 func wsSaveFlagNeedsValue(arg string) bool {

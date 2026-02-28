@@ -90,7 +90,7 @@ func (c *CLI) runWSResume(args []string) int {
 		c.printWSResumeUsage(c.Err)
 		return exitUsage
 	}
-	return c.runCMUXResume(passthrough)
+	return c.runWSResumeRuntime(passthrough)
 }
 
 func wsResumeFlagNeedsValue(arg string) bool {

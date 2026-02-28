@@ -11,7 +11,7 @@ import (
 	"github.com/tasuku43/kra/internal/infra/paths"
 )
 
-func (c *CLI) runCMUXResume(args []string) int {
+func (c *CLI) runWSResumeRuntime(args []string) int {
 	outputFormat := "human"
 	workspaceID := ""
 	latest := false
