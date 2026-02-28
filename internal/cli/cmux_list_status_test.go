@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"testing"
 
 	"github.com/tasuku43/kra/internal/cmuxmap"
@@ -11,12 +12,22 @@ import (
 )
 
 type fakeCMUXStatusClient struct {
-	workspaces []cmuxctl.Workspace
-	err        error
+	workspaces  []cmuxctl.Workspace
+	err         error
+	identifyErr map[string]error
 }
 
 func (f *fakeCMUXStatusClient) ListWorkspaces(context.Context) ([]cmuxctl.Workspace, error) {
 	return f.workspaces, f.err
+}
+
+func (f *fakeCMUXStatusClient) Identify(_ context.Context, workspace string, _ string) (map[string]any, error) {
+	if f.identifyErr != nil {
+		if err, ok := f.identifyErr[workspace]; ok {
+			return nil, err
+		}
+	}
+	return map[string]any{"workspace_id": workspace}, nil
 }
 
 func TestCLI_CMUX_List_JSON_Success(t *testing.T) {
@@ -255,5 +266,58 @@ func TestCLI_CMUX_List_JSON_DoesNotPruneWhenRuntimeIsEmpty(t *testing.T) {
 	}
 	if len(after.Workspaces["WS1"].Entries) != 1 || after.Workspaces["WS1"].Entries[0].CMUXWorkspaceID != "CMUX-1" {
 		t.Fatalf("mapping should remain unchanged when runtime empty: %+v", after.Workspaces["WS1"].Entries)
+	}
+}
+
+func TestCLI_CMUX_List_JSON_PrunesByProbeWhenRuntimeIsEmpty(t *testing.T) {
+	root := prepareCurrentRootForTest(t)
+	store := cmuxmap.NewStore(root)
+	if err := store.Save(cmuxmap.File{
+		Version: cmuxmap.CurrentVersion,
+		Workspaces: map[string]cmuxmap.WorkspaceMapping{
+			"WS1": {
+				NextOrdinal: 3,
+				Entries: []cmuxmap.Entry{
+					{CMUXWorkspaceID: "CMUX-1", Ordinal: 1, TitleSnapshot: "WS1 | one [1]"},
+					{CMUXWorkspaceID: "CMUX-2", Ordinal: 2, TitleSnapshot: "WS1 | one [2]"},
+				},
+			},
+		},
+	}); err != nil {
+		t.Fatalf("save mapping: %v", err)
+	}
+	prev := newCMUXListClient
+	newCMUXListClient = func() cmuxListClient {
+		return &fakeCMUXStatusClient{
+			workspaces: []cmuxctl.Workspace{},
+			identifyErr: map[string]error{
+				"CMUX-2": errors.New("workspace not found"),
+			},
+		}
+	}
+	t.Cleanup(func() { newCMUXListClient = prev })
+
+	var out bytes.Buffer
+	var err bytes.Buffer
+	c := New(&out, &err)
+	code := c.Run([]string{"cmux", "list", "--format", "json", "--workspace", "WS1"})
+	if code != exitOK {
+		t.Fatalf("exit code = %d, want %d (stderr=%q out=%q)", code, exitOK, err.String(), out.String())
+	}
+
+	var resp struct {
+		OK     bool `json:"ok"`
+		Result struct {
+			Items []struct {
+				CMUXID string `json:"cmux_workspace_id"`
+			} `json:"items"`
+			PrunedCount int `json:"pruned_count"`
+		} `json:"result"`
+	}
+	if uerr := json.Unmarshal(out.Bytes(), &resp); uerr != nil {
+		t.Fatalf("json unmarshal error: %v", uerr)
+	}
+	if !resp.OK || len(resp.Result.Items) != 1 || resp.Result.Items[0].CMUXID != "CMUX-1" || resp.Result.PrunedCount != 1 {
+		t.Fatalf("unexpected response: %+v", resp)
 	}
 }
