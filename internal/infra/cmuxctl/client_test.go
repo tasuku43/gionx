@@ -194,6 +194,13 @@ func TestClientSelectWorkspace_RequiresInput(t *testing.T) {
 	}
 }
 
+func TestClientCloseWorkspace_RequiresInput(t *testing.T) {
+	c := &Client{}
+	if err := c.CloseWorkspace(context.Background(), ""); err == nil {
+		t.Fatalf("CloseWorkspace() with empty workspace should fail")
+	}
+}
+
 func TestClientSetStatus_RequiresInputs(t *testing.T) {
 	c := &Client{}
 	if err := c.SetStatus(context.Background(), "", "kra", "managed by kra", "tag", cmuxstyle.WorkspaceLabelColor); err == nil {
@@ -215,6 +222,19 @@ func TestClientSetStatus_BuildsCommandArgs(t *testing.T) {
 		t.Fatalf("SetStatus() error: %v", err)
 	}
 	wantArgs := []string{"set-status", "kra", "managed by kra", "--workspace", "ws-1", "--icon", "tag", "--color", cmuxstyle.WorkspaceLabelColor}
+	if !reflect.DeepEqual(f.lastArgs, wantArgs) {
+		t.Fatalf("args = %v, want %v", f.lastArgs, wantArgs)
+	}
+}
+
+func TestClientCloseWorkspace_BuildsCommandArgs(t *testing.T) {
+	f := &fakeRunner{stdout: []byte("OK\n")}
+	c := &Client{Runner: f}
+
+	if err := c.CloseWorkspace(context.Background(), "ws-1"); err != nil {
+		t.Fatalf("CloseWorkspace() error: %v", err)
+	}
+	wantArgs := []string{"close-workspace", "--workspace", "ws-1"}
 	if !reflect.DeepEqual(f.lastArgs, wantArgs) {
 		t.Fatalf("args = %v, want %v", f.lastArgs, wantArgs)
 	}

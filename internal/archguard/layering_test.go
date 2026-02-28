@@ -82,11 +82,6 @@ func TestCLIDirectInfraImportsAreAllowlisted(t *testing.T) {
 		"ws_purge.go":            {},
 		"ws_remove_repo.go":      {},
 		"ws_reopen.go":           {},
-		"ws_resume.go":           {},
-		"ws_resume_runtime.go":   {},
-		"ws_save.go":             {},
-		"ws_save_runtime.go":     {},
-		"ws_session_runtime.go":  {},
 	}
 
 	seen := map[string]struct{}{}

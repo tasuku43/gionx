@@ -43,8 +43,6 @@ var kraCompletionSubcommands = map[string][]string{
 		"list",
 		"ls",
 		"dashboard",
-		"save",
-		"resume",
 		"lock",
 		"unlock",
 		"open",

@@ -235,8 +235,8 @@ func TestKraCompletionCommandFlags_WS_FocusTargetSelectors(t *testing.T) {
 
 func TestKraCompletionSubcommands_WS_ExcludeCompatAlias(t *testing.T) {
 	got := kraCompletionSubcommands["ws"]
-	if !contains(got, "save") || !contains(got, "resume") {
-		t.Fatalf("ws subcommands should include save/resume: %v", got)
+	if contains(got, "save") || contains(got, "resume") {
+		t.Fatalf("ws subcommands should not include removed save/resume: %v", got)
 	}
 	if contains(got, "select") {
 		t.Fatalf("ws subcommands should not suggest removed select command: %v", got)

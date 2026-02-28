@@ -12,14 +12,22 @@ import (
 	"strings"
 	"time"
 
+	"github.com/tasuku43/kra/internal/cmuxmap"
 	"github.com/tasuku43/kra/internal/core/repospec"
 	"github.com/tasuku43/kra/internal/core/workspacerisk"
+	"github.com/tasuku43/kra/internal/infra/cmuxctl"
 	"github.com/tasuku43/kra/internal/infra/gitutil"
 	"github.com/tasuku43/kra/internal/infra/paths"
 	"github.com/tasuku43/kra/internal/infra/statestore"
 )
 
 var errNoActiveWorkspaces = errors.New("no active workspaces available")
+
+type cmuxCloseClient interface {
+	CloseWorkspace(ctx context.Context, workspace string) error
+}
+
+var newCMUXCloseClient = func() cmuxCloseClient { return cmuxctl.NewClient() }
 
 func (c *CLI) runWSClose(args []string) int {
 	directWorkspaceID := ""
@@ -517,8 +525,62 @@ func (c *CLI) closeWorkspace(ctx context.Context, root string, workspaceID strin
 		}
 		trace.PostCommitSHA = postSHA
 	}
+	c.closeMappedCMUXWorkspacesBestEffort(ctx, root, workspaceID)
 
 	return trace, nil
+}
+
+func (c *CLI) closeMappedCMUXWorkspacesBestEffort(ctx context.Context, root string, workspaceID string) {
+	store := cmuxmap.NewStore(root)
+	mapping, err := store.Load()
+	if err != nil {
+		c.debugf("ws close cmux mapping load skipped workspace=%s err=%v", workspaceID, err)
+		return
+	}
+	ws, ok := mapping.Workspaces[workspaceID]
+	if !ok || len(ws.Entries) == 0 {
+		return
+	}
+	client := newCMUXCloseClient()
+	if client == nil {
+		c.debugf("ws close cmux close skipped workspace=%s err=nil client", workspaceID)
+		return
+	}
+
+	nonRecoverableErr := false
+	for _, entry := range ws.Entries {
+		cmuxWorkspaceID := strings.TrimSpace(entry.CMUXWorkspaceID)
+		if cmuxWorkspaceID == "" {
+			continue
+		}
+		if err := client.CloseWorkspace(ctx, cmuxWorkspaceID); err != nil {
+			if isCMUXWorkspaceNotFoundError(err) {
+				c.debugf("ws close cmux workspace already absent workspace=%s cmux=%s", workspaceID, cmuxWorkspaceID)
+				continue
+			}
+			nonRecoverableErr = true
+			c.debugf("ws close cmux workspace close failed workspace=%s cmux=%s err=%v", workspaceID, cmuxWorkspaceID, err)
+			continue
+		}
+		c.debugf("ws close cmux workspace closed workspace=%s cmux=%s", workspaceID, cmuxWorkspaceID)
+	}
+	if nonRecoverableErr {
+		c.debugf("ws close cmux mapping kept due close errors workspace=%s", workspaceID)
+		return
+	}
+
+	delete(mapping.Workspaces, workspaceID)
+	if err := store.Save(mapping); err != nil {
+		c.debugf("ws close cmux mapping save skipped workspace=%s err=%v", workspaceID, err)
+	}
+}
+
+func isCMUXWorkspaceNotFoundError(err error) bool {
+	msg := strings.ToLower(strings.TrimSpace(err.Error()))
+	if msg == "" {
+		return false
+	}
+	return strings.Contains(msg, "not found") || strings.Contains(msg, "not_found") || strings.Contains(msg, "unknown workspace")
 }
 
 func buildWorkspaceMetaForClose(ctx context.Context, root string, workspaceID string, repos []statestore.WorkspaceRepo) (workspaceMetaFile, workspaceMetaFile, error) {

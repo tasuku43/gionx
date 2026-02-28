@@ -230,6 +230,18 @@ func (c *Client) SelectWorkspace(ctx context.Context, workspace string) error {
 	return nil
 }
 
+func (c *Client) CloseWorkspace(ctx context.Context, workspace string) error {
+	workspace = strings.TrimSpace(workspace)
+	if workspace == "" {
+		return fmt.Errorf("workspace is required")
+	}
+	_, stderr, err := c.run(ctx, false, false, "close-workspace", "--workspace", workspace)
+	if err != nil {
+		return commandError("close-workspace", stderr, err)
+	}
+	return nil
+}
+
 func (c *Client) SetStatus(ctx context.Context, workspace string, label string, text string, icon string, color string) error {
 	workspace = strings.TrimSpace(workspace)
 	label = strings.TrimSpace(label)

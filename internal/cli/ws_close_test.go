@@ -4,15 +4,30 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
 
+	"github.com/tasuku43/kra/internal/cmuxmap"
 	"github.com/tasuku43/kra/internal/core/workspacerisk"
 	"github.com/tasuku43/kra/internal/testutil"
 )
+
+type fakeCMUXCloseClient struct {
+	closeErrByWorkspace map[string]error
+	closedWorkspaceIDs  []string
+}
+
+func (f *fakeCMUXCloseClient) CloseWorkspace(_ context.Context, workspace string) error {
+	f.closedWorkspaceIDs = append(f.closedWorkspaceIDs, workspace)
+	if err := f.closeErrByWorkspace[workspace]; err != nil {
+		return err
+	}
+	return nil
+}
 
 func TestCLI_WS_Close_Help_ShowsUsage(t *testing.T) {
 	prepareCurrentRootForTest(t)
@@ -29,6 +44,112 @@ func TestCLI_WS_Close_Help_ShowsUsage(t *testing.T) {
 	}
 	if err.Len() != 0 {
 		t.Fatalf("stderr not empty: %q", err.String())
+	}
+}
+
+func TestCLI_WS_Close_ClosesMappedCMUXWorkspaceAndPrunesMapping(t *testing.T) {
+	env := testutil.NewEnv(t)
+	initAndConfigureRootRepo(t, env.Root)
+
+	{
+		var out bytes.Buffer
+		var err bytes.Buffer
+		c := New(&out, &err)
+		if code := c.Run([]string{"ws", "create", "--no-prompt", "WS1"}); code != exitOK {
+			t.Fatalf("ws create exit code = %d, want %d (stderr=%q)", code, exitOK, err.String())
+		}
+	}
+	store := cmuxmap.NewStore(env.Root)
+	if err := store.Save(cmuxmap.File{
+		Version: cmuxmap.CurrentVersion,
+		Workspaces: map[string]cmuxmap.WorkspaceMapping{
+			"WS1": {
+				NextOrdinal: 2,
+				Entries: []cmuxmap.Entry{
+					{CMUXWorkspaceID: "CMUX-WS-1", Ordinal: 1},
+				},
+			},
+		},
+	}); err != nil {
+		t.Fatalf("save cmux mapping: %v", err)
+	}
+
+	fake := &fakeCMUXCloseClient{}
+	prev := newCMUXCloseClient
+	newCMUXCloseClient = func() cmuxCloseClient { return fake }
+	t.Cleanup(func() { newCMUXCloseClient = prev })
+
+	var out bytes.Buffer
+	var err bytes.Buffer
+	c := New(&out, &err)
+	code := c.Run([]string{"ws", "close", "--id", "WS1", "--no-commit"})
+	if code != exitOK {
+		t.Fatalf("ws close exit code = %d, want %d (stderr=%q)", code, exitOK, err.String())
+	}
+	if got := fake.closedWorkspaceIDs; len(got) != 1 || got[0] != "CMUX-WS-1" {
+		t.Fatalf("closed workspace ids = %v, want [CMUX-WS-1]", got)
+	}
+	mapping, lerr := store.Load()
+	if lerr != nil {
+		t.Fatalf("load cmux mapping: %v", lerr)
+	}
+	if _, ok := mapping.Workspaces["WS1"]; ok {
+		t.Fatalf("cmux mapping should be removed for WS1: %+v", mapping.Workspaces["WS1"])
+	}
+}
+
+func TestCLI_WS_Close_CMUXCloseFailure_DoesNotFailWorkspaceClose(t *testing.T) {
+	env := testutil.NewEnv(t)
+	initAndConfigureRootRepo(t, env.Root)
+
+	{
+		var out bytes.Buffer
+		var err bytes.Buffer
+		c := New(&out, &err)
+		if code := c.Run([]string{"ws", "create", "--no-prompt", "WS1"}); code != exitOK {
+			t.Fatalf("ws create exit code = %d, want %d (stderr=%q)", code, exitOK, err.String())
+		}
+	}
+	store := cmuxmap.NewStore(env.Root)
+	if err := store.Save(cmuxmap.File{
+		Version: cmuxmap.CurrentVersion,
+		Workspaces: map[string]cmuxmap.WorkspaceMapping{
+			"WS1": {
+				NextOrdinal: 2,
+				Entries: []cmuxmap.Entry{
+					{CMUXWorkspaceID: "CMUX-WS-1", Ordinal: 1},
+				},
+			},
+		},
+	}); err != nil {
+		t.Fatalf("save cmux mapping: %v", err)
+	}
+
+	fake := &fakeCMUXCloseClient{
+		closeErrByWorkspace: map[string]error{
+			"CMUX-WS-1": errors.New("cmux close-workspace: boom"),
+		},
+	}
+	prev := newCMUXCloseClient
+	newCMUXCloseClient = func() cmuxCloseClient { return fake }
+	t.Cleanup(func() { newCMUXCloseClient = prev })
+
+	var out bytes.Buffer
+	var err bytes.Buffer
+	c := New(&out, &err)
+	code := c.Run([]string{"ws", "close", "--id", "WS1", "--no-commit"})
+	if code != exitOK {
+		t.Fatalf("ws close exit code = %d, want %d (stderr=%q)", code, exitOK, err.String())
+	}
+	if _, statErr := os.Stat(filepath.Join(env.Root, "archive", "WS1")); statErr != nil {
+		t.Fatalf("archive/WS1 should exist after close even when cmux close fails: %v", statErr)
+	}
+	mapping, lerr := store.Load()
+	if lerr != nil {
+		t.Fatalf("load cmux mapping: %v", lerr)
+	}
+	if _, ok := mapping.Workspaces["WS1"]; !ok {
+		t.Fatalf("cmux mapping should remain when close fails")
 	}
 }
 

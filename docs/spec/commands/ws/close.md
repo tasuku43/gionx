@@ -71,6 +71,15 @@ This is the primary "task completed" flow in `kra`.
 - Append `workspace_events(event_type='archived', workspace_id='<id>', at=...)` (this is the source of truth
   for the archive timestamp).
 
+8) Close mapped cmux workspace(s) (best-effort)
+
+- If `.kra/state/cmux-workspaces.json` has mapping entries for `<id>`, call `cmux close-workspace --workspace <cmux-id>`
+  for each mapped entry.
+- `not_found`/`unknown workspace` is treated as already-closed and does not fail `ws close`.
+- When all mapped entries are closed (or already absent), remove the workspace mapping entry from
+  `.kra/state/cmux-workspaces.json`.
+- cmux close failures must not rollback archive results.
+
 In default commit mode, unrelated changes must not be included in lifecycle commits.
 
 ### Shell synchronization for close

@@ -263,37 +263,31 @@ func TestCLI_WS_Select_Multi_ReopenImplicitArchived(t *testing.T) {
 	}
 }
 
-func TestCLI_WS_Save_Help(t *testing.T) {
+func TestCLI_WS_Save_Removed(t *testing.T) {
 	var out bytes.Buffer
 	var err bytes.Buffer
 	c := New(&out, &err)
 
-	code := c.Run([]string{"ws", "save", "--help"})
-	if code != exitOK {
-		t.Fatalf("ws save --help exit code = %d, want %d", code, exitOK)
+	code := c.Run([]string{"ws", "save"})
+	if code != exitUsage {
+		t.Fatalf("ws save exit code = %d, want %d", code, exitUsage)
 	}
-	if !strings.Contains(out.String(), "kra ws save") {
-		t.Fatalf("stdout missing ws save usage: %q", out.String())
-	}
-	if err.Len() != 0 {
-		t.Fatalf("stderr not empty: %q", err.String())
+	if !strings.Contains(err.String(), "unknown command") {
+		t.Fatalf("stderr missing unknown command message: %q", err.String())
 	}
 }
 
-func TestCLI_WS_Resume_Help(t *testing.T) {
+func TestCLI_WS_Resume_Removed(t *testing.T) {
 	var out bytes.Buffer
 	var err bytes.Buffer
 	c := New(&out, &err)
 
-	code := c.Run([]string{"ws", "resume", "--help"})
-	if code != exitOK {
-		t.Fatalf("ws resume --help exit code = %d, want %d", code, exitOK)
+	code := c.Run([]string{"ws", "resume"})
+	if code != exitUsage {
+		t.Fatalf("ws resume exit code = %d, want %d", code, exitUsage)
 	}
-	if !strings.Contains(out.String(), "kra ws resume") {
-		t.Fatalf("stdout missing ws resume usage: %q", out.String())
-	}
-	if err.Len() != 0 {
-		t.Fatalf("stderr not empty: %q", err.String())
+	if !strings.Contains(err.String(), "unknown command") {
+		t.Fatalf("stderr missing unknown command message: %q", err.String())
 	}
 }
 

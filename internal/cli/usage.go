@@ -153,8 +153,6 @@ func (c *CLI) printWSUsage(w io.Writer) {
   kra ws [--id <id> | --current | --select]
   kra ws create [--no-prompt] [--template <name>] [--format human|json] <id>
   kra ws open [--id <id> | --current | --select] [--multi] [--concurrency <n>] [--format human|json]
-  kra ws save [--id <id> | --current | --select] [-l <label>] [--no-browser-state] [--format human|json]
-  kra ws resume [--id <id> | --current | --select] [--latest] [--strict] [--no-browser] [--format human|json]
   kra ws add-repo [--id <id> | --current | --select] [action-args...]
   kra ws remove-repo [--id <id> | --current | --select] [action-args...]
   kra ws close [--id <id> | --current | --select] [action-args...]
@@ -184,22 +182,6 @@ func (c *CLI) printWSOpenUsage(w io.Writer) {
   kra ws open [--id <id> | --current | --select] [--multi] [--concurrency <n>] [--format human|json]
 
 Open workspace runtime flow.
-`)
-}
-
-func (c *CLI) printWSSaveUsage(w io.Writer) {
-	fmt.Fprint(w, `Usage:
-  kra ws save [--id <id> | --current | --select] [-l <label>] [--no-browser-state] [--format human|json]
-
-Save workspace session context.
-`)
-}
-
-func (c *CLI) printWSResumeUsage(w io.Writer) {
-	fmt.Fprint(w, `Usage:
-  kra ws resume [--id <id> | --current | --select] [--latest] [--strict] [--no-browser] [--format human|json]
-
-Resume saved workspace session context.
 `)
 }
 
