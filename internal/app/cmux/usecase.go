@@ -468,3 +468,236 @@ func IsNotFoundError(err error) bool {
 	}
 	return strings.Contains(msg, "not found") || strings.Contains(msg, "unknown workspace")
 }
+
+type SwitchWorkspaceCandidate struct {
+	WorkspaceID string
+	MappedCount int
+}
+
+type SwitchEntryCandidate struct {
+	CMUXWorkspaceID string
+	Ordinal         int
+	Title           string
+}
+
+type SwitchSelector interface {
+	SelectWorkspace(candidates []SwitchWorkspaceCandidate) (string, error)
+	SelectEntry(workspaceID string, candidates []SwitchEntryCandidate) (string, error)
+}
+
+type SwitchResult struct {
+	WorkspaceID     string
+	CMUXWorkspaceID string
+	Ordinal         int
+	Title           string
+}
+
+func (s *Service) Switch(ctx context.Context, root string, workspaceID string, cmuxHandle string, nonInteractive bool, selector SwitchSelector) (SwitchResult, string, string) {
+	if s.NewClient == nil || s.NewStore == nil {
+		return SwitchResult{}, "internal_error", "cmux service is not initialized"
+	}
+	store := s.NewStore(root)
+	mapping, err := store.Load()
+	if err != nil {
+		return SwitchResult{}, "state_write_failed", fmt.Sprintf("load cmux mapping: %v", err)
+	}
+
+	client := s.NewClient()
+	if runtime, rerr := client.ListWorkspaces(ctx); rerr == nil {
+		reconciled, _, _, recErr := ReconcileMappingWithRuntime(store, mapping, runtime, true)
+		if recErr != nil {
+			return SwitchResult{}, "state_write_failed", fmt.Sprintf("reconcile cmux mapping: %v", recErr)
+		}
+		mapping = reconciled
+	}
+
+	wsID, entry, code, msg := resolveSwitchTarget(mapping, workspaceID, cmuxHandle, nonInteractive, selector)
+	if code != "" {
+		return SwitchResult{}, code, msg
+	}
+	if err := client.SelectWorkspace(ctx, entry.CMUXWorkspaceID); err != nil {
+		return SwitchResult{}, "cmux_select_failed", fmt.Sprintf("select cmux workspace: %v", err)
+	}
+
+	ws := mapping.Workspaces[wsID]
+	for i := range ws.Entries {
+		if ws.Entries[i].CMUXWorkspaceID == entry.CMUXWorkspaceID {
+			ws.Entries[i].LastUsedAt = s.Now().UTC().Format(time.RFC3339)
+			entry = ws.Entries[i]
+			break
+		}
+	}
+	mapping.Workspaces[wsID] = ws
+	if err := store.Save(mapping); err != nil {
+		return SwitchResult{}, "state_write_failed", fmt.Sprintf("save cmux mapping: %v", err)
+	}
+	return SwitchResult{
+		WorkspaceID:     wsID,
+		CMUXWorkspaceID: entry.CMUXWorkspaceID,
+		Ordinal:         entry.Ordinal,
+		Title:           entry.TitleSnapshot,
+	}, "", ""
+}
+
+func resolveSwitchTarget(mapping cmuxmap.File, workspaceID string, cmuxHandle string, nonInteractive bool, selector SwitchSelector) (string, cmuxmap.Entry, string, string) {
+	workspaceID = strings.TrimSpace(workspaceID)
+	cmuxHandle = strings.TrimSpace(cmuxHandle)
+
+	if workspaceID != "" {
+		ws, ok := mapping.Workspaces[workspaceID]
+		if !ok || len(ws.Entries) == 0 {
+			return "", cmuxmap.Entry{}, "cmux_not_mapped", fmt.Sprintf("no cmux mapping found for workspace: %s", workspaceID)
+		}
+		if cmuxHandle == "" {
+			return resolveSwitchEntry(workspaceID, ws.Entries, nonInteractive, selector)
+		}
+		matches := filterSwitchEntries(ws.Entries, cmuxHandle)
+		switch len(matches) {
+		case 1:
+			return workspaceID, matches[0], "", ""
+		case 0:
+			if nonInteractive {
+				return "", cmuxmap.Entry{}, "cmux_not_mapped", fmt.Sprintf("cmux target not found in workspace %s: %s", workspaceID, cmuxHandle)
+			}
+			return resolveSwitchEntry(workspaceID, ws.Entries, nonInteractive, selector)
+		default:
+			if nonInteractive {
+				return "", cmuxmap.Entry{}, "cmux_ambiguous_target", fmt.Sprintf("multiple cmux targets matched: %s", cmuxHandle)
+			}
+			return resolveSwitchEntry(workspaceID, matches, nonInteractive, selector)
+		}
+	}
+
+	if cmuxHandle != "" {
+		type matched struct {
+			workspaceID string
+			entry       cmuxmap.Entry
+		}
+		all := []matched{}
+		for wsID, ws := range mapping.Workspaces {
+			for _, e := range filterSwitchEntries(ws.Entries, cmuxHandle) {
+				all = append(all, matched{workspaceID: wsID, entry: e})
+			}
+		}
+		if len(all) == 1 {
+			return all[0].workspaceID, all[0].entry, "", ""
+		}
+		if nonInteractive {
+			if len(all) == 0 {
+				return "", cmuxmap.Entry{}, "cmux_not_mapped", fmt.Sprintf("cmux target not found: %s", cmuxHandle)
+			}
+			return "", cmuxmap.Entry{}, "cmux_ambiguous_target", fmt.Sprintf("multiple cmux targets matched: %s", cmuxHandle)
+		}
+	}
+
+	if nonInteractive {
+		return "", cmuxmap.Entry{}, "non_interactive_selection_required", "switch requires --workspace/--cmux in --format json mode"
+	}
+	wsID, code, msg := selectSwitchWorkspace(mapping, selector)
+	if code != "" {
+		return "", cmuxmap.Entry{}, code, msg
+	}
+	return resolveSwitchEntry(wsID, mapping.Workspaces[wsID].Entries, nonInteractive, selector)
+}
+
+func selectSwitchWorkspace(mapping cmuxmap.File, selector SwitchSelector) (string, string, string) {
+	ids := make([]string, 0, len(mapping.Workspaces))
+	for wsID, ws := range mapping.Workspaces {
+		if len(ws.Entries) > 0 {
+			ids = append(ids, wsID)
+		}
+	}
+	sort.Strings(ids)
+	if len(ids) == 0 {
+		return "", "cmux_not_mapped", "no cmux mappings available"
+	}
+	if len(ids) == 1 {
+		return ids[0], "", ""
+	}
+	if selector == nil {
+		return "", "non_interactive_selection_required", "interactive workspace selection requires a TTY"
+	}
+	candidates := make([]SwitchWorkspaceCandidate, 0, len(ids))
+	for _, wsID := range ids {
+		candidates = append(candidates, SwitchWorkspaceCandidate{
+			WorkspaceID: wsID,
+			MappedCount: len(mapping.Workspaces[wsID].Entries),
+		})
+	}
+	selected, err := selector.SelectWorkspace(candidates)
+	if err != nil {
+		msg := strings.TrimSpace(err.Error())
+		if msg == "" {
+			msg = "interactive workspace selection failed"
+		}
+		return "", "cmux_not_mapped", msg
+	}
+	selected = strings.TrimSpace(selected)
+	if selected == "" {
+		return "", "cmux_not_mapped", "cmux switch requires exactly one workspace selected"
+	}
+	if _, ok := mapping.Workspaces[selected]; !ok {
+		return "", "cmux_not_mapped", fmt.Sprintf("selected workspace not found: %s", selected)
+	}
+	return selected, "", ""
+}
+
+func resolveSwitchEntry(workspaceID string, entries []cmuxmap.Entry, nonInteractive bool, selector SwitchSelector) (string, cmuxmap.Entry, string, string) {
+	if len(entries) == 0 {
+		return "", cmuxmap.Entry{}, "cmux_not_mapped", fmt.Sprintf("no cmux mapping found for workspace: %s", workspaceID)
+	}
+	if len(entries) == 1 {
+		return workspaceID, entries[0], "", ""
+	}
+	if nonInteractive {
+		return "", cmuxmap.Entry{}, "cmux_ambiguous_target", "multiple cmux mappings found; provide --cmux"
+	}
+	if selector == nil {
+		return "", cmuxmap.Entry{}, "non_interactive_selection_required", "interactive cmux selection requires a TTY"
+	}
+	candidates := make([]SwitchEntryCandidate, 0, len(entries))
+	for _, e := range entries {
+		title := strings.TrimSpace(e.TitleSnapshot)
+		if title == "" {
+			title = fmt.Sprintf("ordinal=%d", e.Ordinal)
+		}
+		candidates = append(candidates, SwitchEntryCandidate{
+			CMUXWorkspaceID: e.CMUXWorkspaceID,
+			Ordinal:         e.Ordinal,
+			Title:           title,
+		})
+	}
+	selected, err := selector.SelectEntry(workspaceID, candidates)
+	if err != nil {
+		msg := strings.TrimSpace(err.Error())
+		if msg == "" {
+			msg = "interactive cmux selection failed"
+		}
+		return "", cmuxmap.Entry{}, "cmux_not_mapped", msg
+	}
+	selected = strings.TrimSpace(selected)
+	if selected == "" {
+		return "", cmuxmap.Entry{}, "cmux_not_mapped", "cmux switch requires exactly one target selected"
+	}
+	for _, e := range entries {
+		if e.CMUXWorkspaceID == selected {
+			return workspaceID, e, "", ""
+		}
+	}
+	return "", cmuxmap.Entry{}, "cmux_not_mapped", fmt.Sprintf("selected cmux target not found: %s", selected)
+}
+
+func filterSwitchEntries(entries []cmuxmap.Entry, handle string) []cmuxmap.Entry {
+	handle = strings.TrimSpace(handle)
+	out := make([]cmuxmap.Entry, 0, len(entries))
+	for _, e := range entries {
+		if e.CMUXWorkspaceID == handle {
+			out = append(out, e)
+			continue
+		}
+		if handle == fmt.Sprintf("workspace:%d", e.Ordinal) {
+			out = append(out, e)
+		}
+	}
+	return out
+}

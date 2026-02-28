@@ -4,17 +4,15 @@ import (
 	"context"
 	"fmt"
 	"os"
-	"sort"
 	"strings"
-	"time"
 
 	appcmux "github.com/tasuku43/kra/internal/app/cmux"
-	"github.com/tasuku43/kra/internal/cmuxmap"
 	"github.com/tasuku43/kra/internal/infra/cmuxctl"
 	"github.com/tasuku43/kra/internal/infra/paths"
 )
 
 type cmuxSwitchClient interface {
+	ListWorkspaces(ctx context.Context) ([]cmuxctl.Workspace, error)
 	SelectWorkspace(ctx context.Context, workspace string) error
 }
 
@@ -101,20 +99,14 @@ func (c *CLI) runCMUXSwitch(args []string) int {
 		return c.writeCMUXSwitchError(outputFormat, "internal_error", workspaceID, fmt.Sprintf("resolve KRA_ROOT: %v", err), exitError)
 	}
 
-	store := newCMUXMapStore(root)
-	mapping, err := store.Load()
-	if err != nil {
-		return c.writeCMUXSwitchError(outputFormat, "state_write_failed", workspaceID, fmt.Sprintf("load cmux mapping: %v", err), exitError)
+	svc := appcmux.NewService(func() appcmux.Client {
+		return cmuxSwitchClientAdapter{inner: newCMUXSwitchClient()}
+	}, newCMUXMapStore)
+	var selector appcmux.SwitchSelector
+	if outputFormat != "json" {
+		selector = cmuxSwitchSelector{cli: c}
 	}
-	if runtime, rerr := newCMUXRuntimeClient().ListWorkspaces(context.Background()); rerr == nil {
-		reconciled, _, _, recErr := appcmux.ReconcileMappingWithRuntime(store, mapping, runtime, true)
-		if recErr != nil {
-			return c.writeCMUXSwitchError(outputFormat, "state_write_failed", workspaceID, fmt.Sprintf("reconcile cmux mapping: %v", recErr), exitError)
-		}
-		mapping = reconciled
-	}
-
-	resolvedWorkspaceID, resolvedEntry, code, msg := c.resolveCMUXSwitchTarget(mapping, workspaceID, cmuxHandle, outputFormat)
+	switchResult, code, msg := svc.Switch(context.Background(), root, workspaceID, cmuxHandle, outputFormat == "json", selector)
 	if code != "" {
 		exitCode := exitError
 		if code == "invalid_argument" {
@@ -123,194 +115,95 @@ func (c *CLI) runCMUXSwitch(args []string) int {
 		return c.writeCMUXSwitchError(outputFormat, code, workspaceID, msg, exitCode)
 	}
 
-	client := newCMUXSwitchClient()
-	if err := client.SelectWorkspace(context.Background(), resolvedEntry.CMUXWorkspaceID); err != nil {
-		return c.writeCMUXSwitchError(outputFormat, "cmux_select_failed", resolvedWorkspaceID, fmt.Sprintf("select cmux workspace: %v", err), exitError)
-	}
-
-	ws := mapping.Workspaces[resolvedWorkspaceID]
-	for i := range ws.Entries {
-		if ws.Entries[i].CMUXWorkspaceID == resolvedEntry.CMUXWorkspaceID {
-			ws.Entries[i].LastUsedAt = time.Now().UTC().Format(time.RFC3339)
-			resolvedEntry = ws.Entries[i]
-			break
-		}
-	}
-	mapping.Workspaces[resolvedWorkspaceID] = ws
-	if err := store.Save(mapping); err != nil {
-		return c.writeCMUXSwitchError(outputFormat, "state_write_failed", resolvedWorkspaceID, fmt.Sprintf("save cmux mapping: %v", err), exitError)
-	}
-
 	if outputFormat == "json" {
 		_ = writeCLIJSON(c.Out, cliJSONResponse{
 			OK:          true,
 			Action:      "cmux.switch",
-			WorkspaceID: resolvedWorkspaceID,
+			WorkspaceID: switchResult.WorkspaceID,
 			Result: map[string]any{
-				"kra_workspace_id":  resolvedWorkspaceID,
-				"cmux_workspace_id": resolvedEntry.CMUXWorkspaceID,
-				"ordinal":           resolvedEntry.Ordinal,
-				"title":             resolvedEntry.TitleSnapshot,
+				"kra_workspace_id":  switchResult.WorkspaceID,
+				"cmux_workspace_id": switchResult.CMUXWorkspaceID,
+				"ordinal":           switchResult.Ordinal,
+				"title":             switchResult.Title,
 			},
 		})
 		return exitOK
 	}
 
 	fmt.Fprintln(c.Out, "switched cmux workspace")
-	fmt.Fprintf(c.Out, "  kra: %s\n", resolvedWorkspaceID)
-	fmt.Fprintf(c.Out, "  cmux: %s\n", resolvedEntry.CMUXWorkspaceID)
-	fmt.Fprintf(c.Out, "  title: %s\n", resolvedEntry.TitleSnapshot)
+	fmt.Fprintf(c.Out, "  kra: %s\n", switchResult.WorkspaceID)
+	fmt.Fprintf(c.Out, "  cmux: %s\n", switchResult.CMUXWorkspaceID)
+	fmt.Fprintf(c.Out, "  title: %s\n", switchResult.Title)
 	return exitOK
 }
 
-func (c *CLI) resolveCMUXSwitchTarget(mapping cmuxmap.File, workspaceID string, cmuxHandle string, outputFormat string) (string, cmuxmap.Entry, string, string) {
-	workspaceID = strings.TrimSpace(workspaceID)
-	cmuxHandle = strings.TrimSpace(cmuxHandle)
-
-	if workspaceID != "" {
-		ws, ok := mapping.Workspaces[workspaceID]
-		if !ok || len(ws.Entries) == 0 {
-			return "", cmuxmap.Entry{}, "cmux_not_mapped", fmt.Sprintf("no cmux mapping found for workspace: %s", workspaceID)
-		}
-		if cmuxHandle == "" {
-			return c.resolveCMUXEntryWithFallback(workspaceID, ws.Entries, outputFormat)
-		}
-		matches := filterCMUXEntries(ws.Entries, cmuxHandle)
-		switch len(matches) {
-		case 1:
-			return workspaceID, matches[0], "", ""
-		case 0:
-			if outputFormat == "json" {
-				return "", cmuxmap.Entry{}, "cmux_not_mapped", fmt.Sprintf("cmux target not found in workspace %s: %s", workspaceID, cmuxHandle)
-			}
-			return c.resolveCMUXEntryWithFallback(workspaceID, ws.Entries, outputFormat)
-		default:
-			if outputFormat == "json" {
-				return "", cmuxmap.Entry{}, "cmux_ambiguous_target", fmt.Sprintf("multiple cmux targets matched: %s", cmuxHandle)
-			}
-			return c.resolveCMUXEntryWithFallback(workspaceID, matches, outputFormat)
-		}
-	}
-
-	if cmuxHandle != "" {
-		type match struct {
-			workspaceID string
-			entry       cmuxmap.Entry
-		}
-		all := []match{}
-		for wsID, ws := range mapping.Workspaces {
-			for _, e := range filterCMUXEntries(ws.Entries, cmuxHandle) {
-				all = append(all, match{workspaceID: wsID, entry: e})
-			}
-		}
-		if len(all) == 1 {
-			return all[0].workspaceID, all[0].entry, "", ""
-		}
-		if outputFormat == "json" {
-			if len(all) == 0 {
-				return "", cmuxmap.Entry{}, "cmux_not_mapped", fmt.Sprintf("cmux target not found: %s", cmuxHandle)
-			}
-			return "", cmuxmap.Entry{}, "cmux_ambiguous_target", fmt.Sprintf("multiple cmux targets matched: %s", cmuxHandle)
-		}
-	}
-
-	if outputFormat == "json" {
-		return "", cmuxmap.Entry{}, "non_interactive_selection_required", "switch requires --workspace/--cmux in --format json mode"
-	}
-	wsID, code, msg := c.selectCMUXWorkspaceID(mapping)
-	if code != "" {
-		return "", cmuxmap.Entry{}, code, msg
-	}
-	return c.resolveCMUXEntryWithFallback(wsID, mapping.Workspaces[wsID].Entries, outputFormat)
+type cmuxSwitchClientAdapter struct {
+	inner cmuxSwitchClient
 }
 
-func (c *CLI) selectCMUXWorkspaceID(mapping cmuxmap.File) (string, string, string) {
-	ids := make([]string, 0, len(mapping.Workspaces))
-	for wsID, ws := range mapping.Workspaces {
-		if len(ws.Entries) > 0 {
-			ids = append(ids, wsID)
-		}
-	}
-	sort.Strings(ids)
-	if len(ids) == 0 {
-		return "", "cmux_not_mapped", "no cmux mappings available"
-	}
-	if len(ids) == 1 {
-		return ids[0], "", ""
-	}
-	candidates := make([]workspaceSelectorCandidate, 0, len(ids))
-	for _, id := range ids {
-		candidates = append(candidates, workspaceSelectorCandidate{
-			ID:    id,
-			Title: fmt.Sprintf("%d mapped", len(mapping.Workspaces[id].Entries)),
+func (a cmuxSwitchClientAdapter) Capabilities(context.Context) (cmuxctl.Capabilities, error) {
+	return cmuxctl.Capabilities{}, fmt.Errorf("unsupported")
+}
+func (a cmuxSwitchClientAdapter) CreateWorkspaceWithCommand(context.Context, string) (string, error) {
+	return "", fmt.Errorf("unsupported")
+}
+func (a cmuxSwitchClientAdapter) RenameWorkspace(context.Context, string, string) error {
+	return fmt.Errorf("unsupported")
+}
+func (a cmuxSwitchClientAdapter) SelectWorkspace(ctx context.Context, workspace string) error {
+	return a.inner.SelectWorkspace(ctx, workspace)
+}
+func (a cmuxSwitchClientAdapter) ListWorkspaces(ctx context.Context) ([]cmuxctl.Workspace, error) {
+	return a.inner.ListWorkspaces(ctx)
+}
+func (a cmuxSwitchClientAdapter) Identify(context.Context, string, string) (map[string]any, error) {
+	return nil, fmt.Errorf("unsupported")
+}
+
+type cmuxSwitchSelector struct {
+	cli *CLI
+}
+
+func (s cmuxSwitchSelector) SelectWorkspace(candidates []appcmux.SwitchWorkspaceCandidate) (string, error) {
+	items := make([]workspaceSelectorCandidate, 0, len(candidates))
+	for _, candidate := range candidates {
+		items = append(items, workspaceSelectorCandidate{
+			ID:    candidate.WorkspaceID,
+			Title: fmt.Sprintf("%d mapped", candidate.MappedCount),
 		})
 	}
-	selected, err := c.promptWorkspaceSelectorSingle("active", "switch", candidates)
+	selected, err := s.cli.promptWorkspaceSelectorSingle("active", "switch", items)
 	if err != nil {
 		if strings.Contains(strings.ToLower(err.Error()), "tty") {
-			return "", "non_interactive_selection_required", "interactive workspace selection requires a TTY"
+			return "", fmt.Errorf("interactive workspace selection requires a TTY")
 		}
-		return "", "cmux_not_mapped", err.Error()
+		return "", err
 	}
 	if len(selected) != 1 {
-		return "", "cmux_not_mapped", "cmux switch requires exactly one workspace selected"
+		return "", fmt.Errorf("cmux switch requires exactly one workspace selected")
 	}
-	return strings.TrimSpace(selected[0]), "", ""
+	return strings.TrimSpace(selected[0]), nil
 }
 
-func (c *CLI) resolveCMUXEntryWithFallback(workspaceID string, entries []cmuxmap.Entry, outputFormat string) (string, cmuxmap.Entry, string, string) {
-	if len(entries) == 0 {
-		return "", cmuxmap.Entry{}, "cmux_not_mapped", fmt.Sprintf("no cmux mapping found for workspace: %s", workspaceID)
-	}
-	if len(entries) == 1 {
-		return workspaceID, entries[0], "", ""
-	}
-	if outputFormat == "json" {
-		return "", cmuxmap.Entry{}, "cmux_ambiguous_target", "multiple cmux mappings found; provide --cmux"
-	}
-	candidates := make([]workspaceSelectorCandidate, 0, len(entries))
-	for _, e := range entries {
-		title := strings.TrimSpace(e.TitleSnapshot)
-		if title == "" {
-			title = fmt.Sprintf("ordinal=%d", e.Ordinal)
-		}
-		candidates = append(candidates, workspaceSelectorCandidate{
-			ID:    e.CMUXWorkspaceID,
-			Title: title,
+func (s cmuxSwitchSelector) SelectEntry(_ string, candidates []appcmux.SwitchEntryCandidate) (string, error) {
+	items := make([]workspaceSelectorCandidate, 0, len(candidates))
+	for _, candidate := range candidates {
+		items = append(items, workspaceSelectorCandidate{
+			ID:    candidate.CMUXWorkspaceID,
+			Title: candidate.Title,
 		})
 	}
-	selected, err := c.promptWorkspaceSelectorWithOptionsAndMode("active", "switch", "cmux:", "cmux", candidates, true)
+	selected, err := s.cli.promptWorkspaceSelectorWithOptionsAndMode("active", "switch", "cmux:", "cmux", items, true)
 	if err != nil {
 		if strings.Contains(strings.ToLower(err.Error()), "tty") {
-			return "", cmuxmap.Entry{}, "non_interactive_selection_required", "interactive cmux selection requires a TTY"
+			return "", fmt.Errorf("interactive cmux selection requires a TTY")
 		}
-		return "", cmuxmap.Entry{}, "cmux_not_mapped", err.Error()
+		return "", err
 	}
 	if len(selected) != 1 {
-		return "", cmuxmap.Entry{}, "cmux_not_mapped", "cmux switch requires exactly one target selected"
+		return "", fmt.Errorf("cmux switch requires exactly one target selected")
 	}
-	id := strings.TrimSpace(selected[0])
-	for _, e := range entries {
-		if e.CMUXWorkspaceID == id {
-			return workspaceID, e, "", ""
-		}
-	}
-	return "", cmuxmap.Entry{}, "cmux_not_mapped", fmt.Sprintf("selected cmux target not found: %s", id)
-}
-
-func filterCMUXEntries(entries []cmuxmap.Entry, handle string) []cmuxmap.Entry {
-	handle = strings.TrimSpace(handle)
-	out := make([]cmuxmap.Entry, 0, len(entries))
-	for _, e := range entries {
-		if e.CMUXWorkspaceID == handle {
-			out = append(out, e)
-			continue
-		}
-		if handle == fmt.Sprintf("workspace:%d", e.Ordinal) {
-			out = append(out, e)
-		}
-	}
-	return out
+	return strings.TrimSpace(selected[0]), nil
 }
 
 func (c *CLI) writeCMUXSwitchError(format string, code string, workspaceID string, message string, exitCode int) int {

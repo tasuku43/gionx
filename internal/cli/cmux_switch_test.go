@@ -14,8 +14,14 @@ import (
 )
 
 type fakeCMUXSwitchClient struct {
-	selected string
-	err      error
+	selected   string
+	err        error
+	workspaces []cmuxctl.Workspace
+	listErr    error
+}
+
+func (f *fakeCMUXSwitchClient) ListWorkspaces(_ context.Context) ([]cmuxctl.Workspace, error) {
+	return f.workspaces, f.listErr
 }
 
 func (f *fakeCMUXSwitchClient) SelectWorkspace(_ context.Context, workspace string) error {
@@ -23,13 +29,14 @@ func (f *fakeCMUXSwitchClient) SelectWorkspace(_ context.Context, workspace stri
 	return f.err
 }
 
-func TestCLI_CMUX_Switch_JSON_Success_WithExplicitWorkspaceAndCMUX(t *testing.T) {
-	prevRuntime := newCMUXRuntimeClient
-	newCMUXRuntimeClient = func() cmuxRuntimeClient {
-		return &fakeCMUXStatusClient{err: context.DeadlineExceeded}
-	}
-	t.Cleanup(func() { newCMUXRuntimeClient = prevRuntime })
+func setFakeCMUXSwitchClient(t *testing.T, fake *fakeCMUXSwitchClient) {
+	t.Helper()
+	prev := newCMUXSwitchClient
+	newCMUXSwitchClient = func() cmuxSwitchClient { return fake }
+	t.Cleanup(func() { newCMUXSwitchClient = prev })
+}
 
+func TestCLI_CMUX_Switch_JSON_Success_WithExplicitWorkspaceAndCMUX(t *testing.T) {
 	root := prepareCurrentRootForTest(t)
 	store := cmuxmap.NewStore(root)
 	mapping := cmuxmap.File{
@@ -54,9 +61,7 @@ func TestCLI_CMUX_Switch_JSON_Success_WithExplicitWorkspaceAndCMUX(t *testing.T)
 	}
 
 	fake := &fakeCMUXSwitchClient{}
-	prev := newCMUXSwitchClient
-	newCMUXSwitchClient = func() cmuxSwitchClient { return fake }
-	t.Cleanup(func() { newCMUXSwitchClient = prev })
+	setFakeCMUXSwitchClient(t, fake)
 
 	var out bytes.Buffer
 	var err bytes.Buffer
@@ -91,12 +96,6 @@ func TestCLI_CMUX_Switch_JSON_Success_WithExplicitWorkspaceAndCMUX(t *testing.T)
 }
 
 func TestCLI_CMUX_Switch_JSON_AmbiguousWithoutWorkspace_Fails(t *testing.T) {
-	prevRuntime := newCMUXRuntimeClient
-	newCMUXRuntimeClient = func() cmuxRuntimeClient {
-		return &fakeCMUXStatusClient{err: context.DeadlineExceeded}
-	}
-	t.Cleanup(func() { newCMUXRuntimeClient = prevRuntime })
-
 	root := prepareCurrentRootForTest(t)
 	store := cmuxmap.NewStore(root)
 	mapping := cmuxmap.File{
@@ -119,6 +118,7 @@ func TestCLI_CMUX_Switch_JSON_AmbiguousWithoutWorkspace_Fails(t *testing.T) {
 	if err := store.Save(mapping); err != nil {
 		t.Fatalf("save mapping: %v", err)
 	}
+	setFakeCMUXSwitchClient(t, &fakeCMUXSwitchClient{listErr: context.DeadlineExceeded})
 
 	var out bytes.Buffer
 	var err bytes.Buffer
@@ -140,13 +140,8 @@ func TestCLI_CMUX_Switch_JSON_AmbiguousWithoutWorkspace_Fails(t *testing.T) {
 }
 
 func TestCLI_CMUX_Switch_JSON_RequiresTargetIfNoFlags(t *testing.T) {
-	prevRuntime := newCMUXRuntimeClient
-	newCMUXRuntimeClient = func() cmuxRuntimeClient {
-		return &fakeCMUXStatusClient{err: context.DeadlineExceeded}
-	}
-	t.Cleanup(func() { newCMUXRuntimeClient = prevRuntime })
-
 	prepareCurrentRootForTest(t)
+	setFakeCMUXSwitchClient(t, &fakeCMUXSwitchClient{listErr: context.DeadlineExceeded})
 
 	var out bytes.Buffer
 	var err bytes.Buffer
@@ -167,33 +162,13 @@ func TestCLI_CMUX_Switch_JSON_RequiresTargetIfNoFlags(t *testing.T) {
 	}
 }
 
-func TestFilterCMUXEntries_MatchesIDAndOrdinalHandle(t *testing.T) {
-	entries := []cmuxmap.Entry{
-		{CMUXWorkspaceID: "CMUX-1", Ordinal: 1},
-		{CMUXWorkspaceID: "CMUX-2", Ordinal: 2},
-	}
-	got := filterCMUXEntries(entries, "CMUX-2")
-	if len(got) != 1 || got[0].CMUXWorkspaceID != "CMUX-2" {
-		t.Fatalf("id match failed: %+v", got)
-	}
-	got = filterCMUXEntries(entries, "workspace:1")
-	if len(got) != 1 || got[0].CMUXWorkspaceID != "CMUX-1" {
-		t.Fatalf("ordinal match failed: %+v", got)
-	}
-}
-
 func TestCLI_CMUX_Switch_JSON_NonMappedWorkspace(t *testing.T) {
-	prevRuntime := newCMUXRuntimeClient
-	newCMUXRuntimeClient = func() cmuxRuntimeClient {
-		return &fakeCMUXStatusClient{err: context.DeadlineExceeded}
-	}
-	t.Cleanup(func() { newCMUXRuntimeClient = prevRuntime })
-
 	root := prepareCurrentRootForTest(t)
 	path := filepath.Join(root, ".kra", "state")
 	if err := os.MkdirAll(path, 0o755); err != nil {
 		t.Fatalf("mkdir state: %v", err)
 	}
+	setFakeCMUXSwitchClient(t, &fakeCMUXSwitchClient{listErr: context.DeadlineExceeded})
 
 	var out bytes.Buffer
 	var err bytes.Buffer
@@ -230,18 +205,10 @@ func TestCLI_CMUX_Switch_JSON_PrunesStaleBeforeResolve(t *testing.T) {
 		t.Fatalf("save mapping: %v", err)
 	}
 
-	prevRuntime := newCMUXRuntimeClient
-	newCMUXRuntimeClient = func() cmuxRuntimeClient {
-		return &fakeCMUXStatusClient{
-			workspaces: []cmuxctl.Workspace{{ID: "CMUX-NEW"}},
-		}
+	fake := &fakeCMUXSwitchClient{
+		workspaces: []cmuxctl.Workspace{{ID: "CMUX-NEW"}},
 	}
-	t.Cleanup(func() { newCMUXRuntimeClient = prevRuntime })
-
-	fake := &fakeCMUXSwitchClient{}
-	prevSwitch := newCMUXSwitchClient
-	newCMUXSwitchClient = func() cmuxSwitchClient { return fake }
-	t.Cleanup(func() { newCMUXSwitchClient = prevSwitch })
+	setFakeCMUXSwitchClient(t, fake)
 
 	var out bytes.Buffer
 	var err bytes.Buffer
