@@ -15,6 +15,7 @@ func (c *CLI) printRootUsage(w io.Writer) {
 		"  template          Workspace template commands",
 		"  shell             Shell integration commands",
 		"  ws                Workspace commands",
+		"  cmux              cmux integration commands",
 		"  doctor            Diagnose KRA_ROOT health",
 	}
 	commands = append(commands,
@@ -201,6 +202,54 @@ Notes:
 - ws select --multi --act reopen|purge implies archived scope.
 - ws select --multi commits by default; use --no-commit to disable lifecycle commits.
 - invalid --act/scope combinations fail with usage.
+`)
+}
+
+func (c *CLI) printCMUXUsage(w io.Writer) {
+	fmt.Fprint(w, `Usage:
+  kra cmux <subcommand> [args]
+
+Subcommands:
+  open              Create/select cmux workspace for a kra workspace
+  switch            Switch to mapped cmux workspace
+  list              List mapped cmux workspaces
+  status            Show mapping status
+  help              Show this help
+
+Run:
+  kra cmux <subcommand> --help
+`)
+}
+
+func (c *CLI) printCMUXOpenUsage(w io.Writer) {
+	fmt.Fprint(w, `Usage:
+  kra cmux open [<workspace-id>] [--format human|json]
+
+Open flow for cmux workspace integration.
+`)
+}
+
+func (c *CLI) printCMUXSwitchUsage(w io.Writer) {
+	fmt.Fprint(w, `Usage:
+  kra cmux switch [--workspace <workspace-id>] [--cmux <id|ref>] [--format human|json]
+
+Switch to an existing mapped cmux workspace.
+`)
+}
+
+func (c *CLI) printCMUXListUsage(w io.Writer) {
+	fmt.Fprint(w, `Usage:
+  kra cmux list [--workspace <workspace-id>] [--format human|json]
+
+List mapped cmux workspaces.
+`)
+}
+
+func (c *CLI) printCMUXStatusUsage(w io.Writer) {
+	fmt.Fprint(w, `Usage:
+  kra cmux status [--workspace <workspace-id>] [--format human|json]
+
+Show mapping status for cmux integration.
 `)
 }
 

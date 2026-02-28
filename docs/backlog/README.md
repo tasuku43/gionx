@@ -35,6 +35,7 @@ Backlog is managed by epic/prefix under `docs/backlog/*.md`.
 - `docs/backlog/UX-CORE.md`: core UX polish
 - `docs/backlog/ARCH.md`: architecture refactor
 - `docs/backlog/INT-JIRA.md`: external integration (Jira)
+- `docs/backlog/INT-CMUX.md`: external integration (cmux)
 - `docs/backlog/CTX-ROOT.md`: context and root management
 - `docs/backlog/CONFIG.md`: global/root config and runtime path policy
 - `docs/backlog/DOC-QUALITY.md`: documentation and quality hardening
@@ -54,6 +55,7 @@ Backlog is managed by epic/prefix under `docs/backlog/*.md`.
 - [x] `docs/backlog/UX-CORE.md` (`13/13` done)
 - [x] `docs/backlog/ARCH.md` (`10/10` done)
 - [x] `docs/backlog/INT-JIRA.md` (`7/7` done)
+- [ ] `docs/backlog/INT-CMUX.md` (`1/10` done)
 - [x] `docs/backlog/CTX-ROOT.md` (`4/4` done)
 - [x] `docs/backlog/CONFIG.md` (`6/6` done)
 - [x] `docs/backlog/DOC-QUALITY.md` (`5/5` done)

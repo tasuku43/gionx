@@ -76,6 +76,8 @@ func (c *CLI) Run(args []string) int {
 		return c.runBootstrap(args[1:])
 	case "ws":
 		return c.runWS(args[1:])
+	case "cmux":
+		return c.runCMUX(args[1:])
 	case "doctor":
 		return c.runDoctor(args[1:])
 	case "agent":
