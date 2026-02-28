@@ -160,7 +160,7 @@ func (c *Client) CreateWorkspaceWithCommand(ctx context.Context, command string)
 	if command != "" {
 		args = append(args, "--command", command)
 	}
-	stdout, stderr, err := c.run(ctx, false, args...)
+	stdout, stderr, err := c.run(ctx, false, false, args...)
 	if err != nil {
 		return "", commandError("new-workspace", stderr, err)
 	}
@@ -184,7 +184,7 @@ func (c *Client) RenameWorkspace(ctx context.Context, workspace string, title st
 	if title == "" {
 		return fmt.Errorf("title is required")
 	}
-	_, stderr, err := c.run(ctx, false, "rename-workspace", "--workspace", workspace, title)
+	_, stderr, err := c.run(ctx, false, false, "rename-workspace", "--workspace", workspace, title)
 	if err != nil {
 		return commandError("rename-workspace", stderr, err)
 	}
@@ -196,7 +196,7 @@ func (c *Client) SelectWorkspace(ctx context.Context, workspace string) error {
 	if workspace == "" {
 		return fmt.Errorf("workspace is required")
 	}
-	_, stderr, err := c.run(ctx, false, "select-workspace", "--workspace", workspace)
+	_, stderr, err := c.run(ctx, false, false, "select-workspace", "--workspace", workspace)
 	if err != nil {
 		return commandError("select-workspace", stderr, err)
 	}
@@ -217,7 +217,7 @@ func (c *Client) SendText(ctx context.Context, workspace string, surface string,
 		args = append(args, "--surface", surface)
 	}
 	args = append(args, text)
-	_, stderr, err := c.run(ctx, false, args...)
+	_, stderr, err := c.run(ctx, false, false, args...)
 	if err != nil {
 		return commandError("send", stderr, err)
 	}
@@ -225,7 +225,10 @@ func (c *Client) SendText(ctx context.Context, workspace string, surface string,
 }
 
 func (c *Client) runJSON(ctx context.Context, dst any, args ...string) error {
-	stdout, stderr, err := c.run(ctx, true, args...)
+	stdout, stderr, err := c.run(ctx, true, true, args...)
+	if err != nil && isUnsupportedIDFormatError(stderr, err) {
+		stdout, stderr, err = c.run(ctx, true, false, args...)
+	}
 	if err != nil {
 		return commandError(strings.Join(args, " "), stderr, err)
 	}
@@ -235,7 +238,7 @@ func (c *Client) runJSON(ctx context.Context, dst any, args ...string) error {
 	return nil
 }
 
-func (c *Client) run(ctx context.Context, jsonOutput bool, args ...string) ([]byte, []byte, error) {
+func (c *Client) run(ctx context.Context, jsonOutput bool, idFormatBoth bool, args ...string) ([]byte, []byte, error) {
 	base := make([]string, 0, len(args)+8)
 	if strings.TrimSpace(c.SocketPath) != "" {
 		base = append(base, "--socket", strings.TrimSpace(c.SocketPath))
@@ -245,6 +248,9 @@ func (c *Client) run(ctx context.Context, jsonOutput bool, args ...string) ([]by
 	}
 	if jsonOutput {
 		base = append(base, "--json")
+		if idFormatBoth {
+			base = append(base, "--id-format", "both")
+		}
 	}
 	base = append(base, args...)
 	r := c.Runner
@@ -252,6 +258,19 @@ func (c *Client) run(ctx context.Context, jsonOutput bool, args ...string) ([]by
 		r = execRunner{}
 	}
 	return r.Run(ctx, "cmux", base...)
+}
+
+func isUnsupportedIDFormatError(stderr []byte, err error) bool {
+	msg := strings.ToLower(strings.TrimSpace(string(stderr)))
+	if msg == "" && err != nil {
+		msg = strings.ToLower(err.Error())
+	}
+	if !strings.Contains(msg, "id-format") {
+		return false
+	}
+	return strings.Contains(msg, "unknown option") ||
+		strings.Contains(msg, "unrecognized option") ||
+		strings.Contains(msg, "unknown flag")
 }
 
 func commandError(command string, stderr []byte, err error) error {

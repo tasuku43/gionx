@@ -49,7 +49,7 @@ func TestClientCapabilities_ParsesMethods(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Capabilities() error: %v", err)
 	}
-	wantArgs := []string{"--socket", "/tmp/cmux.sock", "--json", "capabilities"}
+	wantArgs := []string{"--socket", "/tmp/cmux.sock", "--json", "--id-format", "both", "capabilities"}
 	if !reflect.DeepEqual(f.lastArgs, wantArgs) {
 		t.Fatalf("args = %v, want %v", f.lastArgs, wantArgs)
 	}
@@ -103,7 +103,7 @@ func TestClientListWorkspaces_JSONMode(t *testing.T) {
 	if len(got) != 1 || got[0].ID != "id1" || got[0].Ref != "workspace:1" || !got[0].Selected {
 		t.Fatalf("unexpected workspaces: %+v", got)
 	}
-	wantArgs := []string{"--json", "list-workspaces"}
+	wantArgs := []string{"--json", "--id-format", "both", "list-workspaces"}
 	if !reflect.DeepEqual(f.lastArgs, wantArgs) {
 		t.Fatalf("args = %v, want %v", f.lastArgs, wantArgs)
 	}
@@ -132,11 +132,44 @@ func TestClientListWorkspaces_FallsBackToTreeWhenCurrentWindowEmpty(t *testing.T
 	if len(f.names) != 2 {
 		t.Fatalf("call count = %d, want 2", len(f.names))
 	}
-	wantFirst := []string{"cmux", "--json", "list-workspaces"}
+	wantFirst := []string{"cmux", "--json", "--id-format", "both", "list-workspaces"}
 	if !reflect.DeepEqual(f.names[0], wantFirst) {
 		t.Fatalf("first call = %v, want %v", f.names[0], wantFirst)
 	}
-	wantSecond := []string{"cmux", "--json", "tree", "--all"}
+	wantSecond := []string{"cmux", "--json", "--id-format", "both", "tree", "--all"}
+	if !reflect.DeepEqual(f.names[1], wantSecond) {
+		t.Fatalf("second call = %v, want %v", f.names[1], wantSecond)
+	}
+}
+
+func TestClientRunJSON_FallsBackWhenIDFormatUnsupported(t *testing.T) {
+	f := &fakeRunnerSequence{
+		calls: []struct {
+			stdout []byte
+			stderr []byte
+			err    error
+		}{
+			{stderr: []byte("Unknown option: --id-format"), err: errors.New("exit status 1")},
+			{stdout: []byte(`{"methods":["workspace.create"]}`)},
+		},
+	}
+	c := &Client{Runner: f}
+
+	got, err := c.Capabilities(context.Background())
+	if err != nil {
+		t.Fatalf("Capabilities() error: %v", err)
+	}
+	if _, ok := got.Methods["workspace.create"]; !ok {
+		t.Fatalf("capabilities missing workspace.create: %+v", got.Methods)
+	}
+	if len(f.names) != 2 {
+		t.Fatalf("call count = %d, want 2", len(f.names))
+	}
+	wantFirst := []string{"cmux", "--json", "--id-format", "both", "capabilities"}
+	if !reflect.DeepEqual(f.names[0], wantFirst) {
+		t.Fatalf("first call = %v, want %v", f.names[0], wantFirst)
+	}
+	wantSecond := []string{"cmux", "--json", "capabilities"}
 	if !reflect.DeepEqual(f.names[1], wantSecond) {
 		t.Fatalf("second call = %v, want %v", f.names[1], wantSecond)
 	}
