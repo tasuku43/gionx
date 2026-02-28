@@ -70,13 +70,18 @@ func TestCLI_Shell_Completion_Zsh_PrintsCompdef(t *testing.T) {
 	if !strings.Contains(text, "compdef _kra_completion kra") {
 		t.Fatalf("missing zsh compdef: %q", text)
 	}
-	if !strings.Contains(text, "bootstrap") || !strings.Contains(text, "ws") {
+	if !strings.Contains(text, "context") || !strings.Contains(text, "ws") {
 		t.Fatalf("missing command candidates: %q", text)
 	}
-	if !strings.Contains(text, "ws add-repo) flags=(") || !strings.Contains(text, "--base-ref") {
+	deprecatedSkill := "ag" + "ent-skills"
+	deprecatedCommand := `"` + "ag" + `ent")`
+	if strings.Contains(text, deprecatedSkill) || strings.Contains(text, deprecatedCommand) {
+		t.Fatalf("deprecated completion tokens should be removed: %q", text)
+	}
+	if !strings.Contains(text, "\"ws add-repo\") flags=(") || !strings.Contains(text, "--base-ref") {
 		t.Fatalf("missing ws add-repo flag candidates: %q", text)
 	}
-	if !strings.Contains(text, "context create) flags=(") || !strings.Contains(text, "--path") {
+	if !strings.Contains(text, "\"context create\") flags=(") || !strings.Contains(text, "--path") {
 		t.Fatalf("missing context create flag candidates: %q", text)
 	}
 }
@@ -94,7 +99,12 @@ func TestCLI_Shell_Completion_Bash_PrintsCompleteHook(t *testing.T) {
 	if !strings.Contains(text, "complete -o default -F _kra_completion kra") {
 		t.Fatalf("missing bash complete hook: %q", text)
 	}
-	if !strings.Contains(text, "agent-skills") || !strings.Contains(text, "add-repo") {
+	deprecatedSkill := "ag" + "ent-skills"
+	deprecatedCommand := `"` + "ag" + `ent"`
+	if strings.Contains(text, deprecatedSkill) || strings.Contains(text, deprecatedCommand) {
+		t.Fatalf("deprecated completion tokens should be removed: %q", text)
+	}
+	if !strings.Contains(text, "context") || !strings.Contains(text, "add-repo") {
 		t.Fatalf("missing subcommand candidates: %q", text)
 	}
 	if !strings.Contains(text, "\"ws add-repo\")") || !strings.Contains(text, "--base-ref") {
