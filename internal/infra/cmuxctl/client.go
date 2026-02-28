@@ -104,7 +104,16 @@ func (c *Client) ListWorkspaces(ctx context.Context) ([]Workspace, error) {
 }
 
 func (c *Client) CreateWorkspace(ctx context.Context) (string, error) {
-	stdout, stderr, err := c.run(ctx, false, "new-workspace")
+	return c.CreateWorkspaceWithCommand(ctx, "")
+}
+
+func (c *Client) CreateWorkspaceWithCommand(ctx context.Context, command string) (string, error) {
+	command = strings.TrimSpace(command)
+	args := []string{"new-workspace"}
+	if command != "" {
+		args = append(args, "--command", command)
+	}
+	stdout, stderr, err := c.run(ctx, false, args...)
 	if err != nil {
 		return "", commandError("new-workspace", stderr, err)
 	}

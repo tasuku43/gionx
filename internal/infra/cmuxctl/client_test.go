@@ -56,6 +56,23 @@ func TestClientCreateWorkspace_ParsesOKResponse(t *testing.T) {
 	}
 }
 
+func TestClientCreateWorkspaceWithCommand_BuildsArgs(t *testing.T) {
+	f := &fakeRunner{stdout: []byte("OK ws-1\n")}
+	c := &Client{Runner: f}
+
+	got, err := c.CreateWorkspaceWithCommand(context.Background(), "cd '/tmp/ws-1'")
+	if err != nil {
+		t.Fatalf("CreateWorkspaceWithCommand() error: %v", err)
+	}
+	if got != "ws-1" {
+		t.Fatalf("workspace id = %q, want %q", got, "ws-1")
+	}
+	wantArgs := []string{"new-workspace", "--command", "cd '/tmp/ws-1'"}
+	if !reflect.DeepEqual(f.lastArgs, wantArgs) {
+		t.Fatalf("args = %v, want %v", f.lastArgs, wantArgs)
+	}
+}
+
 func TestClientListWorkspaces_JSONMode(t *testing.T) {
 	f := &fakeRunner{stdout: []byte(`{"workspaces":[{"id":"id1","ref":"workspace:1","index":0,"title":"t","selected":true}]}`)}
 	c := &Client{Runner: f}

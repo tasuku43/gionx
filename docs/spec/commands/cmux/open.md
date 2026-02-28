@@ -23,15 +23,13 @@ Open a new cmux workspace for one `kra` workspace using strict integration flow.
   - `workspace.create`
   - `workspace.rename`
   - `workspace.select`
-  - `surface.send_text`
 - Strict execution order:
-  1. create cmux workspace
+  1. create cmux workspace (`new-workspace --command "cd '<path>'"`)
   2. allocate ordinal from mapping store
   3. format title (`<kra-id> | <kra-title> [<n>]`)
   4. rename cmux workspace
   5. select cmux workspace
-  6. sync cwd via `surface.send_text` (`cd '<path>'`)
-  7. persist mapping entry
+  6. persist mapping entry
 
 ## Failure Policy
 

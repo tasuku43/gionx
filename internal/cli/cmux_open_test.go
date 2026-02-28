@@ -20,23 +20,21 @@ type fakeCMUXOpenClient struct {
 	createIDs    []string
 	createIndex  int
 	createErr    error
+	createCmds   []string
 	renameErr    error
 	selectErr    error
-	sendErr      error
 
 	renameWorkspace string
 	renameTitle     string
 	selectWorkspace string
-	sendWorkspace   string
-	sendSurface     string
-	sendText        string
 }
 
 func (f *fakeCMUXOpenClient) Capabilities(context.Context) (cmuxctl.Capabilities, error) {
 	return f.capabilities, nil
 }
 
-func (f *fakeCMUXOpenClient) CreateWorkspace(context.Context) (string, error) {
+func (f *fakeCMUXOpenClient) CreateWorkspaceWithCommand(_ context.Context, command string) (string, error) {
+	f.createCmds = append(f.createCmds, command)
 	if f.createErr != nil {
 		return "", f.createErr
 	}
@@ -60,13 +58,6 @@ func (f *fakeCMUXOpenClient) RenameWorkspace(_ context.Context, workspace string
 func (f *fakeCMUXOpenClient) SelectWorkspace(_ context.Context, workspace string) error {
 	f.selectWorkspace = workspace
 	return f.selectErr
-}
-
-func (f *fakeCMUXOpenClient) SendText(_ context.Context, workspace string, surface string, text string) error {
-	f.sendWorkspace = workspace
-	f.sendSurface = surface
-	f.sendText = text
-	return f.sendErr
 }
 
 func TestCLI_CMUX_Open_JSON_RequiresWorkspaceIDWhenOmitted(t *testing.T) {
@@ -105,10 +96,9 @@ func TestCLI_CMUX_Open_JSON_Success_PersistsMapping(t *testing.T) {
 	fake := &fakeCMUXOpenClient{
 		capabilities: cmuxctl.Capabilities{
 			Methods: map[string]struct{}{
-				"workspace.create":  {},
-				"workspace.rename":  {},
-				"workspace.select":  {},
-				"surface.send_text": {},
+				"workspace.create": {},
+				"workspace.rename": {},
+				"workspace.select": {},
 			},
 		},
 		createID: "CMUX-WS-1",
@@ -144,11 +134,8 @@ func TestCLI_CMUX_Open_JSON_Success_PersistsMapping(t *testing.T) {
 	if fake.selectWorkspace != "CMUX-WS-1" {
 		t.Fatalf("select workspace = %q, want %q", fake.selectWorkspace, "CMUX-WS-1")
 	}
-	if fake.sendWorkspace != "CMUX-WS-1" || fake.sendSurface != "" {
-		t.Fatalf("send target = (%q,%q), want (%q,%q)", fake.sendWorkspace, fake.sendSurface, "CMUX-WS-1", "")
-	}
-	if !strings.Contains(fake.sendText, "cd ") || !strings.Contains(fake.sendText, wsPath) {
-		t.Fatalf("send text = %q, want cd to workspace path", fake.sendText)
+	if len(fake.createCmds) != 1 || !strings.Contains(fake.createCmds[0], "cd ") || !strings.Contains(fake.createCmds[0], wsPath) {
+		t.Fatalf("create command = %+v, want single cd command for workspace path", fake.createCmds)
 	}
 
 	mapping, lerr := cmuxmap.NewStore(root).Load()
@@ -226,10 +213,9 @@ func TestCLI_CMUX_Open_JSON_Multi_Success(t *testing.T) {
 	fake := &fakeCMUXOpenClient{
 		capabilities: cmuxctl.Capabilities{
 			Methods: map[string]struct{}{
-				"workspace.create":  {},
-				"workspace.rename":  {},
-				"workspace.select":  {},
-				"surface.send_text": {},
+				"workspace.create": {},
+				"workspace.rename": {},
+				"workspace.select": {},
 			},
 		},
 		createIDs: []string{"CMUX-WS-1", "CMUX-WS-2"},
@@ -331,10 +317,9 @@ func TestCLI_CMUX_Open_JSON_MultiConcurrency_PartialFailure(t *testing.T) {
 	fake := &fakeCMUXOpenClient{
 		capabilities: cmuxctl.Capabilities{
 			Methods: map[string]struct{}{
-				"workspace.create":  {},
-				"workspace.rename":  {},
-				"workspace.select":  {},
-				"surface.send_text": {},
+				"workspace.create": {},
+				"workspace.rename": {},
+				"workspace.select": {},
 			},
 		},
 		createID: "CMUX-WS-1",

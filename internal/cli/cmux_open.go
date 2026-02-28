@@ -17,10 +17,9 @@ import (
 
 type cmuxOpenClient interface {
 	Capabilities(ctx context.Context) (cmuxctl.Capabilities, error)
-	CreateWorkspace(ctx context.Context) (string, error)
+	CreateWorkspaceWithCommand(ctx context.Context, command string) (string, error)
 	RenameWorkspace(ctx context.Context, workspace string, title string) error
 	SelectWorkspace(ctx context.Context, workspace string) error
-	SendText(ctx context.Context, workspace string, surface string, text string) error
 }
 
 var newCMUXOpenClient = func() cmuxOpenClient { return cmuxctl.NewClient() }
@@ -160,7 +159,7 @@ func (c *CLI) runCMUXOpen(args []string) int {
 	if err != nil {
 		return c.writeCMUXOpenError(outputFormat, "cmux_capability_missing", workspaceHint, fmt.Sprintf("read cmux capabilities: %v", err), exitError)
 	}
-	required := []string{"workspace.create", "workspace.rename", "workspace.select", "surface.send_text"}
+	required := []string{"workspace.create", "workspace.rename", "workspace.select"}
 	for _, method := range required {
 		if _, ok := caps.Methods[method]; !ok {
 			return c.writeCMUXOpenError(outputFormat, "cmux_capability_missing", workspaceHint, fmt.Sprintf("cmux capability missing: %s", method), exitError)
@@ -326,7 +325,7 @@ func resolveCMUXOpenTarget(root string, workspaceID string) (cmuxOpenTarget, str
 }
 
 func (c *CLI) openOneCMUXWorkspace(ctx context.Context, client cmuxOpenClient, target cmuxOpenTarget, mapping *cmuxmap.File, mapMu *sync.Mutex) (cmuxOpenResult, string, string) {
-	cmuxWorkspaceID, err := client.CreateWorkspace(ctx)
+	cmuxWorkspaceID, err := client.CreateWorkspaceWithCommand(ctx, fmt.Sprintf("cd %s", shellQuoteSingle(target.WorkspacePath)))
 	if err != nil {
 		return cmuxOpenResult{}, "cmux_create_failed", fmt.Sprintf("create cmux workspace: %v", err)
 	}
@@ -348,10 +347,6 @@ func (c *CLI) openOneCMUXWorkspace(ctx context.Context, client cmuxOpenClient, t
 	if err := client.SelectWorkspace(ctx, cmuxWorkspaceID); err != nil {
 		return cmuxOpenResult{}, "cmux_select_failed", fmt.Sprintf("select cmux workspace: %v", err)
 	}
-	if err := client.SendText(ctx, cmuxWorkspaceID, "", fmt.Sprintf("cd %s\n", shellQuoteSingle(target.WorkspacePath))); err != nil {
-		return cmuxOpenResult{}, "cmux_cwd_sync_failed", fmt.Sprintf("sync cmux cwd: %v", err)
-	}
-
 	now := time.Now().UTC().Format(time.RFC3339)
 	mapMu.Lock()
 	ws := mapping.Workspaces[target.WorkspaceID]

@@ -41,7 +41,7 @@ Open new cmux workspaces for multiple `kra` workspaces in one command.
 - `--concurrency=1`: targets are processed sequentially (fail-fast).
 - `--concurrency>1`: targets are processed with bounded parallel workers.
 - Each target uses the same strict per-workspace open flow as `cmux open`:
-  create -> rename -> select -> cwd sync -> mapping update.
+  create(with `--command cd`) -> rename -> select -> mapping update.
 - Mapping file is persisted once after execution when at least one target succeeded.
 - Parallel mode does not stop on first failure; it aggregates per-target failures.
 
