@@ -165,7 +165,6 @@ var kraCompletionTargetSelectorFlags = []string{
 	"--current",
 	"--select",
 	"--help",
-	"-h",
 }
 
 func renderShellCompletionScript(shellName string) (string, error) {
@@ -255,7 +254,7 @@ complete -o default -F _kra_completion kra
 func renderBashCommandFlagCases() string {
 	lines := make([]string, 0, len(kraCompletionCommandFlagOrder)*3)
 	for _, cmd := range kraCompletionCommandFlagOrder {
-		flags := kraCompletionCommandFlags[cmd]
+		flags := completionRenderableFlags(kraCompletionCommandFlags[cmd])
 		if len(flags) == 0 {
 			continue
 		}
@@ -271,7 +270,7 @@ func renderBashCommandFlagCases() string {
 func renderBashPathFlagCases() string {
 	lines := make([]string, 0, len(kraCompletionPathFlagOrder)*3)
 	for _, path := range kraCompletionPathFlagOrder {
-		flags := kraCompletionPathFlags[path]
+		flags := completionRenderableFlags(kraCompletionPathFlags[path])
 		if len(flags) == 0 {
 			continue
 		}
@@ -333,7 +332,7 @@ func renderBashTargetSelectorGateCases() string {
 			"        if [[ ${has_target} -eq 0 ]]; then",
 			fmt.Sprintf("          COMPREPLY=( $(compgen -W %q -- \"${cur}\") )", strings.Join(kraCompletionTargetSelectorFlags, " ")),
 			"        else",
-			fmt.Sprintf("          COMPREPLY=( $(compgen -W %q -- \"${cur}\") )", strings.Join(completionFlagsWithoutTargetSelectors(path), " ")),
+			fmt.Sprintf("          COMPREPLY=( $(compgen -W %q -- \"${cur}\") )", strings.Join(completionRenderableFlags(completionFlagsWithoutTargetSelectors(path)), " ")),
 			"        fi",
 			"        return 0",
 			"        ;;",
@@ -419,7 +418,7 @@ compdef _kra_completion kra
 func renderZshCommandFlagCases() string {
 	lines := make([]string, 0, len(kraCompletionCommandFlagOrder))
 	for _, cmd := range kraCompletionCommandFlagOrder {
-		flags := kraCompletionCommandFlags[cmd]
+		flags := completionRenderableFlags(kraCompletionCommandFlags[cmd])
 		if len(flags) == 0 {
 			continue
 		}
@@ -431,7 +430,7 @@ func renderZshCommandFlagCases() string {
 func renderZshPathFlagCases() string {
 	lines := make([]string, 0, len(kraCompletionPathFlagOrder))
 	for _, path := range kraCompletionPathFlagOrder {
-		flags := kraCompletionPathFlags[path]
+		flags := completionRenderableFlags(kraCompletionPathFlags[path])
 		if len(flags) == 0 {
 			continue
 		}
@@ -470,7 +469,7 @@ func renderZshTargetSelectorGateCases() string {
 			"      if [[ ${has_target} -eq 0 ]]; then",
 			fmt.Sprintf("        flags=(%s)", zshQuotedWords(kraCompletionTargetSelectorFlags)),
 			"      else",
-			fmt.Sprintf("        flags=(%s)", zshQuotedWords(completionFlagsWithoutTargetSelectors(path))),
+			fmt.Sprintf("        flags=(%s)", zshQuotedWords(completionRenderableFlags(completionFlagsWithoutTargetSelectors(path)))),
 			"      fi",
 			"      compadd -- \"${flags[@]}\"",
 			"      return 0",
@@ -495,7 +494,32 @@ func completionFlagsWithoutTargetSelectors(path string) []string {
 		}
 	}
 	if len(out) == 0 {
-		return []string{"--help", "-h"}
+		return []string{"--help"}
+	}
+	return out
+}
+
+func completionRenderableFlags(flags []string) []string {
+	out := make([]string, 0, len(flags))
+	seen := make(map[string]struct{}, len(flags))
+	hasLongHelp := false
+	for _, flag := range flags {
+		v := strings.TrimSpace(flag)
+		if v == "" || v == "-h" {
+			continue
+		}
+		if v == "--help" {
+			hasLongHelp = true
+			continue
+		}
+		if _, ok := seen[v]; ok {
+			continue
+		}
+		seen[v] = struct{}{}
+		out = append(out, v)
+	}
+	if hasLongHelp {
+		out = append(out, "--help")
 	}
 	return out
 }
@@ -514,7 +538,7 @@ func renderFishCompletionScript() string {
 	b.WriteString("complete -c kra -f\n")
 	b.WriteString("complete -c kra -l debug -d \"Enable debug logging\"\n")
 	b.WriteString("complete -c kra -l version -d \"Print version and exit\"\n")
-	b.WriteString("complete -c kra -l help -s h -d \"Show help\"\n")
+	b.WriteString("complete -c kra -l help -d \"Show help\"\n")
 	b.WriteString(
 		fmt.Sprintf(
 			"complete -c kra -n \"__fish_use_subcommand\" -a %q\n",
@@ -541,13 +565,13 @@ func renderFishCompletionScript() string {
 	}
 	for _, cmd := range kraCompletionCommandFlagOrder {
 		cond := fishConditionForPath(cmd)
-		for _, flag := range kraCompletionCommandFlags[cmd] {
+		for _, flag := range completionRenderableFlags(kraCompletionCommandFlags[cmd]) {
 			b.WriteString(renderFishFlagCompletionLine(cond, flag))
 		}
 	}
 	for _, path := range kraCompletionPathFlagOrder {
 		cond := fishConditionForPath(path)
-		for _, flag := range kraCompletionPathFlags[path] {
+		for _, flag := range completionRenderableFlags(kraCompletionPathFlags[path]) {
 			b.WriteString(renderFishFlagCompletionLine(cond, flag))
 		}
 	}
@@ -555,9 +579,6 @@ func renderFishCompletionScript() string {
 }
 
 func renderFishFlagCompletionLine(cond string, flag string) string {
-	if flag == "-h" {
-		return fmt.Sprintf("complete -c kra -n %q -s h -d \"Show help\"\n", cond)
-	}
 	if strings.HasPrefix(flag, "--") {
 		return fmt.Sprintf("complete -c kra -n %q -l %s\n", cond, strings.TrimPrefix(flag, "--"))
 	}
@@ -579,6 +600,6 @@ func fishConditionForPath(path string) string {
 func kraCompletionTopWords() []string {
 	out := make([]string, 0, len(kraCompletionRootCommands)+len(kraCompletionGlobalFlags))
 	out = append(out, kraCompletionRootCommands...)
-	out = append(out, kraCompletionGlobalFlags...)
+	out = append(out, completionRenderableFlags(kraCompletionGlobalFlags)...)
 	return out
 }

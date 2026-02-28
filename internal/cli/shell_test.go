@@ -88,11 +88,14 @@ func TestCLI_Shell_Completion_Zsh_PrintsCompdef(t *testing.T) {
 	if !strings.Contains(text, "\"ws add-repo\")\n      has_target=0") {
 		t.Fatalf("missing target-selector gate for ws add-repo: %q", text)
 	}
-	if !strings.Contains(text, `flags=("--id" "--current" "--select" "--help" "-h")`) {
+	if !strings.Contains(text, `flags=("--id" "--current" "--select" "--help")`) {
 		t.Fatalf("missing selector-first candidates: %q", text)
 	}
-	if !strings.Contains(text, `flags=("--format" "--repo" "--branch" "--base-ref" "--yes" "--refresh" "--no-fetch" "--help" "-h")`) {
+	if !strings.Contains(text, `flags=("--format" "--repo" "--branch" "--base-ref" "--yes" "--refresh" "--no-fetch" "--help")`) {
 		t.Fatalf("missing post-selector candidates: %q", text)
+	}
+	if strings.Contains(text, "\"-h\"") {
+		t.Fatalf("short help alias should not be suggested in completion: %q", text)
 	}
 }
 
@@ -126,11 +129,14 @@ func TestCLI_Shell_Completion_Bash_PrintsCompleteHook(t *testing.T) {
 	if !strings.Contains(text, "\"ws add-repo\")\n        has_target=0") {
 		t.Fatalf("missing target-selector gate for ws add-repo: %q", text)
 	}
-	if !strings.Contains(text, `"--id --current --select --help -h"`) {
+	if !strings.Contains(text, `"--id --current --select --help"`) {
 		t.Fatalf("missing selector-first candidates: %q", text)
 	}
-	if !strings.Contains(text, `"--format --repo --branch --base-ref --yes --refresh --no-fetch --help -h"`) {
+	if !strings.Contains(text, `"--format --repo --branch --base-ref --yes --refresh --no-fetch --help"`) {
 		t.Fatalf("missing post-selector candidates: %q", text)
+	}
+	if strings.Contains(text, " -h") {
+		t.Fatalf("short help alias should not be suggested in completion: %q", text)
 	}
 }
 
@@ -166,8 +172,8 @@ func TestRenderShellCompletionScript_UnsupportedShell(t *testing.T) {
 }
 
 func TestKraCompletionCommandFlags_WS_FocusTargetSelectors(t *testing.T) {
-	want := []string{"--id", "--current", "--select", "--help", "-h"}
-	got := kraCompletionCommandFlags["ws"]
+	want := []string{"--id", "--current", "--select", "--help"}
+	got := completionRenderableFlags(kraCompletionCommandFlags["ws"])
 	if !reflect.DeepEqual(got, want) {
 		t.Fatalf("ws command flags = %v, want %v", got, want)
 	}
