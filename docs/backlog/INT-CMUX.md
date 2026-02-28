@@ -101,3 +101,22 @@ status: planned
     - `docs/spec/commands/cmux/README.md`
   - Depends: CMUX-009
   - Serial: yes
+
+- [x] CMUX-011: `kra ws open` / `kra ws switch` entrypoint migration
+  - What: add `ws open` and `ws switch` as primary workspace actions and support
+    workspace targeting options (`--id` / `--current` / `--select`) at `ws` action level.
+  - Specs:
+    - `docs/spec/commands/ws/open.md`
+    - `docs/spec/commands/ws/switch.md`
+    - `docs/spec/commands/ws/select.md`
+  - Depends: CMUX-005, CMUX-006
+  - Serial: yes
+
+- [x] CMUX-012: remove `kra cmux` command group
+  - What: remove top-level `cmux` CLI entrypoint and route user-facing cmux operations through
+    `kra ws open` / `kra ws switch`.
+  - Specs:
+    - `docs/spec/commands/ws/open.md`
+    - `docs/spec/commands/ws/switch.md`
+  - Depends: CMUX-011
+  - Serial: yes

@@ -64,6 +64,8 @@ Implementation should reference these specs. When behavior changes, update the s
   - `commands/ws/select-multi.md`: `kra ws --select --multi`
   - `commands/ws/import/jira.md`: `kra ws import jira`
   - `commands/ws/dashboard.md`: `kra ws dashboard`
+  - `commands/ws/open.md`: `kra ws open`
+  - `commands/ws/switch.md`: `kra ws switch`
   - `commands/ws/add-repo.md`: `kra ws add-repo`
   - `commands/ws/dry-run.md`: `kra ws <close|reopen|purge> --dry-run`
   - `commands/ws/lock.md`: `kra ws lock` / `kra ws unlock`
