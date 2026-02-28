@@ -66,7 +66,7 @@ func TestCLI_CMUX_Switch_JSON_Success_WithExplicitWorkspaceAndCMUX(t *testing.T)
 	var out bytes.Buffer
 	var err bytes.Buffer
 	c := New(&out, &err)
-	code := c.Run([]string{"cmux", "switch", "--format", "json", "--workspace", "WS1", "--cmux", "CMUX-WS-1"})
+	code := c.Run([]string{"ws", "switch", "--format", "json", "--workspace", "WS1", "--cmux", "CMUX-WS-1"})
 	if code != exitOK {
 		t.Fatalf("exit code = %d, want %d (stderr=%q out=%q)", code, exitOK, err.String(), out.String())
 	}
@@ -123,7 +123,7 @@ func TestCLI_CMUX_Switch_JSON_AmbiguousWithoutWorkspace_Fails(t *testing.T) {
 	var out bytes.Buffer
 	var err bytes.Buffer
 	c := New(&out, &err)
-	code := c.Run([]string{"cmux", "switch", "--format", "json", "--cmux", "workspace:1"})
+	code := c.Run([]string{"ws", "switch", "--format", "json", "--cmux", "workspace:1"})
 	if code != exitError {
 		t.Fatalf("exit code = %d, want %d", code, exitError)
 	}
@@ -146,7 +146,7 @@ func TestCLI_CMUX_Switch_JSON_RequiresTargetIfNoFlags(t *testing.T) {
 	var out bytes.Buffer
 	var err bytes.Buffer
 	c := New(&out, &err)
-	code := c.Run([]string{"cmux", "switch", "--format", "json"})
+	code := c.Run([]string{"ws", "switch", "--format", "json"})
 	if code != exitError {
 		t.Fatalf("exit code = %d, want %d", code, exitError)
 	}
@@ -173,7 +173,7 @@ func TestCLI_CMUX_Switch_JSON_NonMappedWorkspace(t *testing.T) {
 	var out bytes.Buffer
 	var err bytes.Buffer
 	c := New(&out, &err)
-	code := c.Run([]string{"cmux", "switch", "--format", "json", "--workspace", "WS9", "--cmux", "CMUX-X"})
+	code := c.Run([]string{"ws", "switch", "--format", "json", "--workspace", "WS9", "--cmux", "CMUX-X"})
 	if code != exitError {
 		t.Fatalf("exit code = %d, want %d", code, exitError)
 	}
@@ -213,7 +213,7 @@ func TestCLI_CMUX_Switch_JSON_PrunesStaleBeforeResolve(t *testing.T) {
 	var out bytes.Buffer
 	var err bytes.Buffer
 	c := New(&out, &err)
-	code := c.Run([]string{"cmux", "switch", "--format", "json", "--workspace", "WS1"})
+	code := c.Run([]string{"ws", "switch", "--format", "json", "--workspace", "WS1"})
 	if code != exitOK {
 		t.Fatalf("exit code = %d, want %d (stderr=%q out=%q)", code, exitOK, err.String(), out.String())
 	}

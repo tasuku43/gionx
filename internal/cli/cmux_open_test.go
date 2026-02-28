@@ -66,7 +66,7 @@ func TestCLI_CMUX_Open_JSON_RequiresWorkspaceIDWhenOmitted(t *testing.T) {
 	var out bytes.Buffer
 	var err bytes.Buffer
 	c := New(&out, &err)
-	code := c.Run([]string{"cmux", "open", "--format", "json"})
+	code := c.Run([]string{"ws", "open", "--format", "json"})
 	if code != exitUsage {
 		t.Fatalf("exit code = %d, want %d", code, exitUsage)
 	}
@@ -110,7 +110,7 @@ func TestCLI_CMUX_Open_JSON_Success_PersistsMapping(t *testing.T) {
 	var out bytes.Buffer
 	var err bytes.Buffer
 	c := New(&out, &err)
-	code := c.Run([]string{"cmux", "open", "--format", "json", "WS1"})
+	code := c.Run([]string{"ws", "open", "--format", "json", "WS1"})
 	if code != exitOK {
 		t.Fatalf("exit code = %d, want %d (stderr=%q out=%q)", code, exitOK, err.String(), out.String())
 	}
@@ -176,7 +176,7 @@ func TestCLI_CMUX_Open_JSON_FailsWhenCapabilityMissing(t *testing.T) {
 	var out bytes.Buffer
 	var err bytes.Buffer
 	c := New(&out, &err)
-	code := c.Run([]string{"cmux", "open", "--format", "json", "WS1"})
+	code := c.Run([]string{"ws", "open", "--format", "json", "WS1"})
 	if code != exitError {
 		t.Fatalf("exit code = %d, want %d", code, exitError)
 	}
@@ -227,7 +227,7 @@ func TestCLI_CMUX_Open_JSON_Multi_Success(t *testing.T) {
 	var out bytes.Buffer
 	var err bytes.Buffer
 	c := New(&out, &err)
-	code := c.Run([]string{"cmux", "open", "--format", "json", "--multi", "--workspace", "WS1", "--workspace", "WS2"})
+	code := c.Run([]string{"ws", "open", "--format", "json", "--multi", "--workspace", "WS1", "--workspace", "WS2"})
 	if code != exitOK {
 		t.Fatalf("exit code = %d, want %d (stderr=%q out=%q)", code, exitOK, err.String(), out.String())
 	}
@@ -266,7 +266,7 @@ func TestCLI_CMUX_Open_JSON_MultipleTargetsRequireMulti(t *testing.T) {
 	var out bytes.Buffer
 	var err bytes.Buffer
 	c := New(&out, &err)
-	code := c.Run([]string{"cmux", "open", "--format", "json", "--workspace", "WS1", "--workspace", "WS2"})
+	code := c.Run([]string{"ws", "open", "--format", "json", "--workspace", "WS1", "--workspace", "WS2"})
 	if code != exitUsage {
 		t.Fatalf("exit code = %d, want %d", code, exitUsage)
 	}
@@ -287,7 +287,7 @@ func TestCLI_CMUX_Open_JSON_ConcurrencyRequiresMulti(t *testing.T) {
 	var out bytes.Buffer
 	var err bytes.Buffer
 	c := New(&out, &err)
-	code := c.Run([]string{"cmux", "open", "--format", "json", "--concurrency", "2", "--workspace", "WS1"})
+	code := c.Run([]string{"ws", "open", "--format", "json", "--concurrency", "2", "--workspace", "WS1"})
 	if code != exitUsage {
 		t.Fatalf("exit code = %d, want %d", code, exitUsage)
 	}
@@ -331,7 +331,7 @@ func TestCLI_CMUX_Open_JSON_MultiConcurrency_PartialFailure(t *testing.T) {
 	var out bytes.Buffer
 	var err bytes.Buffer
 	c := New(&out, &err)
-	code := c.Run([]string{"cmux", "open", "--format", "json", "--multi", "--concurrency", "2", "--workspace", "WS1", "--workspace", "WS9"})
+	code := c.Run([]string{"ws", "open", "--format", "json", "--multi", "--concurrency", "2", "--workspace", "WS1", "--workspace", "WS9"})
 	if code != exitError {
 		t.Fatalf("exit code = %d, want %d (stderr=%q out=%q)", code, exitError, err.String(), out.String())
 	}

@@ -76,8 +76,6 @@ func (c *CLI) Run(args []string) int {
 		return c.runBootstrap(args[1:])
 	case "ws":
 		return c.runWS(args[1:])
-	case "cmux":
-		return c.runCMUX(args[1:])
 	case "doctor":
 		return c.runDoctor(args[1:])
 	case "agent":
@@ -144,6 +142,10 @@ func (c *CLI) runWS(args []string) int {
 		return c.runWSLock(args[1:])
 	case "unlock":
 		return c.runWSUnlock(args[1:])
+	case "open":
+		return c.runWSOpen(args[1:])
+	case "switch":
+		return c.runWSSwitch(args[1:])
 	case "add-repo", "remove-repo", "close", "reopen", "purge":
 		return c.runWSActionSubcommand(args[0], args[1:])
 	default:

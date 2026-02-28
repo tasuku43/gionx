@@ -15,7 +15,6 @@ func (c *CLI) printRootUsage(w io.Writer) {
 		"  template          Workspace template commands",
 		"  shell             Shell integration commands",
 		"  ws                Workspace commands",
-		"  cmux              cmux integration commands",
 		"  doctor            Diagnose KRA_ROOT health",
 	}
 	commands = append(commands,
@@ -164,6 +163,8 @@ Bootstrap:
 func (c *CLI) printWSUsage(w io.Writer) {
 	fmt.Fprint(w, `Usage:
   kra ws [--id <id> | --current | --select]
+  kra ws open [--id <id> | --current | --select] [--multi] [--concurrency <n>] [--format human|json]
+  kra ws switch [--id <id> | --current | --select] [--cmux <id|ref>] [--format human|json]
   kra ws <add-repo|remove-repo|close|reopen|purge> [--id <id> | --current | --select] [action-args...]
   kra ws --select [--archived] [close|add-repo|remove-repo|reopen|unlock|purge]
   kra ws --select --multi [--archived] <close|reopen|purge> [--no-commit]
@@ -179,6 +180,8 @@ func (c *CLI) printWSUsage(w io.Writer) {
 Subcommands:
   create            Create a workspace
   import            Import workspaces from external systems
+  open              Open cmux workspace(s) for selected workspace target
+  switch            Switch to mapped cmux workspace
   add-repo          Add repositories to a workspace
   remove-repo       Remove repositories from a workspace
   close             Archive a workspace
@@ -210,41 +213,29 @@ Notes:
 `)
 }
 
-func (c *CLI) printCMUXUsage(w io.Writer) {
+func (c *CLI) printWSOpenUsage(w io.Writer) {
 	fmt.Fprint(w, `Usage:
-  kra cmux <subcommand> [args]
-
-Subcommands:
-  open              Create/select cmux workspace for a kra workspace
-  switch            Switch to mapped cmux workspace
-  list              List mapped cmux workspaces
-  status            Show mapping status
-  help              Show this help
-
-Run:
-  kra cmux <subcommand> --help
-`)
-}
-
-func (c *CLI) printCMUXOpenUsage(w io.Writer) {
-	fmt.Fprint(w, `Usage:
-  kra cmux open [<workspace-id>] [--workspace <workspace-id> ...] [--multi] [--concurrency <n>] [--format human|json]
+  kra ws open [--id <id> | --current | --select] [--multi] [--concurrency <n>] [--format human|json]
 
 Open flow for cmux workspace integration.
 `)
 }
 
-func (c *CLI) printCMUXSwitchUsage(w io.Writer) {
+func (c *CLI) printWSSwitchUsage(w io.Writer) {
 	fmt.Fprint(w, `Usage:
-  kra cmux switch [--workspace <workspace-id>] [--cmux <id|ref>] [--format human|json]
+  kra ws switch [--id <id> | --current | --select] [--cmux <id|ref>] [--format human|json]
 
 Switch to an existing mapped cmux workspace.
 `)
 }
 
+// Legacy internal helpers kept for shared parser/renderer reuse.
+func (c *CLI) printCMUXOpenUsage(w io.Writer)   { c.printWSOpenUsage(w) }
+func (c *CLI) printCMUXSwitchUsage(w io.Writer) { c.printWSSwitchUsage(w) }
+
 func (c *CLI) printCMUXListUsage(w io.Writer) {
 	fmt.Fprint(w, `Usage:
-  kra cmux list [--workspace <workspace-id>] [--format human|json]
+  kra ws list [--format human|json]
 
 List mapped cmux workspaces.
 `)
@@ -252,7 +243,7 @@ List mapped cmux workspaces.
 
 func (c *CLI) printCMUXStatusUsage(w io.Writer) {
 	fmt.Fprint(w, `Usage:
-  kra cmux status [--workspace <workspace-id>] [--format human|json]
+  kra ws status [--format human|json]
 
 Show mapping status for cmux integration.
 `)
