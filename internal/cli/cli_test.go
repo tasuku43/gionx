@@ -112,7 +112,6 @@ func TestCLI_WS_SelectFlagWithValueRejected(t *testing.T) {
 		name string
 		args []string
 	}{
-		{name: "go", args: []string{"ws", "go", "--select=WS-1"}},
 		{name: "close", args: []string{"ws", "close", "--select=WS-1"}},
 		{name: "add-repo", args: []string{"ws", "add-repo", "--select=WS-1"}},
 		{name: "remove-repo", args: []string{"ws", "remove-repo", "--select=WS-1"}},
@@ -152,6 +151,20 @@ func TestCLI_WS_SelectFlagSupported(t *testing.T) {
 	}
 }
 
+func TestCLI_WS_GoSubcommandRemoved(t *testing.T) {
+	var out bytes.Buffer
+	var err bytes.Buffer
+	c := New(&out, &err)
+
+	code := c.Run([]string{"ws", "go"})
+	if code != exitUsage {
+		t.Fatalf("exit code = %d, want %d (stderr=%q)", code, exitUsage, err.String())
+	}
+	if !strings.Contains(err.String(), "unknown command") {
+		t.Fatalf("stderr missing unknown command message: %q", err.String())
+	}
+}
+
 func TestCLI_WS_Select_UnsupportedAction(t *testing.T) {
 	var out bytes.Buffer
 	var err bytes.Buffer
@@ -185,7 +198,7 @@ func TestCLI_WS_Select_ActionScopeMismatch(t *testing.T) {
 	var err bytes.Buffer
 	c := New(&out, &err)
 
-	code := c.Run([]string{"ws", "select", "--archived", "go"})
+	code := c.Run([]string{"ws", "select", "--archived", "add-repo"})
 	if code != exitUsage {
 		t.Fatalf("exit code = %d, want %d (stderr=%q)", code, exitUsage, err.String())
 	}

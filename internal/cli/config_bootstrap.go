@@ -126,7 +126,7 @@ func parseWSAction(args []string) string {
 			rest = rest[1:]
 		default:
 			switch cur {
-			case "go", "add-repo", "remove-repo", "close", "reopen", "purge", "unlock":
+			case "add-repo", "remove-repo", "close", "reopen", "purge", "unlock":
 				return cur
 			default:
 				return ""

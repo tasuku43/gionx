@@ -164,8 +164,8 @@ Bootstrap:
 func (c *CLI) printWSUsage(w io.Writer) {
 	fmt.Fprint(w, `Usage:
   kra ws [--id <id> | --current | --select]
-  kra ws <go|add-repo|remove-repo|close|reopen|purge> [--id <id> | --current | --select] [action-args...]
-  kra ws --select [--archived] [go|close|add-repo|remove-repo|reopen|unlock|purge]
+  kra ws <add-repo|remove-repo|close|reopen|purge> [--id <id> | --current | --select] [action-args...]
+  kra ws --select [--archived] [close|add-repo|remove-repo|reopen|unlock|purge]
   kra ws --select --multi [--archived] <close|reopen|purge> [--no-commit]
   kra ws create [--no-prompt] [--template <name>] [--format human|json] <id>
   kra ws create [--no-prompt] [--template <name>] [--format human|json] --id <id> [--title "<title>"]
@@ -179,7 +179,6 @@ func (c *CLI) printWSUsage(w io.Writer) {
 Subcommands:
   create            Create a workspace
   import            Import workspaces from external systems
-  go                Move to workspace path (via shell action file protocol)
   add-repo          Add repositories to a workspace
   remove-repo       Remove repositories from a workspace
   close             Archive a workspace
@@ -197,9 +196,9 @@ Run:
 
 Notes:
 - edit actions are routed by ws <action> subcommands.
-- active actions: go, add-repo, remove-repo, close
+- active actions: add-repo, remove-repo, close
 - archived actions: reopen, unlock, purge (applies archived scope automatically)
-- ws --archived with go|add-repo|remove-repo|close is invalid.
+- ws --archived with add-repo|remove-repo|close is invalid.
 - kra ws requires explicit target mode: --id, --current, or --select.
 - kra ws does not resolve workspace implicitly from current path unless --current is set.
 - kra ws --select always opens workspace selection first.

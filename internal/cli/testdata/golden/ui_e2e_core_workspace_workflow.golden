@@ -33,10 +33,7 @@ Workspaces(active):
   • UI-100: (no title)
 
 
-$ kra ws --act go UI-100
-exit: 0
-
-$ kra ws --act close UI-100
+$ kra ws close UI-100
 exit: 0
 stdout:
 Result:

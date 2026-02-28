@@ -26,7 +26,6 @@ func TestGolden_UIE2E_CoreWorkspaceWorkflow(t *testing.T) {
 		{Args: []string{"ws", "list"}},
 		{Args: []string{"ws", "create", "--no-prompt", "UI-100"}},
 		{Args: []string{"ws", "list"}},
-		{Args: []string{"ws", "go", "UI-100"}},
 		{Args: []string{"ws", "close", "UI-100"}},
 		{Args: []string{"ws", "list", "--archived"}},
 	}

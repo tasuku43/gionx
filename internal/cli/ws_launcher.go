@@ -127,9 +127,15 @@ parseFlags:
 	if fixedAction == "" && len(args) > 0 {
 		action := strings.TrimSpace(args[0])
 		switch action {
-		case "go", "add-repo", "remove-repo", "close", "reopen", "purge", "unlock":
+		case "add-repo", "remove-repo", "close", "reopen", "purge", "unlock":
 			fixedAction = action
 			args = args[1:]
+		default:
+			if !strings.HasPrefix(action, "-") {
+				fmt.Fprintf(c.Err, "unsupported action: %q\n", action)
+				c.printWSUsage(c.Err)
+				return exitUsage
+			}
 		}
 	}
 	if workspaceID != "" {
@@ -140,7 +146,7 @@ parseFlags:
 	}
 	if fixedAction != "" {
 		switch fixedAction {
-		case "go", "add-repo", "remove-repo", "close":
+		case "add-repo", "remove-repo", "close":
 			if archivedScope {
 				fmt.Fprintf(c.Err, "action %s cannot be used with --archived\n", fixedAction)
 				c.printWSUsage(c.Err)
@@ -276,11 +282,6 @@ parseFlags:
 	c.debugf("ws launcher selected workspace=%s status=%s action=%s", target.ID, target.Status, action)
 
 	switch action {
-	case "go":
-		if target.Status == "archived" {
-			return c.runWSGo([]string{"--ui", "--archived", target.ID})
-		}
-		return c.runWSGo([]string{"--ui", target.ID})
 	case "add-repo":
 		return c.runWSAddRepo([]string{target.ID})
 	case "remove-repo":
@@ -332,7 +333,7 @@ func runWSActionHasHelp(actionArgs []string) bool {
 
 func (c *CLI) runWSFixedActionDirect(action string, workspaceID string, archivedScope bool, actionArgs []string) int {
 	switch action {
-	case "go", "add-repo", "remove-repo", "close":
+	case "add-repo", "remove-repo", "close":
 		if archivedScope {
 			c.printWSUsage(c.Err)
 			return exitUsage
@@ -346,7 +347,7 @@ func (c *CLI) runWSFixedActionDirect(action string, workspaceID string, archived
 
 	opArgs := append([]string{}, actionArgs...)
 	switch action {
-	case "go", "add-repo", "remove-repo", "close":
+	case "add-repo", "remove-repo", "close":
 		if workspaceID != "" && !runWSActionHasIDArg(opArgs) && !runWSActionHasPositional(opArgs) {
 			opArgs = append([]string{"--id", workspaceID}, opArgs...)
 		}
@@ -357,20 +358,6 @@ func (c *CLI) runWSFixedActionDirect(action string, workspaceID string, archived
 	}
 
 	switch action {
-	case "go":
-		if archivedScope {
-			hasArchived := false
-			for _, arg := range opArgs {
-				if strings.TrimSpace(arg) == "--archived" {
-					hasArchived = true
-					break
-				}
-			}
-			if !hasArchived {
-				opArgs = append([]string{"--archived"}, opArgs...)
-			}
-		}
-		return c.runWSGo(opArgs)
 	case "add-repo":
 		return c.runWSAddRepo(opArgs)
 	case "remove-repo":
@@ -724,24 +711,15 @@ func lookupWorkspaceStatusByID(ctx context.Context, root string, workspaceID str
 	return "", false, nil
 }
 
-func (c *CLI) promptLauncherAction(target workspaceContextSelection, fromContext bool) (string, error) {
+func (c *CLI) promptLauncherAction(target workspaceContextSelection, _ bool) (string, error) {
 	actions := make([]workspaceSelectorCandidate, 0, 3)
 	switch target.Status {
 	case "active":
-		if fromContext {
-			actions = append(actions,
-				workspaceSelectorCandidate{ID: "add-repo", Description: "add repositories"},
-				workspaceSelectorCandidate{ID: "remove-repo", Description: "remove repositories"},
-				workspaceSelectorCandidate{ID: "close", Description: "archive this workspace"},
-			)
-		} else {
-			actions = append(actions,
-				workspaceSelectorCandidate{ID: "go", Description: "switch to workspace"},
-				workspaceSelectorCandidate{ID: "add-repo", Description: "add repositories"},
-				workspaceSelectorCandidate{ID: "remove-repo", Description: "remove repositories"},
-				workspaceSelectorCandidate{ID: "close", Description: "archive this workspace"},
-			)
-		}
+		actions = append(actions,
+			workspaceSelectorCandidate{ID: "add-repo", Description: "add repositories"},
+			workspaceSelectorCandidate{ID: "remove-repo", Description: "remove repositories"},
+			workspaceSelectorCandidate{ID: "close", Description: "archive this workspace"},
+		)
 	case "archived":
 		actions = append(actions,
 			workspaceSelectorCandidate{ID: "reopen", Description: "restore workspace"},

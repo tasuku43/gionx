@@ -144,7 +144,7 @@ func (c *CLI) runWS(args []string) int {
 		return c.runWSLock(args[1:])
 	case "unlock":
 		return c.runWSUnlock(args[1:])
-	case "add-repo", "remove-repo", "go", "close", "reopen", "purge":
+	case "add-repo", "remove-repo", "close", "reopen", "purge":
 		return c.runWSActionSubcommand(args[0], args[1:])
 	default:
 		fmt.Fprintf(c.Err, "unknown command: %q\n", strings.Join(append([]string{"ws"}, args[0]), " "))

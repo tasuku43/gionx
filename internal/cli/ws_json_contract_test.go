@@ -96,35 +96,6 @@ func TestCLI_WS_Create_JSON_MissingID_ReturnsInvalidArgument(t *testing.T) {
 	}
 }
 
-func TestCLI_WS_ActGo_JSON_Success(t *testing.T) {
-	env := testutil.NewEnv(t)
-	initAndConfigureRootRepo(t, env.Root)
-
-	{
-		var out bytes.Buffer
-		var err bytes.Buffer
-		c := New(&out, &err)
-		if code := c.Run([]string{"ws", "create", "--no-prompt", "WS1"}); code != exitOK {
-			t.Fatalf("ws create exit code = %d, want %d (stderr=%q)", code, exitOK, err.String())
-		}
-	}
-
-	var out bytes.Buffer
-	var err bytes.Buffer
-	c := New(&out, &err)
-	code := c.Run([]string{"ws", "go", "--format", "json", "--id", "WS1"})
-	if code != exitOK {
-		t.Fatalf("ws go --format json exit code = %d, want %d (stderr=%q)", code, exitOK, err.String())
-	}
-	resp := decodeJSONResponse(t, out.String())
-	if !resp.OK || resp.Action != "go" || resp.WorkspaceID != "WS1" {
-		t.Fatalf("unexpected json response: %+v", resp)
-	}
-	if got := resp.Result["target_path"]; got != filepath.Join(env.Root, "workspaces", "WS1") {
-		t.Fatalf("target_path = %v, want %q", got, filepath.Join(env.Root, "workspaces", "WS1"))
-	}
-}
-
 func TestCLI_WS_ActClose_JSON_Success(t *testing.T) {
 	env := testutil.NewEnv(t)
 	initAndConfigureRootRepo(t, env.Root)

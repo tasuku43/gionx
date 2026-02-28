@@ -43,21 +43,11 @@ func TestCLI_WS_Launcher_WithIDAndFixedAction(t *testing.T) {
 	var out bytes.Buffer
 	var err bytes.Buffer
 	c := New(&out, &err)
-	actionFile := filepath.Join(t.TempDir(), "action.sh")
-	t.Setenv(shellActionFileEnv, actionFile)
-	code := c.Run([]string{"ws", "go", "--id", "WS1"})
+	code := c.Run([]string{"ws", "close", "--id", "WS1"})
 	if code != exitOK {
-		t.Fatalf("ws go --id exit code = %d, want %d (stderr=%q)", code, exitOK, err.String())
+		t.Fatalf("ws close --id exit code = %d, want %d (stderr=%q)", code, exitOK, err.String())
 	}
-	if out.String() != "" {
-		t.Fatalf("stdout should be empty for ws go default mode: %q", out.String())
-	}
-	action, readErr := os.ReadFile(actionFile)
-	if readErr != nil {
-		t.Fatalf("ReadFile(action) error: %v", readErr)
-	}
-	want := filepath.Join(env.Root, "workspaces", "WS1")
-	if !strings.Contains(string(action), "cd ") || !strings.Contains(string(action), want) {
-		t.Fatalf("action file missing destination: %q", string(action))
+	if _, statErr := os.Stat(filepath.Join(env.Root, "archive", "WS1")); statErr != nil {
+		t.Fatalf("archive/WS1 should exist after close: %v", statErr)
 	}
 }
