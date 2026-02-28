@@ -25,6 +25,9 @@ func reconcileCMUXMappingWithRuntime(store cmuxmap.Store, mapping cmuxmap.File, 
 	if !prune {
 		return mapping, exists, 0, nil
 	}
+	if len(exists) == 0 {
+		return mapping, exists, 0, nil
+	}
 
 	prunedCount := 0
 	for wsID, ws := range mapping.Workspaces {
