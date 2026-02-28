@@ -19,6 +19,8 @@ func (c *CLI) runShell(args []string) int {
 		return exitOK
 	case "init":
 		return c.runShellInit(args[1:])
+	case "completion":
+		return c.runShellCompletion(args[1:])
 	default:
 		fmt.Fprintf(c.Err, "unknown command: %q\n", strings.Join(append([]string{"shell"}, args[0]), " "))
 		c.printShellUsage(c.Err)
@@ -46,6 +48,32 @@ func (c *CLI) runShellInit(args []string) int {
 	script, err := renderShellInitScript(shellName)
 	if err != nil {
 		fmt.Fprintf(c.Err, "render shell init script: %v\n", err)
+		return exitUsage
+	}
+	fmt.Fprint(c.Out, script)
+	return exitOK
+}
+
+func (c *CLI) runShellCompletion(args []string) int {
+	if len(args) > 1 {
+		fmt.Fprintf(c.Err, "unexpected args for shell completion: %q\n", strings.Join(args[1:], " "))
+		c.printShellUsage(c.Err)
+		return exitUsage
+	}
+
+	shellName := ""
+	if len(args) == 1 {
+		shellName = strings.TrimSpace(args[0])
+	} else {
+		shellName = detectShellName()
+	}
+	if shellName == "" {
+		shellName = "zsh"
+	}
+
+	script, err := renderShellCompletionScript(shellName)
+	if err != nil {
+		fmt.Fprintf(c.Err, "render shell completion script: %v\n", err)
 		return exitUsage
 	}
 	fmt.Fprint(c.Out, script)

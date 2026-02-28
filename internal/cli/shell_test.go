@@ -56,3 +56,64 @@ func TestRenderShellInitScript_UnsupportedShell(t *testing.T) {
 		t.Fatal("expected unsupported shell error")
 	}
 }
+
+func TestCLI_Shell_Completion_Zsh_PrintsCompdef(t *testing.T) {
+	var out bytes.Buffer
+	var err bytes.Buffer
+	c := New(&out, &err)
+
+	code := c.Run([]string{"shell", "completion", "zsh"})
+	if code != exitOK {
+		t.Fatalf("exit code=%d, want=%d (stderr=%q)", code, exitOK, err.String())
+	}
+	text := out.String()
+	if !strings.Contains(text, "compdef _kra_completion kra") {
+		t.Fatalf("missing zsh compdef: %q", text)
+	}
+	if !strings.Contains(text, "bootstrap") || !strings.Contains(text, "ws") {
+		t.Fatalf("missing command candidates: %q", text)
+	}
+}
+
+func TestCLI_Shell_Completion_Bash_PrintsCompleteHook(t *testing.T) {
+	var out bytes.Buffer
+	var err bytes.Buffer
+	c := New(&out, &err)
+
+	code := c.Run([]string{"shell", "completion", "bash"})
+	if code != exitOK {
+		t.Fatalf("exit code=%d, want=%d (stderr=%q)", code, exitOK, err.String())
+	}
+	text := out.String()
+	if !strings.Contains(text, "complete -o default -F _kra_completion kra") {
+		t.Fatalf("missing bash complete hook: %q", text)
+	}
+	if !strings.Contains(text, "agent-skills") || !strings.Contains(text, "add-repo") {
+		t.Fatalf("missing subcommand candidates: %q", text)
+	}
+}
+
+func TestCLI_Shell_Completion_Fish_PrintsCompleteRules(t *testing.T) {
+	var out bytes.Buffer
+	var err bytes.Buffer
+	c := New(&out, &err)
+
+	code := c.Run([]string{"shell", "completion", "fish"})
+	if code != exitOK {
+		t.Fatalf("exit code=%d, want=%d (stderr=%q)", code, exitOK, err.String())
+	}
+	text := out.String()
+	if !strings.Contains(text, "complete -c kra -f") {
+		t.Fatalf("missing fish base completion: %q", text)
+	}
+	if !strings.Contains(text, "__fish_seen_subcommand_from shell") {
+		t.Fatalf("missing fish shell subcommand rule: %q", text)
+	}
+}
+
+func TestRenderShellCompletionScript_UnsupportedShell(t *testing.T) {
+	_, err := renderShellCompletionScript("nushell")
+	if err == nil {
+		t.Fatal("expected unsupported shell error")
+	}
+}
