@@ -17,9 +17,11 @@ List persisted cmux mapping entries.
 ## Behavior
 
 - Reads `.kra/state/cmux-workspaces.json`.
+- Tries to query current cmux workspaces.
+- When runtime query succeeds, mapped entries missing from cmux runtime are pruned from state.
 - Emits mapping rows ordered by workspace id and entry order.
 - Human mode prints grouped rows.
-- JSON mode returns `result.items[]`.
+- JSON mode returns `result.items[]`, `result.runtime_checked`, `result.pruned_count`.
 
 ## JSON Response
 
@@ -27,6 +29,8 @@ Success:
 - `ok=true`
 - `action=cmux.list`
 - `workspace_id` (when filter is provided)
+- `result.runtime_checked`
+- `result.pruned_count`
 - `result.items[]` with:
   - `workspace_id`
   - `cmux_workspace_id`

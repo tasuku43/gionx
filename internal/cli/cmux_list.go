@@ -1,13 +1,22 @@
 package cli
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"sort"
 	"strings"
 
+	"github.com/tasuku43/kra/internal/cmuxmap"
+	"github.com/tasuku43/kra/internal/infra/cmuxctl"
 	"github.com/tasuku43/kra/internal/infra/paths"
 )
+
+type cmuxListClient interface {
+	ListWorkspaces(ctx context.Context) ([]cmuxctl.Workspace, error)
+}
+
+var newCMUXListClient = func() cmuxListClient { return cmuxctl.NewClient() }
 
 func (c *CLI) runCMUXList(args []string) int {
 	outputFormat := "human"
@@ -76,9 +85,43 @@ func (c *CLI) runCMUXList(args []string) int {
 		return c.writeCMUXSimpleError("cmux.list", outputFormat, "internal_error", workspaceID, fmt.Sprintf("resolve KRA_ROOT: %v", err), exitError)
 	}
 
-	mapping, err := newCMUXMapStore(root).Load()
+	store := newCMUXMapStore(root)
+	mapping, err := store.Load()
 	if err != nil {
 		return c.writeCMUXSimpleError("cmux.list", outputFormat, "internal_error", workspaceID, fmt.Sprintf("load cmux mapping: %v", err), exitError)
+	}
+
+	runtimeChecked := false
+	prunedCount := 0
+	runtimeErr := ""
+	if cmuxList, listErr := newCMUXListClient().ListWorkspaces(context.Background()); listErr != nil {
+		runtimeErr = fmt.Sprintf("list cmux workspaces: %v", listErr)
+	} else {
+		runtimeChecked = true
+		exists := map[string]bool{}
+		for _, row := range cmuxList {
+			id := strings.TrimSpace(row.ID)
+			if id != "" {
+				exists[id] = true
+			}
+		}
+		for wsID, ws := range mapping.Workspaces {
+			keep := make([]cmuxmap.Entry, 0, len(ws.Entries))
+			for _, e := range ws.Entries {
+				if exists[strings.TrimSpace(e.CMUXWorkspaceID)] {
+					keep = append(keep, e)
+					continue
+				}
+				prunedCount++
+			}
+			ws.Entries = keep
+			mapping.Workspaces[wsID] = ws
+		}
+		if prunedCount > 0 {
+			if saveErr := store.Save(mapping); saveErr != nil {
+				return c.writeCMUXSimpleError("cmux.list", outputFormat, "internal_error", workspaceID, fmt.Sprintf("save cmux mapping: %v", saveErr), exitError)
+			}
+		}
 	}
 
 	type row struct {
@@ -116,10 +159,18 @@ func (c *CLI) runCMUXList(args []string) int {
 			Action:      "cmux.list",
 			WorkspaceID: workspaceID,
 			Result: map[string]any{
-				"items": rows,
+				"items":           rows,
+				"runtime_checked": runtimeChecked,
+				"pruned_count":    prunedCount,
 			},
 		})
 		return exitOK
+	}
+	if runtimeErr != "" {
+		fmt.Fprintf(c.Err, "cmux list: %s (showing state only)\n", runtimeErr)
+	}
+	if prunedCount > 0 {
+		fmt.Fprintf(c.Out, "pruned stale cmux mappings: %d\n", prunedCount)
 	}
 
 	if len(rows) == 0 {
