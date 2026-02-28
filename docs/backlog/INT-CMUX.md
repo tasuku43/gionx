@@ -12,7 +12,7 @@ status: planned
   - Depends: none
   - Serial: yes
 
-- [ ] CMUX-002: cmux mapping state store (1:N)
+- [x] CMUX-002: cmux mapping state store (1:N)
   - What: add persistent mapping store at `.kra/state/cmux-workspaces.json` with schema versioning,
     per-workspace `next_ordinal`, and `entries[]` lifecycle fields.
   - Specs:
