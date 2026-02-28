@@ -25,6 +25,7 @@ kra ws dashboard
 - `kra repo ...` - add/discover/remove/gc for repo pool registration.
 - `kra template validate` - validate workspace templates.
 - `kra shell init` - print shell integration helper.
+- `kra shell completion` - print shell completion script.
 - `kra ws ...` - workspace lifecycle operations.
 - `kra doctor` - root diagnostics and optional staged remediation.
 - `kra version` / `kra --version` - print build version.

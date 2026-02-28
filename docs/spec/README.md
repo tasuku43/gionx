@@ -63,6 +63,7 @@ Implementation should reference these specs. When behavior changes, update the s
   - `commands/repo/gc.md`: `kra repo gc`
   - `commands/template/validate.md`: `kra template validate`
   - `commands/shell/init.md`: `kra shell init`
+  - `commands/shell/completion.md`: `kra shell completion`
   - `commands/state/registry.md`: `kra state` foundation (registry)
   - `commands/ws/selector.md`: Shared inline selector UI for workspace actions
   - `commands/ws/select.md`: Workspace targeting options (`--id` / `--current` / `--select`)

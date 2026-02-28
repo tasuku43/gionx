@@ -8,6 +8,7 @@ status: implemented
 ## Purpose
 
 Print shell integration script that applies parent-shell side effects via action-file protocol.
+Shell completion script generation is handled separately by `kra shell completion`.
 
 ## Inputs
 
