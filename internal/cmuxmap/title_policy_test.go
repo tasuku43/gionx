@@ -7,7 +7,7 @@ func TestFormatWorkspaceTitle(t *testing.T) {
 	if err != nil {
 		t.Fatalf("FormatWorkspaceTitle() error: %v", err)
 	}
-	want := "MVP-020 | implement auth [2]"
+	want := "MVP-020 | implement auth"
 	if got != want {
 		t.Fatalf("title = %q, want %q", got, want)
 	}
@@ -18,7 +18,7 @@ func TestFormatWorkspaceTitle_EmptyTitleUsesFallback(t *testing.T) {
 	if err != nil {
 		t.Fatalf("FormatWorkspaceTitle() error: %v", err)
 	}
-	want := "MVP-020 | (untitled) [1]"
+	want := "MVP-020 | (untitled)"
 	if got != want {
 		t.Fatalf("title = %q, want %q", got, want)
 	}

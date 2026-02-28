@@ -162,6 +162,9 @@ func (a cmuxListClientAdapter) RenameWorkspace(context.Context, string, string) 
 func (a cmuxListClientAdapter) SelectWorkspace(context.Context, string) error {
 	return fmt.Errorf("unsupported")
 }
+func (a cmuxListClientAdapter) SetStatus(context.Context, string, string, string, string, string) error {
+	return fmt.Errorf("unsupported")
+}
 func (a cmuxListClientAdapter) ListWorkspaces(ctx context.Context) ([]cmuxctl.Workspace, error) {
 	return a.inner.ListWorkspaces(ctx)
 }

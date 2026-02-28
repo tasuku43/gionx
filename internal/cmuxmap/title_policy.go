@@ -12,14 +12,12 @@ func FormatWorkspaceTitle(kraWorkspaceID string, kraTitle string, ordinal int) (
 	if id == "" {
 		return "", fmt.Errorf("workspace id is required")
 	}
-	if ordinal < 1 {
-		return "", fmt.Errorf("ordinal must be >= 1")
-	}
+	_ = ordinal
 	title := strings.TrimSpace(kraTitle)
 	if title == "" {
 		title = UntitledWorkspace
 	}
-	return fmt.Sprintf("%s | %s [%d]", id, title, ordinal), nil
+	return fmt.Sprintf("%s | %s", id, title), nil
 }
 
 func AllocateOrdinal(f *File, kraWorkspaceID string) (int, error) {

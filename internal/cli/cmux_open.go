@@ -19,6 +19,7 @@ type cmuxOpenClient interface {
 	CreateWorkspaceWithCommand(ctx context.Context, command string) (string, error)
 	RenameWorkspace(ctx context.Context, workspace string, title string) error
 	SelectWorkspace(ctx context.Context, workspace string) error
+	SetStatus(ctx context.Context, workspace string, label string, text string, icon string, color string) error
 	Identify(ctx context.Context, workspace string, surface string) (map[string]any, error)
 }
 
@@ -421,6 +422,10 @@ func (a cmuxOpenClientAdapter) RenameWorkspace(ctx context.Context, workspace st
 
 func (a cmuxOpenClientAdapter) SelectWorkspace(ctx context.Context, workspace string) error {
 	return a.inner.SelectWorkspace(ctx, workspace)
+}
+
+func (a cmuxOpenClientAdapter) SetStatus(ctx context.Context, workspace string, label string, text string, icon string, color string) error {
+	return a.inner.SetStatus(ctx, workspace, label, text, icon, color)
 }
 
 func (a cmuxOpenClientAdapter) ListWorkspaces(context.Context) ([]cmuxctl.Workspace, error) {

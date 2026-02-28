@@ -18,9 +18,17 @@ type Client interface {
 	CreateWorkspaceWithCommand(ctx context.Context, command string) (string, error)
 	RenameWorkspace(ctx context.Context, workspace string, title string) error
 	SelectWorkspace(ctx context.Context, workspace string) error
+	SetStatus(ctx context.Context, workspace string, label string, text string, icon string, color string) error
 	ListWorkspaces(ctx context.Context) ([]cmuxctl.Workspace, error)
 	Identify(ctx context.Context, workspace string, surface string) (map[string]any, error)
 }
+
+const (
+	defaultWorkspaceStatusLabel = "kra"
+	defaultWorkspaceStatusText  = "managed by kra"
+	defaultWorkspaceStatusIcon  = "tag"
+	defaultWorkspaceStatusColor = "#7C3AED"
+)
 
 type NewClientFunc func() Client
 type NewStoreFunc func(root string) cmuxmap.Store
@@ -197,34 +205,46 @@ func (s *Service) openOne(ctx context.Context, client Client, target OpenTarget,
 		_, ierr := client.Identify(ctx, existing.CMUXWorkspaceID, "")
 		if ierr == nil {
 			if err := client.SelectWorkspace(ctx, existing.CMUXWorkspaceID); err != nil {
-				return OpenResultItem{}, "cmux_select_failed", fmt.Sprintf("select cmux workspace: %v", err)
+				if IsNotFoundError(err) {
+					// runtime entry disappeared between identify and select; recreate below.
+					mapMu.Lock()
+					ws := mapping.Workspaces[target.WorkspaceID]
+					ws.Entries = nil
+					ws.NextOrdinal = 1
+					mapping.Workspaces[target.WorkspaceID] = ws
+					mapMu.Unlock()
+				} else {
+					return OpenResultItem{}, "cmux_select_failed", fmt.Sprintf("select cmux workspace: %v", err)
+				}
+			} else {
+				now := s.Now().UTC().Format(time.RFC3339)
+				mapMu.Lock()
+				ws := mapping.Workspaces[target.WorkspaceID]
+				ws.Entries = []cmuxmap.Entry{existing}
+				ws.Entries[0].LastUsedAt = now
+				mapping.Workspaces[target.WorkspaceID] = ws
+				mapMu.Unlock()
+				return OpenResultItem{
+					WorkspaceID:     target.WorkspaceID,
+					WorkspacePath:   target.WorkspacePath,
+					CMUXWorkspaceID: existing.CMUXWorkspaceID,
+					Ordinal:         existing.Ordinal,
+					Title:           existing.TitleSnapshot,
+					ReusedExisting:  true,
+				}, "", ""
 			}
-			now := s.Now().UTC().Format(time.RFC3339)
+		} else {
+			if !IsNotFoundError(ierr) {
+				return OpenResultItem{}, "cmux_identify_failed", fmt.Sprintf("identify cmux workspace: %v", ierr)
+			}
+			// stale mapping entry: clear and recreate with ordinal reset.
 			mapMu.Lock()
 			ws := mapping.Workspaces[target.WorkspaceID]
-			ws.Entries = []cmuxmap.Entry{existing}
-			ws.Entries[0].LastUsedAt = now
+			ws.Entries = nil
+			ws.NextOrdinal = 1
 			mapping.Workspaces[target.WorkspaceID] = ws
 			mapMu.Unlock()
-			return OpenResultItem{
-				WorkspaceID:     target.WorkspaceID,
-				WorkspacePath:   target.WorkspacePath,
-				CMUXWorkspaceID: existing.CMUXWorkspaceID,
-				Ordinal:         existing.Ordinal,
-				Title:           existing.TitleSnapshot,
-				ReusedExisting:  true,
-			}, "", ""
 		}
-		if !IsNotFoundError(ierr) {
-			return OpenResultItem{}, "cmux_identify_failed", fmt.Sprintf("identify cmux workspace: %v", ierr)
-		}
-		// stale mapping entry: clear and recreate with ordinal reset.
-		mapMu.Lock()
-		ws := mapping.Workspaces[target.WorkspaceID]
-		ws.Entries = nil
-		ws.NextOrdinal = 1
-		mapping.Workspaces[target.WorkspaceID] = ws
-		mapMu.Unlock()
 	}
 
 	cmuxWorkspaceID, err := client.CreateWorkspaceWithCommand(ctx, fmt.Sprintf("cd %s", shellQuoteCDPath(target.WorkspacePath)))
@@ -246,6 +266,9 @@ func (s *Service) openOne(ctx context.Context, client Client, target OpenTarget,
 	}
 	if err := client.SelectWorkspace(ctx, cmuxWorkspaceID); err != nil {
 		return OpenResultItem{}, "cmux_select_failed", fmt.Sprintf("select cmux workspace: %v", err)
+	}
+	if err := client.SetStatus(ctx, cmuxWorkspaceID, defaultWorkspaceStatusLabel, defaultWorkspaceStatusText, defaultWorkspaceStatusIcon, defaultWorkspaceStatusColor); err != nil {
+		return OpenResultItem{}, "cmux_set_status_failed", fmt.Sprintf("set cmux workspace status: %v", err)
 	}
 	now := s.Now().UTC().Format(time.RFC3339)
 	mapMu.Lock()
@@ -507,7 +530,7 @@ func IsNotFoundError(err error) bool {
 	if msg == "" {
 		return false
 	}
-	return strings.Contains(msg, "not found") || strings.Contains(msg, "unknown workspace")
+	return strings.Contains(msg, "not found") || strings.Contains(msg, "not_found") || strings.Contains(msg, "unknown workspace")
 }
 
 type SwitchWorkspaceCandidate struct {

@@ -26,10 +26,11 @@ Open a new cmux workspace for one `kra` workspace using strict integration flow.
 - Strict execution order:
   1. create cmux workspace (`new-workspace --command "cd '<path>'"`)
   2. allocate ordinal from mapping store
-  3. format title (`<kra-id> | <kra-title> [<n>]`)
+  3. format title (`<kra-id> | <kra-title>`)
   4. rename cmux workspace
   5. select cmux workspace
-  6. persist mapping entry
+  6. set workspace status label (`kra`, `"managed by kra"`, `icon=tag`, `color=#7C3AED`)
+  7. persist mapping entry
 
 ## Failure Policy
 

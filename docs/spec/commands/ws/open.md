@@ -30,8 +30,8 @@ Open cmux workspace(s) from workspace action entrypoint.
 - JSON mode remains non-interactive.
 - 1:1 policy (`kra workspace` : `cmux workspace`):
   - when no mapping exists, create and select a new cmux workspace
+  - newly created cmux workspace is labeled with `kra` / `managed by kra` (`icon=tag`, `color=#7C3AED`)
   - when mapping already exists and runtime workspace is reachable, create is skipped and operation falls back to switch
-- `kra ws switch` is treated as backward-compatible alias of `kra ws open`.
 
 ## Notes
 

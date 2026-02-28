@@ -192,6 +192,32 @@ func TestClientSelectWorkspace_RequiresInput(t *testing.T) {
 	}
 }
 
+func TestClientSetStatus_RequiresInputs(t *testing.T) {
+	c := &Client{}
+	if err := c.SetStatus(context.Background(), "", "kra", "managed by kra", "tag", "#7C3AED"); err == nil {
+		t.Fatalf("SetStatus() with empty workspace should fail")
+	}
+	if err := c.SetStatus(context.Background(), "ws-1", "", "managed by kra", "tag", "#7C3AED"); err == nil {
+		t.Fatalf("SetStatus() with empty label should fail")
+	}
+	if err := c.SetStatus(context.Background(), "ws-1", "kra", "", "tag", "#7C3AED"); err == nil {
+		t.Fatalf("SetStatus() with empty text should fail")
+	}
+}
+
+func TestClientSetStatus_BuildsCommandArgs(t *testing.T) {
+	f := &fakeRunner{stdout: []byte("OK\n")}
+	c := &Client{Runner: f}
+
+	if err := c.SetStatus(context.Background(), "ws-1", "kra", "managed by kra", "tag", "#7C3AED"); err != nil {
+		t.Fatalf("SetStatus() error: %v", err)
+	}
+	wantArgs := []string{"set-status", "kra", "managed by kra", "--workspace", "ws-1", "--icon", "tag", "--color", "#7C3AED"}
+	if !reflect.DeepEqual(f.lastArgs, wantArgs) {
+		t.Fatalf("args = %v, want %v", f.lastArgs, wantArgs)
+	}
+}
+
 func TestClientSendText_BuildsCommandArgs(t *testing.T) {
 	f := &fakeRunner{stdout: []byte("OK\n")}
 	c := &Client{Runner: f}
@@ -217,6 +243,91 @@ func TestClientCommandError_UsesStderr(t *testing.T) {
 	}
 	if got := err.Error(); got == "" || !containsAll(got, []string{"cmux select-workspace", "boom"}) {
 		t.Fatalf("error message = %q, want command + stderr", got)
+	}
+}
+
+func TestClientListPanes_JSONMode(t *testing.T) {
+	f := &fakeRunner{stdout: []byte(`{"panes":[{"id":"pane-1","ref":"pane:1","index":0,"focused":true}]}`)}
+	c := &Client{Runner: f}
+
+	got, err := c.ListPanes(context.Background(), "ws-1")
+	if err != nil {
+		t.Fatalf("ListPanes() error: %v", err)
+	}
+	if len(got) != 1 || got[0].ID != "pane-1" || got[0].Ref != "pane:1" || !got[0].Focused {
+		t.Fatalf("unexpected panes: %+v", got)
+	}
+	wantArgs := []string{"--json", "--id-format", "both", "list-panes", "--workspace", "ws-1"}
+	if !reflect.DeepEqual(f.lastArgs, wantArgs) {
+		t.Fatalf("args = %v, want %v", f.lastArgs, wantArgs)
+	}
+}
+
+func TestClientListPaneSurfaces_JSONMode(t *testing.T) {
+	f := &fakeRunner{stdout: []byte(`{"surfaces":[{"id":"sf-1","ref":"surface:1","index":0,"title":"agent","selected":true,"pane_id":"pane-1"}]}`)}
+	c := &Client{Runner: f}
+
+	got, err := c.ListPaneSurfaces(context.Background(), "ws-1", "pane-1")
+	if err != nil {
+		t.Fatalf("ListPaneSurfaces() error: %v", err)
+	}
+	if len(got) != 1 || got[0].ID != "sf-1" || got[0].PaneID != "pane-1" || !got[0].Selected {
+		t.Fatalf("unexpected surfaces: %+v", got)
+	}
+	wantArgs := []string{"--json", "--id-format", "both", "list-pane-surfaces", "--workspace", "ws-1", "--pane", "pane-1"}
+	if !reflect.DeepEqual(f.lastArgs, wantArgs) {
+		t.Fatalf("args = %v, want %v", f.lastArgs, wantArgs)
+	}
+}
+
+func TestClientReadScreen_JSONMode(t *testing.T) {
+	f := &fakeRunner{stdout: []byte(`{"text":"hello"}`)}
+	c := &Client{Runner: f}
+
+	got, err := c.ReadScreen(context.Background(), "ws-1", "sf-1", 120, true)
+	if err != nil {
+		t.Fatalf("ReadScreen() error: %v", err)
+	}
+	if got != "hello" {
+		t.Fatalf("ReadScreen() text = %q, want %q", got, "hello")
+	}
+	wantArgs := []string{"--json", "--id-format", "both", "read-screen", "--workspace", "ws-1", "--surface", "sf-1", "--lines", "120", "--scrollback"}
+	if !reflect.DeepEqual(f.lastArgs, wantArgs) {
+		t.Fatalf("args = %v, want %v", f.lastArgs, wantArgs)
+	}
+}
+
+func TestClientListNotifications_JSONMode(t *testing.T) {
+	f := &fakeRunner{stdout: []byte(`{"notifications":[{"workspace_id":"ws-1","surface_id":"sf-1","title":"Claude Code","body":"waiting","created_at":1730000000}]}`)}
+	c := &Client{Runner: f}
+
+	got, err := c.ListNotifications(context.Background())
+	if err != nil {
+		t.Fatalf("ListNotifications() error: %v", err)
+	}
+	if len(got) != 1 || got[0].WorkspaceID != "ws-1" || got[0].SurfaceID != "sf-1" || got[0].Body != "waiting" {
+		t.Fatalf("unexpected notifications: %+v", got)
+	}
+	wantArgs := []string{"--json", "--id-format", "both", "list-notifications"}
+	if !reflect.DeepEqual(f.lastArgs, wantArgs) {
+		t.Fatalf("args = %v, want %v", f.lastArgs, wantArgs)
+	}
+}
+
+func TestClientListNotifications_JSONArrayMode(t *testing.T) {
+	f := &fakeRunner{stdout: []byte(`[{"workspace_id":"ws-2","surface_id":"sf-2","title":"Claude Code","body":"waiting","created_at":1730000001}]`)}
+	c := &Client{Runner: f}
+
+	got, err := c.ListNotifications(context.Background())
+	if err != nil {
+		t.Fatalf("ListNotifications() error: %v", err)
+	}
+	if len(got) != 1 || got[0].WorkspaceID != "ws-2" || got[0].SurfaceID != "sf-2" || got[0].Body != "waiting" {
+		t.Fatalf("unexpected notifications: %+v", got)
+	}
+	wantArgs := []string{"--json", "--id-format", "both", "list-notifications"}
+	if !reflect.DeepEqual(f.lastArgs, wantArgs) {
+		t.Fatalf("args = %v, want %v", f.lastArgs, wantArgs)
 	}
 }
 
