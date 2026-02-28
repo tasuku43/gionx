@@ -21,13 +21,11 @@ status: planned
   - Depends: CMUX-001
   - Serial: yes
 
-- [ ] CMUX-003: cmux adapter for workspace control primitives
+- [x] CMUX-003: cmux adapter for workspace control primitives
   - What: add adapter layer for cmux CLI/socket interaction used by integration flows:
     capabilities/identify/workspace create/rename/select/list and `surface.send_text` for cwd sync.
   - Specs:
     - `docs/spec/commands/cmux/README.md`
-    - `docs/spec/commands/cmux/open.md`
-    - `docs/spec/commands/cmux/switch.md`
   - Depends: CMUX-001
   - Serial: yes
 
