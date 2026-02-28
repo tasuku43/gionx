@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	appcmux "github.com/tasuku43/kra/internal/app/cmux"
 	"github.com/tasuku43/kra/internal/cmuxmap"
 	"github.com/tasuku43/kra/internal/infra/cmuxctl"
 	"github.com/tasuku43/kra/internal/infra/paths"
@@ -106,7 +107,7 @@ func (c *CLI) runCMUXSwitch(args []string) int {
 		return c.writeCMUXSwitchError(outputFormat, "state_write_failed", workspaceID, fmt.Sprintf("load cmux mapping: %v", err), exitError)
 	}
 	if runtime, rerr := newCMUXRuntimeClient().ListWorkspaces(context.Background()); rerr == nil {
-		reconciled, _, _, recErr := reconcileCMUXMappingWithRuntime(store, mapping, runtime, true)
+		reconciled, _, _, recErr := appcmux.ReconcileMappingWithRuntime(store, mapping, runtime, true)
 		if recErr != nil {
 			return c.writeCMUXSwitchError(outputFormat, "state_write_failed", workspaceID, fmt.Sprintf("reconcile cmux mapping: %v", recErr), exitError)
 		}

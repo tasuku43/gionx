@@ -10,6 +10,7 @@ import (
 	"sync"
 	"time"
 
+	appcmux "github.com/tasuku43/kra/internal/app/cmux"
 	"github.com/tasuku43/kra/internal/cmuxmap"
 	"github.com/tasuku43/kra/internal/infra/cmuxctl"
 	"github.com/tasuku43/kra/internal/infra/paths"
@@ -153,41 +154,54 @@ func (c *CLI) runCMUXOpen(args []string) int {
 		targetIDs = selectedIDs
 	}
 
-	client := newCMUXOpenClient()
-	ctx := context.Background()
-	caps, err := client.Capabilities(ctx)
-	if err != nil {
-		return c.writeCMUXOpenError(outputFormat, "cmux_capability_missing", workspaceHint, fmt.Sprintf("read cmux capabilities: %v", err), exitError)
-	}
-	required := []string{"workspace.create", "workspace.rename", "workspace.select"}
-	for _, method := range required {
-		if _, ok := caps.Methods[method]; !ok {
-			return c.writeCMUXOpenError(outputFormat, "cmux_capability_missing", workspaceHint, fmt.Sprintf("cmux capability missing: %s", method), exitError)
-		}
-	}
-
-	store := newCMUXMapStore(root)
-	mapping, err := store.Load()
-	if err != nil {
-		return c.writeCMUXOpenError(outputFormat, "state_write_failed", workspaceHint, fmt.Sprintf("load cmux mapping: %v", err), exitError)
-	}
-
-	results := make([]cmuxOpenResult, 0, len(targetIDs))
-	failures := make([]cmuxOpenFailure, 0)
-	if multi && concurrency > 1 {
-		results, failures = c.runCMUXOpenConcurrent(ctx, root, targetIDs, concurrency, &mapping)
-	} else {
-		results, failures = c.runCMUXOpenSequential(ctx, client, root, targetIDs, &mapping)
-	}
-	if len(results) > 0 {
-		if err := store.Save(mapping); err != nil {
-			workspaceID := ""
-			if len(results) > 0 {
-				workspaceID = results[len(results)-1].WorkspaceID
+	targets := make([]appcmux.OpenTarget, 0, len(targetIDs))
+	preFailures := make([]cmuxOpenFailure, 0)
+	for _, id := range targetIDs {
+		target, code, msg := resolveCMUXOpenTarget(root, id)
+		if code != "" {
+			if multi && concurrency > 1 {
+				preFailures = append(preFailures, cmuxOpenFailure{
+					WorkspaceID: id,
+					Code:        code,
+					Message:     msg,
+				})
+				continue
 			}
-			return c.writeCMUXOpenError(outputFormat, "state_write_failed", workspaceID, fmt.Sprintf("save cmux mapping: %v", err), exitError)
+			return c.writeCMUXOpenError(outputFormat, code, id, msg, exitError)
 		}
+		targets = append(targets, appcmux.OpenTarget{
+			WorkspaceID:   target.WorkspaceID,
+			WorkspacePath: target.WorkspacePath,
+			Title:         target.Title,
+		})
 	}
+
+	svc := appcmux.NewService(func() appcmux.Client {
+		return cmuxOpenClientAdapter{inner: newCMUXOpenClient()}
+	}, newCMUXMapStore)
+	openResult, code, msg := svc.Open(context.Background(), root, targets, concurrency, multi)
+	if code != "" {
+		return c.writeCMUXOpenError(outputFormat, code, workspaceHint, msg, exitError)
+	}
+	results := make([]cmuxOpenResult, 0, len(openResult.Results))
+	for _, r := range openResult.Results {
+		results = append(results, cmuxOpenResult{
+			WorkspaceID:     r.WorkspaceID,
+			WorkspacePath:   r.WorkspacePath,
+			CMUXWorkspaceID: r.CMUXWorkspaceID,
+			Ordinal:         r.Ordinal,
+			Title:           r.Title,
+		})
+	}
+	failures := make([]cmuxOpenFailure, 0, len(openResult.Failures))
+	for _, f := range openResult.Failures {
+		failures = append(failures, cmuxOpenFailure{
+			WorkspaceID: f.WorkspaceID,
+			Code:        f.Code,
+			Message:     f.Message,
+		})
+	}
+	failures = append(failures, preFailures...)
 	return c.writeCMUXOpenResult(outputFormat, multi, results, failures)
 }
 
@@ -532,6 +546,34 @@ func (c *CLI) selectWorkspacesForCMUXOpen(root string, multi bool) ([]string, er
 		return nil, fmt.Errorf("cmux open requires exactly one workspace selected")
 	}
 	return []string{strings.TrimSpace(ids[0])}, nil
+}
+
+type cmuxOpenClientAdapter struct {
+	inner cmuxOpenClient
+}
+
+func (a cmuxOpenClientAdapter) Capabilities(ctx context.Context) (cmuxctl.Capabilities, error) {
+	return a.inner.Capabilities(ctx)
+}
+
+func (a cmuxOpenClientAdapter) CreateWorkspaceWithCommand(ctx context.Context, command string) (string, error) {
+	return a.inner.CreateWorkspaceWithCommand(ctx, command)
+}
+
+func (a cmuxOpenClientAdapter) RenameWorkspace(ctx context.Context, workspace string, title string) error {
+	return a.inner.RenameWorkspace(ctx, workspace, title)
+}
+
+func (a cmuxOpenClientAdapter) SelectWorkspace(ctx context.Context, workspace string) error {
+	return a.inner.SelectWorkspace(ctx, workspace)
+}
+
+func (a cmuxOpenClientAdapter) ListWorkspaces(context.Context) ([]cmuxctl.Workspace, error) {
+	return nil, fmt.Errorf("unsupported")
+}
+
+func (a cmuxOpenClientAdapter) Identify(context.Context, string, string) (map[string]any, error) {
+	return nil, fmt.Errorf("unsupported")
 }
 
 func (c *CLI) writeCMUXOpenError(format string, code string, workspaceID string, message string, exitCode int) int {

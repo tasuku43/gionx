@@ -4,9 +4,10 @@ import (
 	"context"
 	"fmt"
 	"os"
-	"sort"
 	"strings"
 
+	appcmux "github.com/tasuku43/kra/internal/app/cmux"
+	"github.com/tasuku43/kra/internal/infra/cmuxctl"
 	"github.com/tasuku43/kra/internal/infra/paths"
 )
 
@@ -80,18 +81,12 @@ func (c *CLI) runCMUXStatus(args []string) int {
 	if err != nil {
 		return c.writeCMUXSimpleError("cmux.status", outputFormat, "internal_error", workspaceID, fmt.Sprintf("resolve KRA_ROOT: %v", err), exitError)
 	}
-	mapping, err := newCMUXMapStore(root).Load()
-	if err != nil {
-		return c.writeCMUXSimpleError("cmux.status", outputFormat, "internal_error", workspaceID, fmt.Sprintf("load cmux mapping: %v", err), exitError)
-	}
-
-	cmuxList, err := newCMUXStatusClient().ListWorkspaces(context.Background())
-	if err != nil {
-		return c.writeCMUXSimpleError("cmux.status", outputFormat, "cmux_list_failed", workspaceID, fmt.Sprintf("list cmux workspaces: %v", err), exitError)
-	}
-	_, exists, _, recErr := reconcileCMUXMappingWithRuntime(newCMUXMapStore(root), mapping, cmuxList, false)
-	if recErr != nil {
-		return c.writeCMUXSimpleError("cmux.status", outputFormat, "internal_error", workspaceID, fmt.Sprintf("reconcile cmux mapping: %v", recErr), exitError)
+	svc := appcmux.NewService(func() appcmux.Client {
+		return cmuxStatusClientAdapter{inner: newCMUXStatusClient()}
+	}, newCMUXMapStore)
+	statusResult, code, msg := svc.Status(context.Background(), root, workspaceID)
+	if code != "" {
+		return c.writeCMUXSimpleError("cmux.status", outputFormat, code, workspaceID, msg, exitError)
 	}
 
 	type row struct {
@@ -101,26 +96,15 @@ func (c *CLI) runCMUXStatus(args []string) int {
 		Title       string `json:"title"`
 		Exists      bool   `json:"exists"`
 	}
-	rows := make([]row, 0)
-	workspaceIDs := make([]string, 0, len(mapping.Workspaces))
-	for wsID := range mapping.Workspaces {
-		if workspaceID != "" && wsID != workspaceID {
-			continue
-		}
-		workspaceIDs = append(workspaceIDs, wsID)
-	}
-	sort.Strings(workspaceIDs)
-	for _, wsID := range workspaceIDs {
-		ws := mapping.Workspaces[wsID]
-		for _, e := range ws.Entries {
-			rows = append(rows, row{
-				WorkspaceID: wsID,
-				CMUXID:      e.CMUXWorkspaceID,
-				Ordinal:     e.Ordinal,
-				Title:       e.TitleSnapshot,
-				Exists:      exists[e.CMUXWorkspaceID],
-			})
-		}
+	rows := make([]row, 0, len(statusResult.Rows))
+	for _, r := range statusResult.Rows {
+		rows = append(rows, row{
+			WorkspaceID: r.WorkspaceID,
+			CMUXID:      r.CMUXID,
+			Ordinal:     r.Ordinal,
+			Title:       r.Title,
+			Exists:      r.Exists,
+		})
 	}
 
 	if outputFormat == "json" {
@@ -152,4 +136,27 @@ func (c *CLI) runCMUXStatus(args []string) int {
 		fmt.Fprintf(c.Out, "  [%d] %s  %s  (%s)\n", r.Ordinal, r.CMUXID, r.Title, status)
 	}
 	return exitOK
+}
+
+type cmuxStatusClientAdapter struct {
+	inner cmuxStatusClient
+}
+
+func (a cmuxStatusClientAdapter) Capabilities(context.Context) (cmuxctl.Capabilities, error) {
+	return cmuxctl.Capabilities{}, fmt.Errorf("unsupported")
+}
+func (a cmuxStatusClientAdapter) CreateWorkspaceWithCommand(context.Context, string) (string, error) {
+	return "", fmt.Errorf("unsupported")
+}
+func (a cmuxStatusClientAdapter) RenameWorkspace(context.Context, string, string) error {
+	return fmt.Errorf("unsupported")
+}
+func (a cmuxStatusClientAdapter) SelectWorkspace(context.Context, string) error {
+	return fmt.Errorf("unsupported")
+}
+func (a cmuxStatusClientAdapter) ListWorkspaces(ctx context.Context) ([]cmuxctl.Workspace, error) {
+	return a.inner.ListWorkspaces(ctx)
+}
+func (a cmuxStatusClientAdapter) Identify(context.Context, string, string) (map[string]any, error) {
+	return nil, fmt.Errorf("unsupported")
 }

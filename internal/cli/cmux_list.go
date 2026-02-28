@@ -4,10 +4,9 @@ import (
 	"context"
 	"fmt"
 	"os"
-	"sort"
 	"strings"
 
-	"github.com/tasuku43/kra/internal/cmuxmap"
+	appcmux "github.com/tasuku43/kra/internal/app/cmux"
 	"github.com/tasuku43/kra/internal/infra/cmuxctl"
 	"github.com/tasuku43/kra/internal/infra/paths"
 )
@@ -86,33 +85,12 @@ func (c *CLI) runCMUXList(args []string) int {
 		return c.writeCMUXSimpleError("cmux.list", outputFormat, "internal_error", workspaceID, fmt.Sprintf("resolve KRA_ROOT: %v", err), exitError)
 	}
 
-	store := newCMUXMapStore(root)
-	mapping, err := store.Load()
-	if err != nil {
-		return c.writeCMUXSimpleError("cmux.list", outputFormat, "internal_error", workspaceID, fmt.Sprintf("load cmux mapping: %v", err), exitError)
-	}
-
-	runtimeChecked := false
-	prunedCount := 0
-	runtimeErr := ""
-	client := newCMUXListClient()
-	if cmuxList, listErr := client.ListWorkspaces(context.Background()); listErr != nil {
-		runtimeErr = fmt.Sprintf("list cmux workspaces: %v", listErr)
-	} else {
-		runtimeChecked = true
-		reconciled, _, pruned, recErr := reconcileCMUXMappingWithRuntime(store, mapping, cmuxList, true)
-		if recErr != nil {
-			return c.writeCMUXSimpleError("cmux.list", outputFormat, "internal_error", workspaceID, fmt.Sprintf("save cmux mapping: %v", recErr), exitError)
-		}
-		mapping = reconciled
-		prunedCount = pruned
-		if len(cmuxList) == 0 {
-			probePruned, probeErr := c.pruneCMUXMappingByProbe(context.Background(), store, &mapping, client)
-			if probeErr != "" {
-				runtimeErr = probeErr
-			}
-			prunedCount += probePruned
-		}
+	svc := appcmux.NewService(func() appcmux.Client {
+		return cmuxListClientAdapter{inner: newCMUXListClient()}
+	}, newCMUXMapStore)
+	listResult, code, msg := svc.List(context.Background(), root, workspaceID)
+	if code != "" {
+		return c.writeCMUXSimpleError("cmux.list", outputFormat, code, workspaceID, msg, exitError)
 	}
 
 	type row struct {
@@ -122,26 +100,15 @@ func (c *CLI) runCMUXList(args []string) int {
 		Title       string `json:"title"`
 		LastUsedAt  string `json:"last_used_at,omitempty"`
 	}
-	rows := make([]row, 0)
-	workspaceIDs := make([]string, 0, len(mapping.Workspaces))
-	for wsID := range mapping.Workspaces {
-		if workspaceID != "" && wsID != workspaceID {
-			continue
-		}
-		workspaceIDs = append(workspaceIDs, wsID)
-	}
-	sort.Strings(workspaceIDs)
-	for _, wsID := range workspaceIDs {
-		ws := mapping.Workspaces[wsID]
-		for _, e := range ws.Entries {
-			rows = append(rows, row{
-				WorkspaceID: wsID,
-				CMUXID:      e.CMUXWorkspaceID,
-				Ordinal:     e.Ordinal,
-				Title:       e.TitleSnapshot,
-				LastUsedAt:  e.LastUsedAt,
-			})
-		}
+	rows := make([]row, 0, len(listResult.Rows))
+	for _, r := range listResult.Rows {
+		rows = append(rows, row{
+			WorkspaceID: r.WorkspaceID,
+			CMUXID:      r.CMUXID,
+			Ordinal:     r.Ordinal,
+			Title:       r.Title,
+			LastUsedAt:  r.LastUsedAt,
+		})
 	}
 
 	if outputFormat == "json" {
@@ -151,17 +118,17 @@ func (c *CLI) runCMUXList(args []string) int {
 			WorkspaceID: workspaceID,
 			Result: map[string]any{
 				"items":           rows,
-				"runtime_checked": runtimeChecked,
-				"pruned_count":    prunedCount,
+				"runtime_checked": listResult.RuntimeChecked,
+				"pruned_count":    listResult.PrunedCount,
 			},
 		})
 		return exitOK
 	}
-	if runtimeErr != "" {
-		fmt.Fprintf(c.Err, "cmux list: %s (showing state only)\n", runtimeErr)
+	if listResult.RuntimeWarnText != "" {
+		fmt.Fprintf(c.Err, "cmux list: %s (showing state only)\n", listResult.RuntimeWarnText)
 	}
-	if prunedCount > 0 {
-		fmt.Fprintf(c.Out, "pruned stale cmux mappings: %d\n", prunedCount)
+	if listResult.PrunedCount > 0 {
+		fmt.Fprintf(c.Out, "pruned stale cmux mappings: %d\n", listResult.PrunedCount)
 	}
 
 	if len(rows) == 0 {
@@ -179,71 +146,27 @@ func (c *CLI) runCMUXList(args []string) int {
 	return exitOK
 }
 
-func (c *CLI) pruneCMUXMappingByProbe(ctx context.Context, store cmuxmap.Store, mapping *cmuxmap.File, client cmuxListClient) (int, string) {
-	statusByID := map[string]int{}
-	// 0=unknown, 1=exists, -1=missing
-	for _, ws := range mapping.Workspaces {
-		for _, e := range ws.Entries {
-			id := strings.TrimSpace(e.CMUXWorkspaceID)
-			if id == "" {
-				continue
-			}
-			if _, ok := statusByID[id]; ok {
-				continue
-			}
-			_, err := client.Identify(ctx, id, "")
-			if err == nil {
-				statusByID[id] = 1
-				continue
-			}
-			if isCMUXNotFoundError(err) {
-				statusByID[id] = -1
-				continue
-			}
-			statusByID[id] = 0
-		}
-	}
-
-	probeReachable := false
-	for _, st := range statusByID {
-		if st != 0 {
-			probeReachable = true
-			break
-		}
-	}
-	if !probeReachable {
-		return 0, "cmux probe could not verify any workspace; skipped stale pruning"
-	}
-
-	prunedCount := 0
-	for wsID, ws := range mapping.Workspaces {
-		keep := make([]cmuxmap.Entry, 0, len(ws.Entries))
-		for _, e := range ws.Entries {
-			id := strings.TrimSpace(e.CMUXWorkspaceID)
-			st, ok := statusByID[id]
-			if !ok || st >= 0 {
-				keep = append(keep, e)
-				continue
-			}
-			prunedCount++
-		}
-		ws.Entries = keep
-		mapping.Workspaces[wsID] = ws
-	}
-	if prunedCount > 0 {
-		if err := store.Save(*mapping); err != nil {
-			return 0, fmt.Sprintf("save cmux mapping after probe prune: %v", err)
-		}
-	}
-	return prunedCount, ""
+type cmuxListClientAdapter struct {
+	inner cmuxListClient
 }
 
-func isCMUXNotFoundError(err error) bool {
-	msg := strings.ToLower(strings.TrimSpace(err.Error()))
-	if msg == "" {
-		return false
-	}
-	return strings.Contains(msg, "not found") || strings.Contains(msg, "unknown workspace")
+func (a cmuxListClientAdapter) Capabilities(context.Context) (cmuxctl.Capabilities, error) {
+	return cmuxctl.Capabilities{}, fmt.Errorf("unsupported")
+}
+func (a cmuxListClientAdapter) CreateWorkspaceWithCommand(context.Context, string) (string, error) {
+	return "", fmt.Errorf("unsupported")
+}
+func (a cmuxListClientAdapter) RenameWorkspace(context.Context, string, string) error {
+	return fmt.Errorf("unsupported")
+}
+func (a cmuxListClientAdapter) SelectWorkspace(context.Context, string) error {
+	return fmt.Errorf("unsupported")
+}
+func (a cmuxListClientAdapter) ListWorkspaces(ctx context.Context) ([]cmuxctl.Workspace, error) {
+	return a.inner.ListWorkspaces(ctx)
+}
+func (a cmuxListClientAdapter) Identify(ctx context.Context, workspace string, surface string) (map[string]any, error) {
+	return a.inner.Identify(ctx, workspace, surface)
 }
 
 func writeCMUXSimpleError(c *CLI, action string, format string, code string, workspaceID string, message string, exitCode int) int {
