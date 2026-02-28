@@ -431,18 +431,40 @@ func (c *CLI) writeCMUXOpenResult(format string, multi bool, results []cmuxOpenR
 
 	if !multi && len(results) == 1 && len(failures) == 0 {
 		result := results[0]
-		fmt.Fprintln(c.Out, "opened cmux workspace")
-		fmt.Fprintf(c.Out, "  kra: %s\n", result.WorkspaceID)
-		fmt.Fprintf(c.Out, "  cmux: %s\n", result.CMUXWorkspaceID)
-		fmt.Fprintf(c.Out, "  title: %s\n", result.Title)
-		fmt.Fprintf(c.Out, "  cwd: %s\n", result.WorkspacePath)
+		useColor := writerSupportsColor(c.Out)
+		body := []string{
+			fmt.Sprintf("%s%s", uiIndent, styleSuccess("Opened 1 / 1", useColor)),
+			fmt.Sprintf("%s%s %s: %s", uiIndent, styleMuted("•", useColor), styleAccent("kra", useColor), result.WorkspaceID),
+			fmt.Sprintf("%s%s %s: %s", uiIndent, styleMuted("•", useColor), styleAccent("cmux", useColor), result.CMUXWorkspaceID),
+			fmt.Sprintf("%s%s %s: %s", uiIndent, styleMuted("•", useColor), styleMuted("title", useColor), result.Title),
+			fmt.Sprintf("%s%s %s: %s", uiIndent, styleMuted("•", useColor), styleMuted("cwd", useColor), result.WorkspacePath),
+		}
+		printSection(c.Out, renderResultTitle(useColor), body, sectionRenderOptions{
+			blankAfterHeading: false,
+			trailingBlank:     true,
+		})
 		return exitOK
 	}
-	fmt.Fprintf(c.Out, "opened cmux workspaces: %d succeeded / %d total\n", len(results), len(results)+len(failures))
+	useColor := writerSupportsColor(c.Out)
+	body := []string{
+		fmt.Sprintf("%s%s %d / %d", uiIndent, styleSuccess("Opened", useColor), len(results), len(results)+len(failures)),
+	}
 	sort.Slice(results, func(i, j int) bool { return results[i].WorkspaceID < results[j].WorkspaceID })
 	for _, result := range results {
-		fmt.Fprintf(c.Out, "  - %s => %s (%s)\n", result.WorkspaceID, result.CMUXWorkspaceID, result.Title)
+		body = append(body, fmt.Sprintf("%s%s %s => %s", uiIndent, styleSuccess("✔", useColor), result.WorkspaceID, result.CMUXWorkspaceID))
+		body = append(body, fmt.Sprintf("%s%s %s", uiIndent+uiIndent, styleMuted("title:", useColor), result.Title))
+		body = append(body, fmt.Sprintf("%s%s %s", uiIndent+uiIndent, styleMuted("cwd:", useColor), result.WorkspacePath))
 	}
+	if len(failures) > 0 {
+		body = append(body, fmt.Sprintf("%s%s %d", uiIndent, styleWarn("failed:", useColor), len(failures)))
+		for _, fail := range failures {
+			body = append(body, fmt.Sprintf("%s%s %s (%s)", uiIndent, styleWarn("•", useColor), fail.WorkspaceID, fail.Code))
+		}
+	}
+	printSection(c.Out, renderResultTitle(useColor), body, sectionRenderOptions{
+		blankAfterHeading: false,
+		trailingBlank:     true,
+	})
 	for _, fail := range failures {
 		fmt.Fprintf(c.Err, "cmux open (%s): %s\n", fail.WorkspaceID, fail.Message)
 	}
