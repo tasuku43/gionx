@@ -325,7 +325,7 @@ func resolveCMUXOpenTarget(root string, workspaceID string) (cmuxOpenTarget, str
 }
 
 func (c *CLI) openOneCMUXWorkspace(ctx context.Context, client cmuxOpenClient, target cmuxOpenTarget, mapping *cmuxmap.File, mapMu *sync.Mutex) (cmuxOpenResult, string, string) {
-	cmuxWorkspaceID, err := client.CreateWorkspaceWithCommand(ctx, fmt.Sprintf("cd %s", shellQuoteSingle(target.WorkspacePath)))
+	cmuxWorkspaceID, err := client.CreateWorkspaceWithCommand(ctx, fmt.Sprintf("cd %s", shellQuoteCDPath(target.WorkspacePath)))
 	if err != nil {
 		return cmuxOpenResult{}, "cmux_create_failed", fmt.Sprintf("create cmux workspace: %v", err)
 	}
@@ -560,4 +560,24 @@ func shellQuoteSingle(s string) string {
 		return "''"
 	}
 	return "'" + strings.ReplaceAll(s, "'", `'"'"'`) + "'"
+}
+
+func shellEscapeForDoubleQuotes(s string) string {
+	replacer := strings.NewReplacer(`\`, `\\`, `"`, `\"`, "$", `\$`, "`", "\\`")
+	return replacer.Replace(s)
+}
+
+func shellQuoteCDPath(path string) string {
+	home, err := os.UserHomeDir()
+	if err == nil {
+		if path == home {
+			return `"$HOME"`
+		}
+		prefix := home + string(os.PathSeparator)
+		if strings.HasPrefix(path, prefix) {
+			suffix := strings.TrimPrefix(path, prefix)
+			return `"$HOME/` + shellEscapeForDoubleQuotes(suffix) + `"`
+		}
+	}
+	return shellQuoteSingle(path)
 }
