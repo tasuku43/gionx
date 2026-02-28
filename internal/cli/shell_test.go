@@ -73,6 +73,12 @@ func TestCLI_Shell_Completion_Zsh_PrintsCompdef(t *testing.T) {
 	if !strings.Contains(text, "bootstrap") || !strings.Contains(text, "ws") {
 		t.Fatalf("missing command candidates: %q", text)
 	}
+	if !strings.Contains(text, "ws add-repo) flags=(") || !strings.Contains(text, "--base-ref") {
+		t.Fatalf("missing ws add-repo flag candidates: %q", text)
+	}
+	if !strings.Contains(text, "context create) flags=(") || !strings.Contains(text, "--path") {
+		t.Fatalf("missing context create flag candidates: %q", text)
+	}
 }
 
 func TestCLI_Shell_Completion_Bash_PrintsCompleteHook(t *testing.T) {
@@ -91,6 +97,12 @@ func TestCLI_Shell_Completion_Bash_PrintsCompleteHook(t *testing.T) {
 	if !strings.Contains(text, "agent-skills") || !strings.Contains(text, "add-repo") {
 		t.Fatalf("missing subcommand candidates: %q", text)
 	}
+	if !strings.Contains(text, "\"ws add-repo\")") || !strings.Contains(text, "--base-ref") {
+		t.Fatalf("missing ws add-repo flag candidates: %q", text)
+	}
+	if !strings.Contains(text, "\"ws import jira\")") || !strings.Contains(text, "--sprint") {
+		t.Fatalf("missing ws import jira flag candidates: %q", text)
+	}
 }
 
 func TestCLI_Shell_Completion_Fish_PrintsCompleteRules(t *testing.T) {
@@ -108,6 +120,12 @@ func TestCLI_Shell_Completion_Fish_PrintsCompleteRules(t *testing.T) {
 	}
 	if !strings.Contains(text, "__fish_seen_subcommand_from shell") {
 		t.Fatalf("missing fish shell subcommand rule: %q", text)
+	}
+	if !strings.Contains(text, "__fish_seen_subcommand_from ws; and __fish_seen_subcommand_from add-repo") {
+		t.Fatalf("missing fish ws add-repo rule: %q", text)
+	}
+	if !strings.Contains(text, " -l base-ref") || !strings.Contains(text, " -l sprint") {
+		t.Fatalf("missing fish flag candidates: %q", text)
 	}
 }
 

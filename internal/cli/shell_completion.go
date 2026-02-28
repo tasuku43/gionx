@@ -15,6 +15,7 @@ var kraCompletionRootCommands = []string{
 	"ws",
 	"doctor",
 	"version",
+	"agent",
 	"help",
 }
 
@@ -32,6 +33,7 @@ var kraCompletionSubcommandOrder = []string{
 	"template",
 	"shell",
 	"ws",
+	"agent",
 }
 
 var kraCompletionSubcommands = map[string][]string{
@@ -59,6 +61,113 @@ var kraCompletionSubcommands = map[string][]string{
 		"purge",
 		"help",
 	},
+	"agent": {"run", "stop", "logs", "list", "ls", "help"},
+}
+
+var kraCompletionPathSubcommandOrder = []string{
+	"ws import",
+	"ws insight",
+}
+
+var kraCompletionPathSubcommands = map[string][]string{
+	"ws import":  {"jira", "help"},
+	"ws insight": {"add", "help"},
+}
+
+var kraCompletionCommandFlagOrder = []string{
+	"init",
+	"doctor",
+	"version",
+	"ws",
+	"agent",
+}
+
+var kraCompletionCommandFlags = map[string][]string{
+	"init":    {"--root", "--context", "--bootstrap", "--format", "--help", "-h"},
+	"doctor":  {"--format", "--fix", "--plan", "--apply", "--help", "-h"},
+	"version": {"--help", "-h"},
+	"ws":      {"--id", "--current", "--select", "--archived", "--multi", "--no-commit", "--help", "-h"},
+	"agent":   {"--help", "-h"},
+}
+
+var kraCompletionPathFlagOrder = []string{
+	"bootstrap agent-skills",
+	"context current",
+	"context list",
+	"context create",
+	"context use",
+	"context rename",
+	"context rm",
+	"repo add",
+	"repo discover",
+	"repo remove",
+	"repo gc",
+	"template validate",
+	"shell init",
+	"shell completion",
+	"ws create",
+	"ws import",
+	"ws import jira",
+	"ws list",
+	"ws ls",
+	"ws dashboard",
+	"ws open",
+	"ws switch",
+	"ws add-repo",
+	"ws remove-repo",
+	"ws close",
+	"ws reopen",
+	"ws purge",
+	"ws lock",
+	"ws unlock",
+	"ws select",
+	"ws insight",
+	"ws insight add",
+	"agent run",
+	"agent stop",
+	"agent list",
+	"agent ls",
+	"agent logs",
+}
+
+var kraCompletionPathFlags = map[string][]string{
+	"bootstrap agent-skills": {"--format", "--help", "-h"},
+	"context current":        {"--format", "--help", "-h"},
+	"context list":           {"--format", "--help", "-h"},
+	"context create":         {"--path", "--use", "--format", "--help", "-h"},
+	"context use":            {"--format", "--help", "-h"},
+	"context rename":         {"--format", "--help", "-h"},
+	"context rm":             {"--format", "--help", "-h"},
+	"repo add":               {"--format", "--help", "-h"},
+	"repo discover":          {"--org", "--provider", "--help", "-h"},
+	"repo remove":            {"--format", "--help", "-h"},
+	"repo gc":                {"--format", "--yes", "--help", "-h"},
+	"template validate":      {"--name", "--help", "-h"},
+	"shell init":             {"--help", "-h"},
+	"shell completion":       {"--help", "-h"},
+	"ws create":              {"--no-prompt", "--template", "--format", "--id", "--title", "--jira", "--help", "-h"},
+	"ws import":              {"--help", "-h"},
+	"ws import jira":         {"--sprint", "--space", "--project", "--jql", "--limit", "--apply", "--no-prompt", "--format", "--json", "--help", "-h"},
+	"ws list":                {"--archived", "--tree", "--format", "--help", "-h"},
+	"ws ls":                  {"--archived", "--tree", "--format", "--help", "-h"},
+	"ws dashboard":           {"--archived", "--workspace", "--format", "--help", "-h"},
+	"ws open":                {"--id", "--current", "--select", "--multi", "--concurrency", "--format", "--workspace", "--cmux", "--help", "-h"},
+	"ws switch":              {"--id", "--current", "--select", "--multi", "--concurrency", "--format", "--workspace", "--cmux", "--help", "-h"},
+	"ws add-repo":            {"--id", "--current", "--select", "--format", "--repo", "--branch", "--base-ref", "--yes", "--refresh", "--no-fetch", "--help", "-h"},
+	"ws remove-repo":         {"--id", "--current", "--select", "--format", "--repo", "--yes", "--force", "--help", "-h"},
+	"ws close":               {"--id", "--current", "--select", "--force", "--format", "--no-commit", "--commit", "--dry-run", "--help", "-h"},
+	"ws reopen":              {"--id", "--current", "--select", "--format", "--no-commit", "--commit", "--dry-run", "--help", "-h"},
+	"ws purge":               {"--id", "--current", "--select", "--no-prompt", "--force", "--format", "--no-commit", "--commit", "--dry-run", "--help", "-h"},
+	"ws lock":                {"--format", "--help", "-h"},
+	"ws unlock":              {"--format", "--help", "-h"},
+	"ws select":              {"--select", "--multi", "--archived", "--no-commit", "--commit", "--help", "-h"},
+	"ws insight":             {"--help", "-h"},
+	"ws insight add":         {"--id", "--ticket", "--session-id", "--what", "--approved", "--context", "--why", "--next", "--tag", "--format", "--help", "-h"},
+	"agent run":              {"--workspace", "--repo", "--kind", "--task", "--instruction", "--status", "--log-path", "--help", "-h"},
+	"agent stop":             {"--workspace", "--status", "--help", "-h"},
+	"agent list":             {"--workspace", "--format", "--help", "-h"},
+	"agent ls":               {"--workspace", "--format", "--help", "-h"},
+	"agent logs":             {"--workspace", "--tail", "--follow", "--help", "-h"},
 }
 
 func renderShellCompletionScript(shellName string) (string, error) {
@@ -77,7 +186,7 @@ func renderShellCompletionScript(shellName string) (string, error) {
 func renderBashCompletionScript() string {
 	return fmt.Sprintf(`# kra completion (bash)
 _kra_completion() {
-  local cur prev cmd i
+  local cur prev cmd subcmd subcmd2 path i
   COMPREPLY=()
   cur="${COMP_WORDS[COMP_CWORD]}"
   prev=""
@@ -86,26 +195,91 @@ _kra_completion() {
   fi
 
   cmd=""
+  subcmd=""
+  subcmd2=""
   for ((i=1; i<COMP_CWORD; i++)); do
     if [[ "${COMP_WORDS[i]}" != -* ]]; then
-      cmd="${COMP_WORDS[i]}"
-      break
+      if [[ -z "${cmd}" ]]; then
+        cmd="${COMP_WORDS[i]}"
+      elif [[ -z "${subcmd}" ]]; then
+        subcmd="${COMP_WORDS[i]}"
+      elif [[ -z "${subcmd2}" ]]; then
+        subcmd2="${COMP_WORDS[i]}"
+      fi
     fi
   done
 
   if [[ -z "${cmd}" ]]; then
-    COMPREPLY=( $(compgen -W "%s" -- "${cur}") )
+    COMPREPLY=( $(compgen -W %q -- "${cur}") )
     return 0
   fi
 
-  case "${cmd}" in
+  if [[ "${cur}" == -* ]]; then
+    if [[ -n "${subcmd2}" ]]; then
+      path="${cmd} ${subcmd} ${subcmd2}"
+    elif [[ -n "${subcmd}" ]]; then
+      path="${cmd} ${subcmd}"
+    else
+      path="${cmd}"
+    fi
+
+    case "${path}" in
 %s
-  esac
+%s
+    esac
+    return 0
+  fi
+
+  if [[ -z "${subcmd}" ]]; then
+    case "${cmd}" in
+%s
+    esac
+    return 0
+  fi
+
+  if [[ -z "${subcmd2}" ]]; then
+    path="${cmd} ${subcmd}"
+    case "${path}" in
+%s
+    esac
+  fi
 
   return 0
 }
 complete -o default -F _kra_completion kra
-`, strings.Join(kraCompletionTopWords(), " "), renderBashSubcommandCases())
+`, strings.Join(kraCompletionTopWords(), " "), renderBashCommandFlagCases(), renderBashPathFlagCases(), renderBashSubcommandCases(), renderBashPathSubcommandCases())
+}
+
+func renderBashCommandFlagCases() string {
+	lines := make([]string, 0, len(kraCompletionCommandFlagOrder)*3)
+	for _, cmd := range kraCompletionCommandFlagOrder {
+		flags := kraCompletionCommandFlags[cmd]
+		if len(flags) == 0 {
+			continue
+		}
+		lines = append(lines,
+			fmt.Sprintf("      %q)", cmd),
+			fmt.Sprintf("        COMPREPLY=( $(compgen -W %q -- \"${cur}\") )", strings.Join(flags, " ")),
+			"        ;;",
+		)
+	}
+	return strings.Join(lines, "\n")
+}
+
+func renderBashPathFlagCases() string {
+	lines := make([]string, 0, len(kraCompletionPathFlagOrder)*3)
+	for _, path := range kraCompletionPathFlagOrder {
+		flags := kraCompletionPathFlags[path]
+		if len(flags) == 0 {
+			continue
+		}
+		lines = append(lines,
+			fmt.Sprintf("      %q)", path),
+			fmt.Sprintf("        COMPREPLY=( $(compgen -W %q -- \"${cur}\") )", strings.Join(flags, " ")),
+			"        ;;",
+		)
+	}
+	return strings.Join(lines, "\n")
 }
 
 func renderBashSubcommandCases() string {
@@ -114,10 +288,30 @@ func renderBashSubcommandCases() string {
 		subs := strings.Join(kraCompletionSubcommands[cmd], " ")
 		lines = append(lines,
 			fmt.Sprintf("    %s)", cmd),
-			fmt.Sprintf("      if [[ \"${prev}\" == \"%s\" ]]; then", cmd),
-			fmt.Sprintf("        COMPREPLY=( $(compgen -W \"%s\" -- \"${cur}\") )", subs),
+			fmt.Sprintf("      if [[ \"${prev}\" == %q ]]; then", cmd),
+			fmt.Sprintf("        COMPREPLY=( $(compgen -W %q -- \"${cur}\") )", subs),
 			"      fi",
 			"      ;;",
+		)
+	}
+	return strings.Join(lines, "\n")
+}
+
+func renderBashPathSubcommandCases() string {
+	lines := make([]string, 0, len(kraCompletionPathSubcommandOrder)*4)
+	for _, path := range kraCompletionPathSubcommandOrder {
+		subs := strings.Join(kraCompletionPathSubcommands[path], " ")
+		parts := strings.Fields(path)
+		if len(parts) < 2 {
+			continue
+		}
+		prev := parts[len(parts)-1]
+		lines = append(lines,
+			fmt.Sprintf("      %q)", path),
+			fmt.Sprintf("        if [[ \"${prev}\" == %q ]]; then", prev),
+			fmt.Sprintf("          COMPREPLY=( $(compgen -W %q -- \"${cur}\") )", subs),
+			"        fi",
+			"        ;;",
 		)
 	}
 	return strings.Join(lines, "\n")
@@ -126,15 +320,21 @@ func renderBashSubcommandCases() string {
 func renderZshCompletionScript() string {
 	return fmt.Sprintf(`# kra completion (zsh)
 _kra_completion() {
-  local -a top sub
-  local cmd="" i
+  local -a top sub sub2 flags
+  local cmd="" subcmd="" subcmd2="" path="" i
+  local current_word="${words[CURRENT]}"
 
   top=(%s)
 
   for (( i=2; i<CURRENT; i++ )); do
     if [[ "${words[i]}" != -* ]]; then
-      cmd="${words[i]}"
-      break
+      if [[ -z "${cmd}" ]]; then
+        cmd="${words[i]}"
+      elif [[ -z "${subcmd}" ]]; then
+        subcmd="${words[i]}"
+      elif [[ -z "${subcmd2}" ]]; then
+        subcmd2="${words[i]}"
+      fi
     fi
   done
 
@@ -143,17 +343,73 @@ _kra_completion() {
     return 0
   fi
 
-  sub=()
-  case "$cmd" in
+  if [[ "${current_word}" == -* ]]; then
+    if [[ -n "${subcmd2}" ]]; then
+      path="${cmd} ${subcmd} ${subcmd2}"
+    elif [[ -n "${subcmd}" ]]; then
+      path="${cmd} ${subcmd}"
+    else
+      path="${cmd}"
+    fi
+    flags=()
+    case "$path" in
 %s
-  esac
+%s
+    esac
+    if [[ ${#flags[@]} -gt 0 ]]; then
+      compadd -- $flags
+    fi
+    return 0
+  fi
 
-  if [[ ${#sub[@]} -gt 0 ]] && [[ "${words[CURRENT-1]}" == "$cmd" ]]; then
-    compadd -- $sub
+  sub=()
+  if [[ -z "${subcmd}" ]]; then
+    case "$cmd" in
+%s
+    esac
+    if [[ ${#sub[@]} -gt 0 ]] && [[ "${words[CURRENT-1]}" == "$cmd" ]]; then
+      compadd -- $sub
+    fi
+    return 0
+  fi
+
+  sub2=()
+  if [[ -z "${subcmd2}" ]]; then
+    path="${cmd} ${subcmd}"
+    case "$path" in
+%s
+    esac
+    if [[ ${#sub2[@]} -gt 0 ]] && [[ "${words[CURRENT-1]}" == "$subcmd" ]]; then
+      compadd -- $sub2
+    fi
   fi
 }
 compdef _kra_completion kra
-`, strings.Join(kraCompletionTopWords(), " "), renderZshSubcommandCases())
+`, strings.Join(kraCompletionTopWords(), " "), renderZshCommandFlagCases(), renderZshPathFlagCases(), renderZshSubcommandCases(), renderZshPathSubcommandCases())
+}
+
+func renderZshCommandFlagCases() string {
+	lines := make([]string, 0, len(kraCompletionCommandFlagOrder))
+	for _, cmd := range kraCompletionCommandFlagOrder {
+		flags := kraCompletionCommandFlags[cmd]
+		if len(flags) == 0 {
+			continue
+		}
+		lines = append(lines, fmt.Sprintf("    %s) flags=(%s) ;;", cmd, strings.Join(flags, " ")))
+	}
+	return strings.Join(lines, "\n")
+}
+
+func renderZshPathFlagCases() string {
+	lines := make([]string, 0, len(kraCompletionPathFlagOrder))
+	for _, path := range kraCompletionPathFlagOrder {
+		flags := kraCompletionPathFlags[path]
+		if len(flags) == 0 {
+			continue
+		}
+		lines = append(lines, fmt.Sprintf("    %s) flags=(%s) ;;", path, strings.Join(flags, " ")))
+	}
+	return strings.Join(lines, "\n")
 }
 
 func renderZshSubcommandCases() string {
@@ -161,6 +417,15 @@ func renderZshSubcommandCases() string {
 	for _, cmd := range kraCompletionSubcommandOrder {
 		subs := strings.Join(kraCompletionSubcommands[cmd], " ")
 		lines = append(lines, fmt.Sprintf("    %s) sub=(%s) ;;", cmd, subs))
+	}
+	return strings.Join(lines, "\n")
+}
+
+func renderZshPathSubcommandCases() string {
+	lines := make([]string, 0, len(kraCompletionPathSubcommandOrder))
+	for _, path := range kraCompletionPathSubcommandOrder {
+		subs := strings.Join(kraCompletionPathSubcommands[path], " ")
+		lines = append(lines, fmt.Sprintf("    %s) sub2=(%s) ;;", path, subs))
 	}
 	return strings.Join(lines, "\n")
 }
@@ -174,20 +439,63 @@ func renderFishCompletionScript() string {
 	b.WriteString("complete -c kra -l help -s h -d \"Show help\"\n")
 	b.WriteString(
 		fmt.Sprintf(
-			"complete -c kra -n \"__fish_use_subcommand\" -a \"%s\"\n",
+			"complete -c kra -n \"__fish_use_subcommand\" -a %q\n",
 			strings.Join(kraCompletionRootCommands, " "),
 		),
 	)
 	for _, cmd := range kraCompletionSubcommandOrder {
 		b.WriteString(
 			fmt.Sprintf(
-				"complete -c kra -n \"__fish_seen_subcommand_from %s\" -a \"%s\"\n",
-				cmd,
+				"complete -c kra -n %q -a %q\n",
+				fishConditionForPath(cmd),
 				strings.Join(kraCompletionSubcommands[cmd], " "),
 			),
 		)
 	}
+	for _, path := range kraCompletionPathSubcommandOrder {
+		b.WriteString(
+			fmt.Sprintf(
+				"complete -c kra -n %q -a %q\n",
+				fishConditionForPath(path),
+				strings.Join(kraCompletionPathSubcommands[path], " "),
+			),
+		)
+	}
+	for _, cmd := range kraCompletionCommandFlagOrder {
+		cond := fishConditionForPath(cmd)
+		for _, flag := range kraCompletionCommandFlags[cmd] {
+			b.WriteString(renderFishFlagCompletionLine(cond, flag))
+		}
+	}
+	for _, path := range kraCompletionPathFlagOrder {
+		cond := fishConditionForPath(path)
+		for _, flag := range kraCompletionPathFlags[path] {
+			b.WriteString(renderFishFlagCompletionLine(cond, flag))
+		}
+	}
 	return b.String()
+}
+
+func renderFishFlagCompletionLine(cond string, flag string) string {
+	if flag == "-h" {
+		return fmt.Sprintf("complete -c kra -n %q -s h -d \"Show help\"\n", cond)
+	}
+	if strings.HasPrefix(flag, "--") {
+		return fmt.Sprintf("complete -c kra -n %q -l %s\n", cond, strings.TrimPrefix(flag, "--"))
+	}
+	return ""
+}
+
+func fishConditionForPath(path string) string {
+	parts := strings.Fields(strings.TrimSpace(path))
+	if len(parts) == 0 {
+		return "__fish_use_subcommand"
+	}
+	conds := make([]string, 0, len(parts))
+	for _, p := range parts {
+		conds = append(conds, fmt.Sprintf("__fish_seen_subcommand_from %s", p))
+	}
+	return strings.Join(conds, "; and ")
 }
 
 func kraCompletionTopWords() []string {
