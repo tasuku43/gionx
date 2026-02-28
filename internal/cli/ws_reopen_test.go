@@ -19,11 +19,11 @@ func TestCLI_WS_Reopen_Help_ShowsUsage(t *testing.T) {
 	var err bytes.Buffer
 	c := New(&out, &err)
 
-	code := c.Run([]string{"ws", "--act", "reopen", "--help"})
+	code := c.Run([]string{"ws", "reopen", "--help"})
 	if code != exitOK {
 		t.Fatalf("exit code = %d, want %d", code, exitOK)
 	}
-	if !strings.Contains(out.String(), "kra ws --act reopen") {
+	if !strings.Contains(out.String(), "kra ws reopen") {
 		t.Fatalf("stdout missing ws reopen usage: %q", out.String())
 	}
 	if err.Len() != 0 {
@@ -97,7 +97,7 @@ func TestCLI_WS_Reopen_RestoresWorkspaceRecreatesWorktreesAndCanCommitAndUpdates
 		c := New(&out, &err)
 		c.In = strings.NewReader(addRepoSelectionInput("", "WS1/test"))
 
-		code := c.Run([]string{"ws", "--act", "add-repo", "WS1"})
+		code := c.Run([]string{"ws", "add-repo", "WS1"})
 		if code != exitOK {
 			t.Fatalf("ws add-repo exit code = %d, want %d (stderr=%q)", code, exitOK, err.String())
 		}
@@ -107,7 +107,7 @@ func TestCLI_WS_Reopen_RestoresWorkspaceRecreatesWorktreesAndCanCommitAndUpdates
 		var out bytes.Buffer
 		var err bytes.Buffer
 		c := New(&out, &err)
-		code := c.Run([]string{"ws", "--act", "close", "WS1"})
+		code := c.Run([]string{"ws", "close", "WS1"})
 		if code != exitOK {
 			t.Fatalf("ws close exit code = %d, want %d (stderr=%q)", code, exitOK, err.String())
 		}
@@ -117,7 +117,7 @@ func TestCLI_WS_Reopen_RestoresWorkspaceRecreatesWorktreesAndCanCommitAndUpdates
 		var out bytes.Buffer
 		var err bytes.Buffer
 		c := New(&out, &err)
-		code := c.Run([]string{"ws", "--act", "reopen", "--commit", "WS1"})
+		code := c.Run([]string{"ws", "reopen", "--commit", "WS1"})
 		if code != exitOK {
 			t.Fatalf("ws reopen exit code = %d, want %d (stderr=%q)", code, exitOK, err.String())
 		}
@@ -211,7 +211,7 @@ func TestCLI_WS_Reopen_RecreatesWorktreesWithoutWorkspaceRepoBindings(t *testing
 		c := New(&out, &err)
 		c.In = strings.NewReader(addRepoSelectionInput("", "WS1/test"))
 
-		code := c.Run([]string{"ws", "--act", "add-repo", "WS1"})
+		code := c.Run([]string{"ws", "add-repo", "WS1"})
 		if code != exitOK {
 			t.Fatalf("ws add-repo exit code = %d, want %d (stderr=%q)", code, exitOK, err.String())
 		}
@@ -220,7 +220,7 @@ func TestCLI_WS_Reopen_RecreatesWorktreesWithoutWorkspaceRepoBindings(t *testing
 		var out bytes.Buffer
 		var err bytes.Buffer
 		c := New(&out, &err)
-		code := c.Run([]string{"ws", "--act", "close", "WS1"})
+		code := c.Run([]string{"ws", "close", "WS1"})
 		if code != exitOK {
 			t.Fatalf("ws close exit code = %d, want %d (stderr=%q)", code, exitOK, err.String())
 		}
@@ -230,7 +230,7 @@ func TestCLI_WS_Reopen_RecreatesWorktreesWithoutWorkspaceRepoBindings(t *testing
 		var out bytes.Buffer
 		var err bytes.Buffer
 		c := New(&out, &err)
-		code := c.Run([]string{"ws", "--act", "reopen", "WS1"})
+		code := c.Run([]string{"ws", "reopen", "WS1"})
 		if code != exitOK {
 			t.Fatalf("ws reopen exit code = %d, want %d (stderr=%q)", code, exitOK, err.String())
 		}
@@ -308,7 +308,7 @@ func TestCLI_WS_Reopen_ErrorsWhenBranchCheckedOutElsewhere(t *testing.T) {
 		c := New(&out, &err)
 		c.In = strings.NewReader(addRepoSelectionInput("", "WS1/test"))
 
-		code := c.Run([]string{"ws", "--act", "add-repo", "WS1"})
+		code := c.Run([]string{"ws", "add-repo", "WS1"})
 		if code != exitOK {
 			t.Fatalf("ws add-repo exit code = %d, want %d (stderr=%q)", code, exitOK, err.String())
 		}
@@ -317,7 +317,7 @@ func TestCLI_WS_Reopen_ErrorsWhenBranchCheckedOutElsewhere(t *testing.T) {
 		var out bytes.Buffer
 		var err bytes.Buffer
 		c := New(&out, &err)
-		code := c.Run([]string{"ws", "--act", "close", "WS1"})
+		code := c.Run([]string{"ws", "close", "WS1"})
 		if code != exitOK {
 			t.Fatalf("ws close exit code = %d, want %d (stderr=%q)", code, exitOK, err.String())
 		}
@@ -335,7 +335,7 @@ func TestCLI_WS_Reopen_ErrorsWhenBranchCheckedOutElsewhere(t *testing.T) {
 		var out bytes.Buffer
 		var err bytes.Buffer
 		c := New(&out, &err)
-		code := c.Run([]string{"ws", "--act", "reopen", "WS1"})
+		code := c.Run([]string{"ws", "reopen", "WS1"})
 		if code != exitError {
 			t.Fatalf("ws reopen exit code = %d, want %d (stderr=%q)", code, exitError, err.String())
 		}
@@ -365,7 +365,7 @@ func TestCLI_WS_Reopen_SelectorModeWithoutTTY_Errors(t *testing.T) {
 		var out bytes.Buffer
 		var err bytes.Buffer
 		c := New(&out, &err)
-		code := c.Run([]string{"ws", "--act", "close", "WS1"})
+		code := c.Run([]string{"ws", "close", "WS1"})
 		if code != exitOK {
 			t.Fatalf("ws close exit code = %d, want %d (stderr=%q)", code, exitOK, err.String())
 		}
@@ -377,7 +377,7 @@ func TestCLI_WS_Reopen_SelectorModeWithoutTTY_Errors(t *testing.T) {
 		c := New(&out, &err)
 		c.In = strings.NewReader("")
 
-		code := c.Run([]string{"ws", "--act", "reopen"})
+		code := c.Run([]string{"ws", "reopen"})
 		if code != exitUsage {
 			t.Fatalf("ws reopen exit code = %d, want %d (stderr=%q)", code, exitUsage, err.String())
 		}

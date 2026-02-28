@@ -64,9 +64,9 @@ Create a workspace from a root-local template.
   - store `workspace.source_url = <ticket-url>`
 - Workspace ID collisions:
   - if `<id>` already exists as `active`, return an error and reference the existing workspace
-  - if `<id>` already exists as `archived`, guide the user to `kra ws --act reopen <id>`
+  - if `<id>` already exists as `archived`, guide the user to `kra ws reopen <id>`
   - if `<id>` was previously purged, allow creating it again as a new generation
-- Do not create repos at this stage (repos are added via `ws --act add-repo`).
+- Do not create repos at this stage (repos are added via `ws add-repo`).
 - If copy or metadata write fails after workspace dir creation, remove `workspaces/<id>/` and fail.
 - `ws create` must auto-commit the create scope in `KRA_ROOT`:
   - commit message: `create: <workspace-id>`

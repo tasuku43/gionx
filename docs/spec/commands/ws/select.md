@@ -3,43 +3,45 @@ title: "`kra ws` selection entrypoint policy"
 status: implemented
 ---
 
-# `kra ws` / `kra ws select`
+# `kra ws` selection entrypoint
 
 ## Purpose
 
-Unify interactive selection into a single entrypoint while keeping operation commands explicit for automation.
+Unify workspace targeting into explicit modes and remove implicit cwd-based resolution.
 
 ## Dual-entry contract
 
 - Human facade (interactive):
-  - `kra ws`
-  - `kra ws select`
+  - `kra ws --select`
 - Non-interactive execution path (operation-fixed):
-  - `kra ws --act <go|add-repo|remove-repo|close|reopen|purge> ...`
+  - `kra ws <go|add-repo|remove-repo|close|reopen|purge> ...`
 - Both facades must converge to the same operation core behavior for each action.
 - Parent-shell side effects (for example `cd`) are applied only through action-file protocol.
 
 ## Entry policy
 
-- `kra ws` is context-aware launcher.
+- `kra ws` must use explicit target mode:
+  - `--id <id>`: resolve by workspace id
+  - `--current`: resolve from current path context (`workspaces/<id>/...` or `archive/<id>/...`)
+  - `--select`: interactive selection-first flow
+- `kra ws` without any target mode must fail with usage error.
 - `kra ws --id <id>` resolves launcher target explicitly by id.
-- `kra ws select` always starts from workspace selection.
-- `kra ws select --act <go|close|add-repo|remove-repo|reopen|unlock|purge>` skips action menu and executes fixed action.
-- `kra ws select --act reopen|unlock|purge` implicitly switches to archived scope.
-- `kra ws select --archived --act go|add-repo|remove-repo|close` must fail with usage error.
-- `kra ws select --multi` requires `--act`.
-- `kra ws select --multi --act <close|reopen|purge>` enables multi-selection and executes the fixed action for each
+- `kra ws --current` resolves launcher target from current path only when explicitly set.
+- `kra ws --select` always starts from workspace selection.
+- `kra ws --select <go|close|add-repo|remove-repo|reopen|unlock|purge>` skips action menu and executes fixed action.
+- `kra ws --select reopen|unlock|purge` implicitly switches to archived scope.
+- `kra ws --select --archived go|add-repo|remove-repo|close` must fail with usage error.
+- `kra ws --select --multi` requires action.
+- `kra ws --select --multi <close|reopen|purge>` enables multi-selection and executes the fixed action for each
   selected workspace.
-- `kra ws select --multi --act close` is active-scope only (`--archived` is invalid).
-- `kra ws select --multi --act reopen|purge` implicitly switches to archived scope.
-- `kra ws select --multi` runs lifecycle commits by default; `--no-commit` disables commits for selected action.
-- `kra ws select --multi --commit` is accepted for backward compatibility and keeps default behavior.
+- `kra ws --select --multi close` is active-scope only (`--archived` is invalid).
+- `kra ws --select --multi reopen|purge` implicitly switches to archived scope.
+- `kra ws --select --multi` runs lifecycle commits by default; `--no-commit` disables commits for selected action.
+- `kra ws --select --multi --commit` is accepted for backward compatibility and keeps default behavior.
 - `go|add-repo|remove-repo` are not supported in `--multi` mode.
-- `kra ws` must not auto-fallback to workspace list selection when current path cannot resolve workspace.
-  unresolved invocation should fail and instruct users to run `kra ws select`.
-- `kra ws` must resolve target workspace by either:
-  - explicit `--id <id>`
-  - current workspace context path (`workspaces/<id>/...` or `archive/<id>/...`)
+- `kra ws` must not auto-resolve workspace from current path unless `--current` is explicitly set.
+- unresolved invocation should fail and instruct users to use one of `--id`, `--current`, or `--select`.
+- Backward compatibility: `kra ws select ...` may remain as alias to `kra ws --select ...`.
 
 ## Selection flow
 
@@ -53,7 +55,6 @@ Unify interactive selection into a single entrypoint while keeping operation com
 
 ## Action routing policy
 
-- Edit operations for existing workspace resources are routed by `--act`.
+- Edit operations for existing workspace resources are routed by `ws <action>` subcommands.
 - Read-only commands remain subcommands (`ws list`, `ws ls`) and resource creation remains `ws create`.
-- `ws go|close|add-repo|remove-repo|reopen|purge` subcommands are not part of supported entrypoints.
 - Non-interactive usage should prefer explicit `--id` and must not rely on interactive selectors.

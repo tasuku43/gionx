@@ -18,10 +18,10 @@ func TestCLI_WS_Launcher_RequiresIDOrWorkspaceContext(t *testing.T) {
 	var err bytes.Buffer
 	c := New(&out, &err)
 	code := c.Run([]string{"ws"})
-	if code != exitError {
-		t.Fatalf("ws exit code = %d, want %d", code, exitError)
+	if code != exitUsage {
+		t.Fatalf("ws exit code = %d, want %d", code, exitUsage)
 	}
-	if !strings.Contains(err.String(), "ws requires --id <id> or workspace context") {
+	if !strings.Contains(err.String(), "ws requires one of --id <id>, --current, or --select") {
 		t.Fatalf("stderr missing unresolved launcher message: %q", err.String())
 	}
 }
@@ -45,12 +45,12 @@ func TestCLI_WS_Launcher_WithIDAndFixedAction(t *testing.T) {
 	c := New(&out, &err)
 	actionFile := filepath.Join(t.TempDir(), "action.sh")
 	t.Setenv(shellActionFileEnv, actionFile)
-	code := c.Run([]string{"ws", "--id", "WS1", "--act", "go"})
+	code := c.Run([]string{"ws", "go", "--id", "WS1"})
 	if code != exitOK {
-		t.Fatalf("ws --id --act go exit code = %d, want %d (stderr=%q)", code, exitOK, err.String())
+		t.Fatalf("ws go --id exit code = %d, want %d (stderr=%q)", code, exitOK, err.String())
 	}
 	if out.String() != "" {
-		t.Fatalf("stdout should be empty for ws --act go default mode: %q", out.String())
+		t.Fatalf("stdout should be empty for ws go default mode: %q", out.String())
 	}
 	action, readErr := os.ReadFile(actionFile)
 	if readErr != nil {

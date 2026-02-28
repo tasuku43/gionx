@@ -12,7 +12,7 @@ Protect workspaces from accidental purge by using one dedicated guard.
 
 This command family manages purge guard only:
 
-- `ws --act purge`
+- `ws purge`
 
 ## Data model
 

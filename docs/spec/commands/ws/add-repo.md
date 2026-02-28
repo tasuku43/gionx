@@ -1,9 +1,9 @@
 ---
-title: "`kra ws --act add-repo`"
+title: "`kra ws add-repo`"
 status: implemented
 ---
 
-# `kra ws --act add-repo [--id <workspace-id>] [<workspace-id>] [--format human|json] [--refresh] [--no-fetch]`
+# `kra ws add-repo [--id <workspace-id>] [<workspace-id>] [--format human|json] [--refresh] [--no-fetch]`
 
 ## Purpose
 
@@ -16,7 +16,7 @@ Add repositories from the existing repo pool to a workspace as Git worktrees.
   - cannot be combined with positional `workspace-id`
   - if omitted, current working directory must be under `KRA_ROOT/workspaces/<id>/`
   - otherwise the command fails fast
-- interactive selection is handled by `kra ws select --act add-repo`.
+- interactive selection is handled by `kra ws select add-repo`.
 - JSON mode (`--format json`) is non-interactive and accepts:
   - `--repo <repo-key>` (repeatable, required)
   - `--branch <name>` (optional, highest precedence when provided)

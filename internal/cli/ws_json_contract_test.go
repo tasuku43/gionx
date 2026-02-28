@@ -112,9 +112,9 @@ func TestCLI_WS_ActGo_JSON_Success(t *testing.T) {
 	var out bytes.Buffer
 	var err bytes.Buffer
 	c := New(&out, &err)
-	code := c.Run([]string{"ws", "--act", "go", "--format", "json", "--id", "WS1"})
+	code := c.Run([]string{"ws", "go", "--format", "json", "--id", "WS1"})
 	if code != exitOK {
-		t.Fatalf("ws --act go --format json exit code = %d, want %d (stderr=%q)", code, exitOK, err.String())
+		t.Fatalf("ws go --format json exit code = %d, want %d (stderr=%q)", code, exitOK, err.String())
 	}
 	resp := decodeJSONResponse(t, out.String())
 	if !resp.OK || resp.Action != "go" || resp.WorkspaceID != "WS1" {
@@ -141,9 +141,9 @@ func TestCLI_WS_ActClose_JSON_Success(t *testing.T) {
 	var out bytes.Buffer
 	var err bytes.Buffer
 	c := New(&out, &err)
-	code := c.Run([]string{"ws", "--act", "close", "--format", "json", "--id", "WS1"})
+	code := c.Run([]string{"ws", "close", "--format", "json", "--id", "WS1"})
 	if code != exitOK {
-		t.Fatalf("ws --act close --format json exit code = %d, want %d (stderr=%q)", code, exitOK, err.String())
+		t.Fatalf("ws close --format json exit code = %d, want %d (stderr=%q)", code, exitOK, err.String())
 	}
 	resp := decodeJSONResponse(t, out.String())
 	if !resp.OK || resp.Action != "close" || resp.WorkspaceID != "WS1" {
@@ -170,9 +170,9 @@ func TestCLI_WS_ActClose_DryRun_JSON_Success(t *testing.T) {
 	var out bytes.Buffer
 	var err bytes.Buffer
 	c := New(&out, &err)
-	code := c.Run([]string{"ws", "--act", "close", "--dry-run", "--format", "json", "--id", "WS1"})
+	code := c.Run([]string{"ws", "close", "--dry-run", "--format", "json", "--id", "WS1"})
 	if code != exitOK {
-		t.Fatalf("ws --act close --dry-run --format json exit code = %d, want %d (stderr=%q)", code, exitOK, err.String())
+		t.Fatalf("ws close --dry-run --format json exit code = %d, want %d (stderr=%q)", code, exitOK, err.String())
 	}
 	resp := decodeJSONResponse(t, out.String())
 	if !resp.OK || resp.Action != "ws.close.dry-run" || resp.WorkspaceID != "WS1" {
@@ -194,7 +194,7 @@ func TestCLI_WS_ActReopen_DryRun_JSON_Success(t *testing.T) {
 		if code := c.Run([]string{"ws", "create", "--no-prompt", "WS1"}); code != exitOK {
 			t.Fatalf("ws create exit code = %d, want %d (stderr=%q)", code, exitOK, err.String())
 		}
-		if code := c.Run([]string{"ws", "--act", "close", "--format", "json", "--id", "WS1"}); code != exitOK {
+		if code := c.Run([]string{"ws", "close", "--format", "json", "--id", "WS1"}); code != exitOK {
 			t.Fatalf("ws close exit code = %d, want %d (stderr=%q)", code, exitOK, err.String())
 		}
 	}
@@ -202,9 +202,9 @@ func TestCLI_WS_ActReopen_DryRun_JSON_Success(t *testing.T) {
 	var out bytes.Buffer
 	var err bytes.Buffer
 	c := New(&out, &err)
-	code := c.Run([]string{"ws", "--act", "reopen", "--dry-run", "--format", "json", "WS1"})
+	code := c.Run([]string{"ws", "reopen", "--dry-run", "--format", "json", "WS1"})
 	if code != exitOK {
-		t.Fatalf("ws --act reopen --dry-run --format json exit code = %d, want %d (stderr=%q)", code, exitOK, err.String())
+		t.Fatalf("ws reopen --dry-run --format json exit code = %d, want %d (stderr=%q)", code, exitOK, err.String())
 	}
 	resp := decodeJSONResponse(t, out.String())
 	if !resp.OK || resp.Action != "ws.reopen.dry-run" || resp.WorkspaceID != "WS1" {
@@ -228,9 +228,9 @@ func TestCLI_WS_ActPurge_DryRun_JSON_ArchivedOnly(t *testing.T) {
 	var out bytes.Buffer
 	var err bytes.Buffer
 	c := New(&out, &err)
-	code := c.Run([]string{"ws", "--act", "purge", "--dry-run", "--format", "json", "WS1"})
+	code := c.Run([]string{"ws", "purge", "--dry-run", "--format", "json", "WS1"})
 	if code != exitError {
-		t.Fatalf("ws --act purge --dry-run --format json exit code = %d, want %d (stderr=%q)", code, exitError, err.String())
+		t.Fatalf("ws purge --dry-run --format json exit code = %d, want %d (stderr=%q)", code, exitError, err.String())
 	}
 	resp := decodeJSONResponse(t, out.String())
 	if resp.OK || resp.Action != "ws.purge.dry-run" || resp.WorkspaceID != "WS1" {
@@ -257,9 +257,9 @@ func TestCLI_WS_ActAddRepo_JSON_RequiresRepo(t *testing.T) {
 	var out bytes.Buffer
 	var err bytes.Buffer
 	c := New(&out, &err)
-	code := c.Run([]string{"ws", "--act", "add-repo", "--format", "json", "--id", "WS1", "--yes"})
+	code := c.Run([]string{"ws", "add-repo", "--format", "json", "--id", "WS1", "--yes"})
 	if code != exitUsage {
-		t.Fatalf("ws --act add-repo --format json exit code = %d, want %d (stderr=%q)", code, exitUsage, err.String())
+		t.Fatalf("ws add-repo --format json exit code = %d, want %d (stderr=%q)", code, exitUsage, err.String())
 	}
 	resp := decodeJSONResponse(t, out.String())
 	if resp.OK || resp.Action != "add-repo" || resp.Error.Code != "invalid_argument" {
@@ -283,9 +283,9 @@ func TestCLI_WS_ActRemoveRepo_JSON_RequiresRepo(t *testing.T) {
 	var out bytes.Buffer
 	var err bytes.Buffer
 	c := New(&out, &err)
-	code := c.Run([]string{"ws", "--act", "remove-repo", "--format", "json", "--id", "WS1", "--yes"})
+	code := c.Run([]string{"ws", "remove-repo", "--format", "json", "--id", "WS1", "--yes"})
 	if code != exitUsage {
-		t.Fatalf("ws --act remove-repo --format json exit code = %d, want %d (stderr=%q)", code, exitUsage, err.String())
+		t.Fatalf("ws remove-repo --format json exit code = %d, want %d (stderr=%q)", code, exitUsage, err.String())
 	}
 	resp := decodeJSONResponse(t, out.String())
 	if resp.OK || resp.Action != "remove-repo" || resp.Error.Code != "invalid_argument" {

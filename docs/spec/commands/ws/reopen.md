@@ -1,10 +1,10 @@
 ---
-title: "`kra ws --act reopen`"
+title: "`kra ws reopen`"
 status: implemented
 ---
 
-# `kra ws --act reopen [--no-commit] [--commit] <id>`
-# `kra ws --act reopen --dry-run --format json <id>`
+# `kra ws reopen [--no-commit] [--commit] <id>`
+# `kra ws reopen --dry-run --format json <id>`
 
 ## Purpose
 

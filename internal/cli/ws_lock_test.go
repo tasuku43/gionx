@@ -51,7 +51,7 @@ func TestCLI_WS_Purge_BlockedByDefaultGuard(t *testing.T) {
 		if code := c.Run([]string{"ws", "create", "--no-prompt", "WS1"}); code != exitOK {
 			t.Fatalf("ws create exit code = %d, want %d (stderr=%q)", code, exitOK, err.String())
 		}
-		if code := c.Run([]string{"ws", "--act", "close", "WS1"}); code != exitOK {
+		if code := c.Run([]string{"ws", "close", "WS1"}); code != exitOK {
 			t.Fatalf("ws close exit code = %d, want %d (stderr=%q)", code, exitOK, err.String())
 		}
 	}
@@ -59,7 +59,7 @@ func TestCLI_WS_Purge_BlockedByDefaultGuard(t *testing.T) {
 	var out bytes.Buffer
 	var err bytes.Buffer
 	c := New(&out, &err)
-	code := c.Run([]string{"ws", "--act", "purge", "WS1"})
+	code := c.Run([]string{"ws", "purge", "WS1"})
 	if code != exitError {
 		t.Fatalf("ws purge exit code = %d, want %d (stderr=%q)", code, exitError, err.String())
 	}
@@ -75,7 +75,7 @@ func TestCLI_WS_Purge_BlockedByDefaultGuard(t *testing.T) {
 			t.Fatalf("ws unlock exit code = %d, want %d (stderr=%q)", code, exitOK, err2.String())
 		}
 		c2.In = strings.NewReader("y\n")
-		if code := c2.Run([]string{"ws", "--act", "purge", "WS1"}); code != exitOK {
+		if code := c2.Run([]string{"ws", "purge", "WS1"}); code != exitOK {
 			t.Fatalf("ws purge after unlock exit code = %d, want %d (stderr=%q)", code, exitOK, err2.String())
 		}
 	}

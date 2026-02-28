@@ -163,9 +163,10 @@ Bootstrap:
 
 func (c *CLI) printWSUsage(w io.Writer) {
 	fmt.Fprint(w, `Usage:
-  kra ws [--id <id>] [--act <action>] [action-args...]
-  kra ws select [--archived] [--act <go|close|add-repo|remove-repo|reopen|unlock|purge>]
-  kra ws select --multi --act <close|reopen|purge> [--archived] [--no-commit]
+  kra ws [--id <id> | --current | --select]
+  kra ws <go|add-repo|remove-repo|close|reopen|purge> [--id <id> | --current | --select] [action-args...]
+  kra ws --select [--archived] [go|close|add-repo|remove-repo|reopen|unlock|purge]
+  kra ws --select --multi [--archived] <close|reopen|purge> [--no-commit]
   kra ws create [--no-prompt] [--template <name>] [--format human|json] <id>
   kra ws create [--no-prompt] [--template <name>] [--format human|json] --id <id> [--title "<title>"]
   kra ws create --jira <ticket-url> [--template <name>] [--format human|json]
@@ -178,7 +179,12 @@ func (c *CLI) printWSUsage(w io.Writer) {
 Subcommands:
   create            Create a workspace
   import            Import workspaces from external systems
-  select            Select workspace (then action or fixed action)
+  go                Move to workspace path (via shell action file protocol)
+  add-repo          Add repositories to a workspace
+  remove-repo       Remove repositories from a workspace
+  close             Archive a workspace
+  reopen            Restore an archived workspace
+  purge             Permanently delete an archived workspace
   list              List workspaces
   ls                Alias of list
   dashboard         Show workspace operational dashboard
@@ -190,18 +196,18 @@ Run:
   kra ws <subcommand> --help
 
 Notes:
-- edit actions for existing workspaces are routed by --act.
+- edit actions are routed by ws <action> subcommands.
 - active actions: go, add-repo, remove-repo, close
 - archived actions: reopen, unlock, purge (applies archived scope automatically)
-- ws --archived --act go|add-repo|remove-repo|close is invalid.
-- kra ws opens action launcher when --act is omitted.
-- kra ws resolves workspace from --id or current workspace context.
-- kra ws select always opens workspace selection first.
-- ws select --multi requires --act.
-- ws select --multi supports only close/reopen/purge.
-- ws select --multi --act reopen|purge implies archived scope.
-- ws select --multi commits by default; use --no-commit to disable lifecycle commits.
-- invalid --act/scope combinations fail with usage.
+- ws --archived with go|add-repo|remove-repo|close is invalid.
+- kra ws requires explicit target mode: --id, --current, or --select.
+- kra ws does not resolve workspace implicitly from current path unless --current is set.
+- kra ws --select always opens workspace selection first.
+- ws --select --multi requires an action positional argument.
+- ws --select --multi supports only close/reopen/purge.
+- ws --select --multi reopen|purge implies archived scope.
+- ws --select --multi commits by default; use --no-commit to disable lifecycle commits.
+- invalid action/scope combinations fail with usage.
 `)
 }
 
@@ -420,8 +426,8 @@ Options:
 
 func (c *CLI) printWSAddRepoUsage(w io.Writer) {
 	fmt.Fprint(w, `Usage:
-  kra ws --act add-repo [--id <workspace-id>] [<workspace-id>] [--format human|json] [--refresh] [--no-fetch]
-  kra ws --act add-repo --format json --id <workspace-id> --repo <repo-key> [--repo <repo-key> ...] [--branch <name>] [--base-ref <origin/branch>] [--refresh] [--no-fetch] [--yes]
+  kra ws add-repo [--id <workspace-id> | --current | --select] [<workspace-id>] [--format human|json] [--refresh] [--no-fetch]
+  kra ws add-repo --format json --id <workspace-id> --repo <repo-key> [--repo <repo-key> ...] [--branch <name>] [--base-ref <origin/branch>] [--refresh] [--no-fetch] [--yes]
 
 Add repositories from the repo pool to a workspace.
 
@@ -440,8 +446,8 @@ Behavior:
 
 func (c *CLI) printWSRemoveRepoUsage(w io.Writer) {
 	fmt.Fprint(w, `Usage:
-  kra ws --act remove-repo [--id <workspace-id>] [<workspace-id>] [--format human|json]
-  kra ws --act remove-repo --format json --id <workspace-id> --repo <repo-key> [--repo <repo-key> ...] [--yes] [--force]
+  kra ws remove-repo [--id <workspace-id> | --current | --select] [<workspace-id>] [--format human|json]
+  kra ws remove-repo --format json --id <workspace-id> --repo <repo-key> [--repo <repo-key> ...] [--yes] [--force]
 
 Remove repositories from a workspace (binding + worktree).
 
@@ -459,7 +465,7 @@ Behavior:
 
 func (c *CLI) printWSGoUsage(w io.Writer) {
 	fmt.Fprint(w, `Usage:
-  kra ws --act go [--archived] [--id <id>] [--ui] [--format human|json] [<id>]
+  kra ws go [--archived] [--id <id> | --current | --select] [--ui] [--format human|json] [<id>]
 
 Resolve a workspace directory target:
 - active target: workspaces/<id>/
@@ -474,8 +480,8 @@ Options:
 
 func (c *CLI) printWSCloseUsage(w io.Writer) {
 	fmt.Fprint(w, `Usage:
-  kra ws --act close [--id <id>] [--force] [--format human|json] [--no-commit] [<id>]
-  kra ws --act close --dry-run --format json [--id <id>|<id>]
+  kra ws close [--id <id> | --current | --select] [--force] [--format human|json] [--no-commit] [<id>]
+  kra ws close --dry-run --format json [--id <id>|<id>]
 
 Close (archive) a workspace:
 - inspect repo risk (live) and prompt if not clean
@@ -490,8 +496,8 @@ If ID is omitted, current directory must resolve to an active workspace.
 
 func (c *CLI) printWSReopenUsage(w io.Writer) {
 	fmt.Fprint(w, `Usage:
-  kra ws --act reopen [--no-commit] <id>
-  kra ws --act reopen --dry-run --format json <id>
+  kra ws reopen [--id <id> | --current | --select] [--no-commit] [<id>]
+  kra ws reopen --dry-run --format json [--id <id>|<id>]
 
 Reopen an archived workspace:
 - move archive/<id>/ to workspaces/<id>/ atomically
@@ -505,8 +511,8 @@ Use kra ws select --archived for interactive selection.
 
 func (c *CLI) printWSPurgeUsage(w io.Writer) {
 	fmt.Fprint(w, `Usage:
-  kra ws --act purge [--no-prompt --force] [--no-commit] <id>
-  kra ws --act purge --dry-run --format json <id>
+  kra ws purge [--id <id> | --current | --select] [--no-prompt --force] [--no-commit] [<id>]
+  kra ws purge --dry-run --format json [--id <id>|<id>]
 
 Purge (permanently delete) a workspace:
 - always asks confirmation in interactive mode

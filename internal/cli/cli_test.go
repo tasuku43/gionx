@@ -107,17 +107,17 @@ func TestCLI_WS_ListAlias_LS_DelegatesToList(t *testing.T) {
 	}
 }
 
-func TestCLI_WS_SelectFlagRejected(t *testing.T) {
+func TestCLI_WS_SelectFlagWithValueRejected(t *testing.T) {
 	tests := []struct {
 		name string
 		args []string
 	}{
-		{name: "go", args: []string{"ws", "--act", "go", "--select", "WS-1"}},
-		{name: "close", args: []string{"ws", "--act", "close", "--select", "WS-1"}},
-		{name: "add-repo", args: []string{"ws", "--act", "add-repo", "--select", "WS-1"}},
-		{name: "remove-repo", args: []string{"ws", "--act", "remove-repo", "--select", "WS-1"}},
-		{name: "reopen", args: []string{"ws", "--act", "reopen", "--select", "WS-1"}},
-		{name: "purge", args: []string{"ws", "--act", "purge", "--select", "WS-1"}},
+		{name: "go", args: []string{"ws", "go", "--select=WS-1"}},
+		{name: "close", args: []string{"ws", "close", "--select=WS-1"}},
+		{name: "add-repo", args: []string{"ws", "add-repo", "--select=WS-1"}},
+		{name: "remove-repo", args: []string{"ws", "remove-repo", "--select=WS-1"}},
+		{name: "reopen", args: []string{"ws", "reopen", "--select=WS-1"}},
+		{name: "purge", args: []string{"ws", "purge", "--select=WS-1"}},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
@@ -129,24 +129,40 @@ func TestCLI_WS_SelectFlagRejected(t *testing.T) {
 			if code != exitUsage {
 				t.Fatalf("exit code = %d, want %d (stderr=%q)", code, exitUsage, err.String())
 			}
-			if !strings.Contains(err.String(), "unknown flag") {
+			if !strings.Contains(err.String(), "--select does not take a value") {
 				t.Fatalf("stderr missing flag error: %q", err.String())
 			}
 		})
 	}
 }
 
-func TestCLI_WS_Select_UnsupportedAct(t *testing.T) {
+func TestCLI_WS_SelectFlagSupported(t *testing.T) {
+	prepareCurrentRootForTest(t)
+	var out bytes.Buffer
+	var err bytes.Buffer
+	c := New(&out, &err)
+	c.In = strings.NewReader("")
+
+	code := c.Run([]string{"ws", "--select"})
+	if code != exitError {
+		t.Fatalf("exit code = %d, want %d (stderr=%q)", code, exitError, err.String())
+	}
+	if !strings.Contains(err.String(), "no active workspaces available") {
+		t.Fatalf("stderr missing selector availability error: %q", err.String())
+	}
+}
+
+func TestCLI_WS_Select_UnsupportedAction(t *testing.T) {
 	var out bytes.Buffer
 	var err bytes.Buffer
 	c := New(&out, &err)
 
-	code := c.Run([]string{"ws", "select", "--act", "unknown"})
+	code := c.Run([]string{"ws", "select", "unknown"})
 	if code != exitUsage {
 		t.Fatalf("exit code = %d, want %d (stderr=%q)", code, exitUsage, err.String())
 	}
-	if !strings.Contains(err.String(), "unsupported --act") {
-		t.Fatalf("stderr missing unsupported act error: %q", err.String())
+	if !strings.Contains(err.String(), "unsupported action") {
+		t.Fatalf("stderr missing unsupported action error: %q", err.String())
 	}
 }
 
@@ -164,12 +180,12 @@ func TestCLI_WS_Select_IDFlagRejected(t *testing.T) {
 	}
 }
 
-func TestCLI_WS_Select_ActScopeMismatch(t *testing.T) {
+func TestCLI_WS_Select_ActionScopeMismatch(t *testing.T) {
 	var out bytes.Buffer
 	var err bytes.Buffer
 	c := New(&out, &err)
 
-	code := c.Run([]string{"ws", "select", "--archived", "--act", "go"})
+	code := c.Run([]string{"ws", "select", "--archived", "go"})
 	if code != exitUsage {
 		t.Fatalf("exit code = %d, want %d (stderr=%q)", code, exitUsage, err.String())
 	}
@@ -178,7 +194,7 @@ func TestCLI_WS_Select_ActScopeMismatch(t *testing.T) {
 	}
 }
 
-func TestCLI_WS_Select_Multi_RequiresAct(t *testing.T) {
+func TestCLI_WS_Select_Multi_RequiresAction(t *testing.T) {
 	var out bytes.Buffer
 	var err bytes.Buffer
 	c := New(&out, &err)
@@ -187,17 +203,17 @@ func TestCLI_WS_Select_Multi_RequiresAct(t *testing.T) {
 	if code != exitUsage {
 		t.Fatalf("exit code = %d, want %d (stderr=%q)", code, exitUsage, err.String())
 	}
-	if !strings.Contains(err.String(), "--multi requires --act") {
-		t.Fatalf("stderr missing --act required message: %q", err.String())
+	if !strings.Contains(err.String(), "--multi requires action") {
+		t.Fatalf("stderr missing action required message: %q", err.String())
 	}
 }
 
-func TestCLI_WS_Select_Multi_RejectsUnsupportedAct(t *testing.T) {
+func TestCLI_WS_Select_Multi_RejectsUnsupportedAction(t *testing.T) {
 	var out bytes.Buffer
 	var err bytes.Buffer
 	c := New(&out, &err)
 
-	code := c.Run([]string{"ws", "select", "--multi", "--act", "go"})
+	code := c.Run([]string{"ws", "select", "--multi", "go"})
 	if code != exitUsage {
 		t.Fatalf("exit code = %d, want %d (stderr=%q)", code, exitUsage, err.String())
 	}
@@ -211,7 +227,7 @@ func TestCLI_WS_Select_Multi_CloseWithArchivedRejected(t *testing.T) {
 	var err bytes.Buffer
 	c := New(&out, &err)
 
-	code := c.Run([]string{"ws", "select", "--multi", "--archived", "--act", "close"})
+	code := c.Run([]string{"ws", "select", "--multi", "--archived", "close"})
 	if code != exitUsage {
 		t.Fatalf("exit code = %d, want %d (stderr=%q)", code, exitUsage, err.String())
 	}
@@ -225,7 +241,7 @@ func TestCLI_WS_Select_Multi_ReopenImplicitArchived(t *testing.T) {
 	var err bytes.Buffer
 	c := New(&out, &err)
 
-	code := c.Run([]string{"ws", "select", "--multi", "--act", "reopen"})
+	code := c.Run([]string{"ws", "select", "--multi", "reopen"})
 	if code == exitUsage {
 		t.Fatalf("exit code = %d, want not %d (stderr=%q)", code, exitUsage, err.String())
 	}
@@ -268,7 +284,7 @@ func TestCLI_WS_Select_Multi_Purge_PreflightErrorPrintedOnce(t *testing.T) {
 	c := New(&out, &errBuf)
 	c.In = in
 
-	code := c.Run([]string{"ws", "select", "--multi", "--act", "purge", "--commit"})
+	code := c.Run([]string{"ws", "select", "--multi", "purge", "--commit"})
 	if code != exitError {
 		t.Fatalf("exit code = %d, want %d (stderr=%q)", code, exitError, errBuf.String())
 	}
@@ -672,7 +688,7 @@ func TestCLI_WS_Create_ArchivedCollision_GuidesReopen(t *testing.T) {
 	if code != exitError {
 		t.Fatalf("exit code = %d, want %d", code, exitError)
 	}
-	if !strings.Contains(err.String(), "ws --act reopen") {
+	if !strings.Contains(err.String(), "ws reopen") {
 		t.Fatalf("stderr missing reopen guidance: %q", err.String())
 	}
 }
@@ -783,7 +799,7 @@ func TestCLI_WS_AddRepo_CreatesWorktreeAndRecordsState(t *testing.T) {
 		_, _, _ = seedRepoPoolAndState(t, env, repoSpec)
 		c.In = strings.NewReader(addRepoSelectionInput("", "MVP-020/test"))
 
-		code := c.Run([]string{"ws", "--act", "add-repo", "MVP-020"})
+		code := c.Run([]string{"ws", "add-repo", "MVP-020"})
 		if code != exitOK {
 			t.Fatalf("ws add-repo exit code = %d, want %d (stderr=%q)", code, exitOK, err.String())
 		}
@@ -903,7 +919,7 @@ func TestCLI_WS_AddRepo_DBUnavailable_FallsBackToFilesystem(t *testing.T) {
 		c := New(&out, &err)
 		c.In = strings.NewReader(addRepoSelectionInput("", "MVP-021/test"))
 
-		code := c.Run([]string{"ws", "--act", "add-repo", "MVP-021"})
+		code := c.Run([]string{"ws", "add-repo", "MVP-021"})
 		if code != exitOK {
 			t.Fatalf("ws add-repo exit code = %d, want %d (stderr=%q)", code, exitOK, err.String())
 		}

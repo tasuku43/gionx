@@ -3,7 +3,7 @@ title: "`kra ws` selector UI"
 status: implemented
 ---
 
-# Selector UI (shared by `ws --act close` / `ws --act go` / `ws --act add-repo` / `ws --act remove-repo` / `ws --act reopen` / `ws --act unlock` / `ws --act purge`)
+# Selector UI (shared by `ws close` / `ws go` / `ws add-repo` / `ws remove-repo` / `ws reopen` / `ws unlock` / `ws purge`)
 
 ## Purpose
 
@@ -28,7 +28,7 @@ Provide a non-fullscreen interactive selector for frequent workspace operations.
     - `example-org/helmfiles` matches query `c s`.
 - `Backspace` / `Delete`: remove one rune from filter query.
 - Filter text must persist after selection toggle; it is cleared only when the user explicitly deletes it.
-- Single-select mode (`ws --act go`) uses cursor + confirm (`Enter` or `Space`):
+- Single-select mode (`ws go`) uses cursor + confirm (`Enter` or `Space`):
   - selection markers stay visible (`○/●`) for visual parity with multi-select.
   - footer does not show `selected: n/m`.
   - confirmation locks input briefly (`0.2s`) before stage transition.
@@ -51,7 +51,7 @@ Header/footer should show:
 - command mode (`close`, `go`, `add-repo`, `remove-repo`, `reopen`, `unlock`, `purge`)
 - scope (`active` or `archived`)
 - key hints (`Space`, `Enter`, text filter input, `Esc`/`Ctrl+C`)
-- `Enter` hint label should be command-specific action text (for example `enter close` for `ws --act close`).
+- `Enter` hint label should be command-specific action text (for example `enter close` for `ws close`).
 - Footer readability/truncation rule:
   - left-most `selected: n/m` must remain visible.
   - key hints are appended in a fixed order and dropped from the right on narrow terminals.
@@ -86,7 +86,7 @@ Section body indentation must be controlled by shared global constants (no per-c
   - Preferred terminal style is gray-like ANSI colors (for example `bright black` family).
 - Validation/error messages shown below selector footer must use the shared error token (danger/error color).
 - Do not vary supplemental color semantics by command; the same visual hierarchy must be applied across
-  `ws --act close/go/add-repo/remove-repo/reopen/unlock/purge`.
+  `ws close/go/add-repo/remove-repo/reopen/unlock/purge`.
 - Color is optional fallback:
   - when color is unavailable, preserve hierarchy via prefixes/indentation only.
 
@@ -147,7 +147,7 @@ Required shared modules (logical units):
 - `SelectorFrameRenderer`: footer and key-hint renderer
 
 Rules:
-- Command handlers (`ws --act close/go/add-repo/remove-repo/reopen/unlock/purge`) must not define ad-hoc colors or row formats inline.
+- Command handlers (`ws close/go/add-repo/remove-repo/reopen/unlock/purge`) must not define ad-hoc colors or row formats inline.
 - Display differences by command should be expressed via data (mode/scope/actions), not bespoke render code.
 - `ws list --tree` should reuse `WorkspaceRowRenderer` and `RepoTreeRenderer` for visual parity with selector flows.
 - Selector-capable command handlers must delegate stage orchestration (`Workspaces -> Risk -> Result`) to the
@@ -173,29 +173,31 @@ Rules:
 
 ## Scope rules
 
-- `ws --act close`: default list is `active`
-- `ws --act go`: default list is `active`
-- `ws --act reopen`: default list is `archived`
-- `ws --act purge`: default list is `archived`
+- `ws close`: default list is `active`
+- `ws go`: default list is `active`
+- `ws reopen`: default list is `archived`
+- `ws purge`: default list is `archived`
 
 Optional flags may switch scope if defined in each command spec.
 
 ## Unified launcher flow (planned)
 
 - Human launcher:
-  - `kra ws`
-- Explicit selection entrypoint:
-  - `kra ws select`
+  - `kra ws --select`
+- Explicit current-path targeting:
+  - `kra ws --current`
+- Explicit id targeting:
+  - `kra ws --id <id>`
 
 Behavior:
 - outside workspace:
-  - `kra ws` requires explicit `--id <id>` (no implicit list fallback).
-  - selection-first flow is `kra ws select`.
+  - `kra ws` requires explicit targeting (`--id`, `--current`, or `--select`) with no implicit list fallback.
+  - selection-first flow is `kra ws --select`.
 - inside workspace:
-  - if under `workspaces/<id>/`: show current-workspace action menu:
+  - if under `workspaces/<id>/` and `--current` is set: show current-workspace action menu:
     - `add-repo`
     - `close`
-- if under `archive/<id>/`: show current-workspace action menu:
+- if under `archive/<id>/` and `--current` is set: show current-workspace action menu:
   - `reopen`
   - `unlock`
   - `purge`
@@ -212,25 +214,25 @@ Action menu ordering:
 
 Launcher and selector relationship:
 - launcher flow must delegate to existing action command flows to keep behavior parity.
-- direct edit operations are routed by `ws --act <action>`.
-- operation-level `--select` is not supported.
+- direct edit operations are routed by `ws <action>`.
+- selection-first operation flow is `ws --select`.
 
 ## Selection cardinality
 
-- `ws --act go`: single selection only (exactly one required)
-- `ws --act add-repo`: multiple selection allowed
-- `ws --act remove-repo`: multiple selection allowed
-- `ws --act close`: multiple selection allowed
-- `ws --act reopen`: multiple selection allowed
-- `ws --act purge`: multiple selection allowed
+- `ws go`: single selection only (exactly one required)
+- `ws add-repo`: multiple selection allowed
+- `ws remove-repo`: multiple selection allowed
+- `ws close`: multiple selection allowed
+- `ws reopen`: multiple selection allowed
+- `ws purge`: multiple selection allowed
 
 ## Confirmation integration
 
 - Selector proceed (`Enter`) finalizes current selection and moves to the next phase.
 - Destructive commands (`close`, `purge`) must still run safety checks defined by their command specs.
 - Confirmation policy split:
-  - `ws --act close`: require confirmation only when selected set includes non-clean risk.
-  - `ws --act purge`: always require at least one purge confirmation (and an additional confirmation for active risk).
+  - `ws close`: require confirmation only when selected set includes non-clean risk.
+  - `ws purge`: always require at least one purge confirmation (and an additional confirmation for active risk).
 - In stacked CLI-style flows, commands print sections sequentially:
   - clean-only selection: `Workspaces(...)` -> `Result:`
   - non-clean selection: `Workspaces(...)` -> `Risk:` -> `Result:`

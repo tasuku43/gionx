@@ -1,10 +1,10 @@
 ---
-title: "`kra ws --act close`"
+title: "`kra ws close`"
 status: implemented
 ---
 
-# `kra ws --act close [--id <id>] [--force] [--format human|json] [--no-commit] [--commit] [<id>]`
-# `kra ws --act close --dry-run --format json [--id <id>|<id>]`
+# `kra ws close [--id <id>] [--force] [--format human|json] [--no-commit] [--commit] [<id>]`
+# `kra ws close --dry-run --format json [--id <id>|<id>]`
 
 ## Purpose
 
@@ -88,7 +88,7 @@ In default commit mode, unrelated changes must not be included in lifecycle comm
 
 - This command accepts explicit target by `--id` or positional `<id>`.
 - If no id is provided, resolve from current path under `workspaces/<id>/...`.
-- Interactive selection should use `kra ws select --act close`.
+- Interactive selection should use `kra ws select close`.
 - Selector and follow-up output should use section headings:
   - `Workspaces(active):`
   - `Plan:`

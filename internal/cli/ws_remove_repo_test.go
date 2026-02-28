@@ -20,11 +20,11 @@ func TestCLI_WS_RemoveRepo_Help(t *testing.T) {
 	var err bytes.Buffer
 	c := New(&out, &err)
 
-	code := c.Run([]string{"ws", "--act", "remove-repo", "--help"})
+	code := c.Run([]string{"ws", "remove-repo", "--help"})
 	if code != exitOK {
 		t.Fatalf("ws remove-repo help exit code = %d, want %d", code, exitOK)
 	}
-	if !strings.Contains(out.String(), "kra ws --act remove-repo") {
+	if !strings.Contains(out.String(), "kra ws remove-repo") {
 		t.Fatalf("stdout missing ws remove-repo usage: %q", out.String())
 	}
 	if err.Len() != 0 {
@@ -52,7 +52,7 @@ func TestCLI_WS_RemoveRepo_JSON_RemovesBindingAndWorktree(t *testing.T) {
 		var err bytes.Buffer
 		c := New(&out, &err)
 		c.In = strings.NewReader(addRepoSelectionInput("", "WS1/test"))
-		if code := c.Run([]string{"ws", "--act", "add-repo", "WS1"}); code != exitOK {
+		if code := c.Run([]string{"ws", "add-repo", "WS1"}); code != exitOK {
 			t.Fatalf("ws add-repo exit code = %d, want %d (stderr=%q)", code, exitOK, err.String())
 		}
 	}
@@ -67,7 +67,7 @@ func TestCLI_WS_RemoveRepo_JSON_RemovesBindingAndWorktree(t *testing.T) {
 		var err bytes.Buffer
 		c := New(&out, &err)
 		code := c.Run([]string{
-			"ws", "--act", "remove-repo",
+			"ws", "remove-repo",
 			"--format", "json",
 			"--id", "WS1",
 			"--repo", repoKey,
@@ -121,7 +121,7 @@ func TestCLI_WS_RemoveRepo_JSON_RiskyRequiresForce(t *testing.T) {
 		var err bytes.Buffer
 		c := New(&out, &err)
 		c.In = strings.NewReader(addRepoSelectionInput("", "WS1/test"))
-		if code := c.Run([]string{"ws", "--act", "add-repo", "WS1"}); code != exitOK {
+		if code := c.Run([]string{"ws", "add-repo", "WS1"}); code != exitOK {
 			t.Fatalf("ws add-repo exit code = %d, want %d (stderr=%q)", code, exitOK, err.String())
 		}
 	}
@@ -136,7 +136,7 @@ func TestCLI_WS_RemoveRepo_JSON_RiskyRequiresForce(t *testing.T) {
 	var err bytes.Buffer
 	c := New(&out, &err)
 	code := c.Run([]string{
-		"ws", "--act", "remove-repo",
+		"ws", "remove-repo",
 		"--format", "json",
 		"--id", "WS1",
 		"--repo", repoKey,
@@ -174,7 +174,7 @@ func TestCLI_WS_RemoveRepo_JSON_ShiftsCWDWhenInsideTargetWorkspace(t *testing.T)
 		var err bytes.Buffer
 		c := New(&out, &err)
 		c.In = strings.NewReader(addRepoSelectionInput("", "WS1/test"))
-		if code := c.Run([]string{"ws", "--act", "add-repo", "WS1"}); code != exitOK {
+		if code := c.Run([]string{"ws", "add-repo", "WS1"}); code != exitOK {
 			t.Fatalf("ws add-repo exit code = %d, want %d (stderr=%q)", code, exitOK, err.String())
 		}
 	}
@@ -197,7 +197,7 @@ func TestCLI_WS_RemoveRepo_JSON_ShiftsCWDWhenInsideTargetWorkspace(t *testing.T)
 	var errBuf bytes.Buffer
 	c := New(&out, &errBuf)
 	code := c.Run([]string{
-		"ws", "--act", "remove-repo",
+		"ws", "remove-repo",
 		"--format", "json",
 		"--id", "WS1",
 		"--repo", repoKey,

@@ -95,6 +95,20 @@ func (c *CLI) runWS(args []string) int {
 	}
 
 	if strings.HasPrefix(args[0], "-") {
+		hasSelect := false
+		hasMulti := false
+		for _, arg := range args {
+			v := strings.TrimSpace(arg)
+			if v == "--select" {
+				hasSelect = true
+			}
+			if v == "--multi" {
+				hasMulti = true
+			}
+		}
+		if hasSelect && hasMulti {
+			return c.runWSSelectMulti(args)
+		}
 		switch args[0] {
 		case "-h", "--help", "help":
 			c.printWSUsage(c.Out)
@@ -131,8 +145,7 @@ func (c *CLI) runWS(args []string) int {
 	case "unlock":
 		return c.runWSUnlock(args[1:])
 	case "add-repo", "remove-repo", "go", "close", "reopen", "purge":
-		c.printWSUsage(c.Err)
-		return exitUsage
+		return c.runWSActionSubcommand(args[0], args[1:])
 	default:
 		fmt.Fprintf(c.Err, "unknown command: %q\n", strings.Join(append([]string{"ws"}, args[0]), " "))
 		c.printWSUsage(c.Err)

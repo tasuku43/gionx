@@ -3,7 +3,7 @@ title: "`kra ws select --multi`"
 status: implemented
 ---
 
-# `kra ws select --multi --act <close|reopen|purge> [--archived] [--no-commit] [--commit] [--format human|json] [--yes] [--continue-on-error]`
+# `kra ws select --multi <close|reopen|purge> [--archived] [--no-commit] [--commit] [--format human|json] [--yes] [--continue-on-error]`
 
 ## Purpose
 
@@ -12,7 +12,7 @@ Add multi-select execution mode to the existing workspace selector entrypoint wi
 ## Inputs
 
 - `--multi` (required for this mode)
-- `--act` (required): one of `close`, `reopen`, `purge`
+- action (required): one of `close`, `reopen`, `purge`
 - `--archived` (optional):
   - implied automatically by archived actions (`reopen`, `purge`)
   - invalid with active action (`close`)
@@ -28,7 +28,7 @@ Add multi-select execution mode to the existing workspace selector entrypoint wi
 
 ## Validation rules
 
-- `--multi` without `--act` must fail with usage error.
+- `--multi` without action must fail with usage error.
 - `go`, `add-repo`, `remove-repo` are invalid in `--multi` mode.
 - Scope mismatch (`--archived` + `close`) must fail fast.
 
@@ -36,7 +36,7 @@ Add multi-select execution mode to the existing workspace selector entrypoint wi
 
 1. Open shared selector in multi-select mode for workspace rows.
 2. Confirm selected set (empty selection aborts with non-zero exit).
-3. Execute the selected `--act` per workspace using existing flow/orchestrator.
+3. Execute the selected action per workspace using existing flow/orchestrator.
 4. Aggregate per-workspace outcomes: `success`, `failed`, `skipped` (+ reason).
 
 ## Output

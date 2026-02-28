@@ -33,7 +33,7 @@ func TestCLI_WS_AddRepo_JSON_DefaultBranchUsesWorkspaceBranchTemplate(t *testing
 		var err bytes.Buffer
 		c := New(&out, &err)
 		code := c.Run([]string{
-			"ws", "--act", "add-repo",
+			"ws", "add-repo",
 			"--format", "json",
 			"--id", "WS1",
 			"--repo", repoKey,
@@ -77,7 +77,7 @@ func TestCLI_WS_AddRepo_JSON_BranchFlagOverridesWorkspaceBranchTemplate(t *testi
 		var err bytes.Buffer
 		c := New(&out, &err)
 		code := c.Run([]string{
-			"ws", "--act", "add-repo",
+			"ws", "add-repo",
 			"--format", "json",
 			"--id", "WS1",
 			"--repo", repoKey,

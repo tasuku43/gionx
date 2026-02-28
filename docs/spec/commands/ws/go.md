@@ -1,9 +1,9 @@
 ---
-title: "`kra ws --act go`"
+title: "`kra ws go`"
 status: implemented
 ---
 
-# `kra ws --act go [--archived] [--id <id>] [--ui] [--format human|json] [<id>]`
+# `kra ws go [--archived] [--id <id>] [--ui] [--format human|json] [<id>]`
 
 ## Purpose
 
@@ -20,9 +20,9 @@ Jump to a workspace directory as a "start work" action.
 
 ### Mode selection
 
-- Action is routed via `ws --act go`.
+- Action is routed via `ws go`.
 - This command path is explicit-id mode only (`--id` or positional `<id>`).
-- For interactive selection, use `kra ws select --act go`.
+- For interactive selection, use `kra ws select go`.
 
 ### Target path
 
@@ -41,7 +41,7 @@ Jump to a workspace directory as a "start work" action.
 - For practical navigation, shell wrappers execute action-file entries after command completion.
 - Shell-wide wrapper integration is provided via `kra shell init <shell>`.
 - Planned extension:
-  - when routed from unified launcher flow, `go` semantics remain identical to direct `ws --act go`.
+  - when routed from unified launcher flow, `go` semantics remain identical to direct `ws go`.
   - shell integration uses post-exec action protocol (`KRA_SHELL_ACTION_FILE`) for launcher-routed go actions.
 
 ## Errors

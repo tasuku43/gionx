@@ -26,8 +26,8 @@ func TestGolden_UIE2E_CoreWorkspaceWorkflow(t *testing.T) {
 		{Args: []string{"ws", "list"}},
 		{Args: []string{"ws", "create", "--no-prompt", "UI-100"}},
 		{Args: []string{"ws", "list"}},
-		{Args: []string{"ws", "--act", "go", "UI-100"}},
-		{Args: []string{"ws", "--act", "close", "UI-100"}},
+		{Args: []string{"ws", "go", "UI-100"}},
+		{Args: []string{"ws", "close", "UI-100"}},
 		{Args: []string{"ws", "list", "--archived"}},
 	}
 
@@ -69,11 +69,11 @@ func TestGolden_UIE2E_ArchivePurgeFlow(t *testing.T) {
 	steps := []uiE2EStep{
 		{Args: []string{"init", "--root", env.Root, "--context", "ui-e2e"}},
 		{Args: []string{"ws", "create", "--no-prompt", "UI-200"}},
-		{Args: []string{"ws", "--act", "close", "UI-200"}},
-		{Args: []string{"ws", "--act", "reopen", "UI-200"}},
-		{Args: []string{"ws", "--act", "close", "UI-200"}},
+		{Args: []string{"ws", "close", "UI-200"}},
+		{Args: []string{"ws", "reopen", "UI-200"}},
+		{Args: []string{"ws", "close", "UI-200"}},
 		{Args: []string{"ws", "unlock", "UI-200"}},
-		{Args: []string{"ws", "--act", "purge", "--no-prompt", "--force", "UI-200"}},
+		{Args: []string{"ws", "purge", "--no-prompt", "--force", "UI-200"}},
 		{Args: []string{"ws", "list", "--archived"}},
 		{Args: []string{"ws", "list"}},
 	}

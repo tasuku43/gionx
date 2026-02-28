@@ -98,7 +98,7 @@ func shouldBootstrapGlobalConfig(args []string) bool {
 		if args[1] == "create" {
 			return true
 		}
-		action := parseWSAct(args[1:])
+		action := parseWSAction(args[1:])
 		switch action {
 		case "add-repo", "remove-repo", "close", "reopen", "purge":
 			return true
@@ -110,18 +110,11 @@ func shouldBootstrapGlobalConfig(args []string) bool {
 	}
 }
 
-func parseWSAct(args []string) string {
+func parseWSAction(args []string) string {
 	rest := append([]string{}, args...)
 	for len(rest) > 0 {
 		cur := strings.TrimSpace(rest[0])
 		switch {
-		case cur == "--act":
-			if len(rest) < 2 {
-				return ""
-			}
-			return strings.TrimSpace(rest[1])
-		case strings.HasPrefix(cur, "--act="):
-			return strings.TrimSpace(strings.TrimPrefix(cur, "--act="))
 		case strings.HasPrefix(cur, "-"):
 			if cur == "--id" || cur == "--format" {
 				if len(rest) < 2 {
@@ -132,7 +125,12 @@ func parseWSAct(args []string) string {
 			}
 			rest = rest[1:]
 		default:
-			return ""
+			switch cur {
+			case "go", "add-repo", "remove-repo", "close", "reopen", "purge", "unlock":
+				return cur
+			default:
+				return ""
+			}
 		}
 	}
 	return ""

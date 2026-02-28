@@ -18,11 +18,11 @@ func TestCLI_WS_Purge_Help_ShowsUsage(t *testing.T) {
 	var err bytes.Buffer
 	c := New(&out, &err)
 
-	code := c.Run([]string{"ws", "--act", "purge", "--help"})
+	code := c.Run([]string{"ws", "purge", "--help"})
 	if code != exitOK {
 		t.Fatalf("exit code = %d, want %d", code, exitOK)
 	}
-	if !strings.Contains(out.String(), "kra ws --act purge") {
+	if !strings.Contains(out.String(), "kra ws purge") {
 		t.Fatalf("stdout missing ws purge usage: %q", out.String())
 	}
 	if err.Len() != 0 {
@@ -49,7 +49,7 @@ func TestCLI_WS_Purge_ArchivedWorkspace_DeletesPathsAndCanCommitAndUpdatesDB(t *
 		var out bytes.Buffer
 		var err bytes.Buffer
 		c := New(&out, &err)
-		code := c.Run([]string{"ws", "--act", "close", "WS1"})
+		code := c.Run([]string{"ws", "close", "WS1"})
 		if code != exitOK {
 			t.Fatalf("ws close exit code = %d, want %d (stderr=%q)", code, exitOK, err.String())
 		}
@@ -73,7 +73,7 @@ func TestCLI_WS_Purge_ArchivedWorkspace_DeletesPathsAndCanCommitAndUpdatesDB(t *
 		var err bytes.Buffer
 		c := New(&out, &err)
 		c.In = strings.NewReader("y\n")
-		code := c.Run([]string{"ws", "--act", "purge", "--commit", "WS1"})
+		code := c.Run([]string{"ws", "purge", "--commit", "WS1"})
 		if code != exitOK {
 			t.Fatalf("ws purge exit code = %d, want %d (stderr=%q)", code, exitOK, err.String())
 		}
@@ -113,7 +113,7 @@ func TestCLI_WS_Purge_NoPromptWithoutForce_Refuses(t *testing.T) {
 	var out bytes.Buffer
 	var err bytes.Buffer
 	c := New(&out, &err)
-	code := c.Run([]string{"ws", "--act", "purge", "--no-prompt", "WS1"})
+	code := c.Run([]string{"ws", "purge", "--no-prompt", "WS1"})
 	if code != exitUsage {
 		t.Fatalf("ws purge exit code = %d, want %d", code, exitUsage)
 	}
@@ -157,7 +157,7 @@ func TestCLI_WS_Purge_ActiveWorkspace_RefusesUntilArchived(t *testing.T) {
 		var err bytes.Buffer
 		c := New(&out, &err)
 		c.In = strings.NewReader(addRepoSelectionInput("", "WS1/test"))
-		code := c.Run([]string{"ws", "--act", "add-repo", "WS1"})
+		code := c.Run([]string{"ws", "add-repo", "WS1"})
 		if code != exitOK {
 			t.Fatalf("ws add-repo exit code = %d, want %d (stderr=%q)", code, exitOK, err.String())
 		}
@@ -181,7 +181,7 @@ func TestCLI_WS_Purge_ActiveWorkspace_RefusesUntilArchived(t *testing.T) {
 		var out bytes.Buffer
 		var err bytes.Buffer
 		c := New(&out, &err)
-		code := c.Run([]string{"ws", "--act", "purge", "WS1"})
+		code := c.Run([]string{"ws", "purge", "WS1"})
 		if code != exitError {
 			t.Fatalf("ws purge exit code = %d, want %d (stderr=%q)", code, exitError, err.String())
 		}
@@ -217,7 +217,7 @@ func TestCLI_WS_Purge_NoPromptForce_ActiveWorkspace_Refuses(t *testing.T) {
 	}
 	out.Reset()
 	err.Reset()
-	code = c.Run([]string{"ws", "--act", "purge", "--no-prompt", "--force", "WS1"})
+	code = c.Run([]string{"ws", "purge", "--no-prompt", "--force", "WS1"})
 	if code != exitError {
 		t.Fatalf("ws purge exit code = %d, want %d (stderr=%q)", code, exitError, err.String())
 	}
@@ -243,7 +243,7 @@ func TestCLI_WS_Purge_SelectorModeWithoutTTY_Errors(t *testing.T) {
 		var out bytes.Buffer
 		var err bytes.Buffer
 		c := New(&out, &err)
-		code := c.Run([]string{"ws", "--act", "close", "WS1"})
+		code := c.Run([]string{"ws", "close", "WS1"})
 		if code != exitOK {
 			t.Fatalf("ws close exit code = %d, want %d (stderr=%q)", code, exitOK, err.String())
 		}
@@ -255,7 +255,7 @@ func TestCLI_WS_Purge_SelectorModeWithoutTTY_Errors(t *testing.T) {
 		c := New(&out, &err)
 		c.In = strings.NewReader("")
 
-		code := c.Run([]string{"ws", "--act", "purge"})
+		code := c.Run([]string{"ws", "purge"})
 		if code != exitUsage {
 			t.Fatalf("ws purge exit code = %d, want %d (stderr=%q)", code, exitUsage, err.String())
 		}
@@ -271,7 +271,7 @@ func TestCLI_WS_Purge_NoPromptForce_WithoutID_Refuses(t *testing.T) {
 	var err bytes.Buffer
 	c := New(&out, &err)
 
-	code := c.Run([]string{"ws", "--act", "purge", "--no-prompt", "--force"})
+	code := c.Run([]string{"ws", "purge", "--no-prompt", "--force"})
 	if code != exitUsage {
 		t.Fatalf("ws purge exit code = %d, want %d", code, exitUsage)
 	}

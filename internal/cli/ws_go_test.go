@@ -16,11 +16,11 @@ func TestCLI_WS_Go_Help_ShowsUsage(t *testing.T) {
 	var err bytes.Buffer
 	c := New(&out, &err)
 
-	code := c.Run([]string{"ws", "--act", "go", "--help"})
+	code := c.Run([]string{"ws", "go", "--help"})
 	if code != exitOK {
 		t.Fatalf("exit code = %d, want %d", code, exitOK)
 	}
-	if !strings.Contains(out.String(), "kra ws --act go") {
+	if !strings.Contains(out.String(), "kra ws go") {
 		t.Fatalf("stdout missing ws go usage: %q", out.String())
 	}
 	if err.Len() != 0 {
@@ -47,7 +47,7 @@ func TestCLI_WS_Go_DirectActive_WritesShellActionOnly(t *testing.T) {
 	c := New(&out, &err)
 	actionFile := filepath.Join(t.TempDir(), "action.sh")
 	t.Setenv(shellActionFileEnv, actionFile)
-	code := c.Run([]string{"ws", "--act", "go", "WS1"})
+	code := c.Run([]string{"ws", "go", "WS1"})
 	if code != exitOK {
 		t.Fatalf("ws go exit code = %d, want %d (stderr=%q)", code, exitOK, err.String())
 	}
@@ -84,7 +84,7 @@ func TestCLI_WS_Go_DirectArchived_WritesShellActionOnly(t *testing.T) {
 		var out bytes.Buffer
 		var err bytes.Buffer
 		c := New(&out, &err)
-		code := c.Run([]string{"ws", "--act", "close", "WS1"})
+		code := c.Run([]string{"ws", "close", "WS1"})
 		if code != exitOK {
 			t.Fatalf("ws close exit code = %d, want %d (stderr=%q)", code, exitOK, err.String())
 		}
@@ -93,7 +93,7 @@ func TestCLI_WS_Go_DirectArchived_WritesShellActionOnly(t *testing.T) {
 	var out bytes.Buffer
 	var err bytes.Buffer
 	c := New(&out, &err)
-	code := c.Run([]string{"ws", "--act", "go", "--archived", "WS1"})
+	code := c.Run([]string{"ws", "go", "--archived", "WS1"})
 	if code != exitUsage {
 		t.Fatalf("ws go --archived exit code = %d, want %d (stderr=%q)", code, exitUsage, err.String())
 	}
@@ -119,7 +119,7 @@ func TestCLI_WS_Go_UI_PrintsResultSection(t *testing.T) {
 	var out bytes.Buffer
 	var err bytes.Buffer
 	c := New(&out, &err)
-	code := c.Run([]string{"ws", "--act", "go", "--ui", "WS1"})
+	code := c.Run([]string{"ws", "go", "--ui", "WS1"})
 	if code != exitOK {
 		t.Fatalf("ws go --ui exit code = %d, want %d (stderr=%q)", code, exitOK, err.String())
 	}
@@ -137,7 +137,7 @@ func TestCLI_WS_Go_EmitCDFlag_IsUnknown(t *testing.T) {
 	var out bytes.Buffer
 	var err bytes.Buffer
 	c := New(&out, &err)
-	code := c.Run([]string{"ws", "--act", "go", "--emit-cd", "WS1"})
+	code := c.Run([]string{"ws", "go", "--emit-cd", "WS1"})
 	if code != exitUsage {
 		t.Fatalf("ws go --emit-cd exit code = %d, want %d", code, exitUsage)
 	}
@@ -163,7 +163,7 @@ func TestCLI_WS_Go_ArchivedScopeRejectsActiveWorkspace(t *testing.T) {
 	var out bytes.Buffer
 	var err bytes.Buffer
 	c := New(&out, &err)
-	code := c.Run([]string{"ws", "--act", "go", "--archived", "WS1"})
+	code := c.Run([]string{"ws", "go", "--archived", "WS1"})
 	if code != exitUsage {
 		t.Fatalf("ws go --archived exit code = %d, want %d", code, exitUsage)
 	}
@@ -192,11 +192,11 @@ func TestCLI_WS_Go_SelectorModeWithoutTTY_Errors(t *testing.T) {
 		c := New(&out, &err)
 		c.In = strings.NewReader("")
 
-		code := c.Run([]string{"ws", "--act", "go"})
+		code := c.Run([]string{"ws", "go"})
 		if code != exitUsage {
 			t.Fatalf("ws go exit code = %d, want %d (stderr=%q)", code, exitUsage, err.String())
 		}
-		if !strings.Contains(err.String(), "ws go requires --id <id> or positional <id>") && !strings.Contains(err.String(), "ws requires --id <id> or workspace context") {
+		if !strings.Contains(err.String(), "ws go requires --id <id> or positional <id>") && !strings.Contains(err.String(), "ws requires one of --id <id>, --current, --select, or explicit action target") {
 			t.Fatalf("stderr missing id requirement: %q", err.String())
 		}
 	}
@@ -215,7 +215,7 @@ func TestCLI_WS_Go_DirectActive_WorksWithFilesystemOnly(t *testing.T) {
 	actionFile := filepath.Join(t.TempDir(), "action.sh")
 	t.Setenv(shellActionFileEnv, actionFile)
 
-	code := c.Run([]string{"ws", "--act", "go", "WS1"})
+	code := c.Run([]string{"ws", "go", "WS1"})
 	if code != exitOK {
 		t.Fatalf("ws go exit code = %d, want %d (stderr=%q)", code, exitOK, errBuf.String())
 	}

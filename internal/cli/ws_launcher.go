@@ -51,27 +51,35 @@ func detectWorkspaceFromCWD(root string, cwd string) (workspaceContextSelection,
 }
 
 func (c *CLI) runWSLauncher(args []string) int {
-	return c.runWSLauncherWithSelectMode(args, false)
+	return c.runWSLauncherWithSelectModeAndAction(args, false, "")
+}
+
+func (c *CLI) runWSActionSubcommand(action string, args []string) int {
+	return c.runWSLauncherWithSelectModeAndAction(args, false, strings.TrimSpace(action))
 }
 
 func (c *CLI) runWSLauncherWithSelectMode(args []string, forceSelect bool) int {
+	return c.runWSLauncherWithSelectModeAndAction(args, forceSelect, "")
+}
+
+func (c *CLI) runWSLauncherWithSelectModeAndAction(args []string, forceSelect bool, explicitAction string) int {
 	var archivedScope bool
-	fixedAction := ""
+	fixedAction := strings.TrimSpace(explicitAction)
 	workspaceID := ""
+	useCurrent := false
+	selectMode := forceSelect
 parseFlags:
 	for len(args) > 0 && strings.HasPrefix(args[0], "-") {
 		switch args[0] {
 		case "--archived":
 			archivedScope = true
 			args = args[1:]
-		case "--act":
-			if len(args) < 2 {
-				fmt.Fprintln(c.Err, "--act requires a value")
-				c.printWSUsage(c.Err)
-				return exitUsage
-			}
-			fixedAction = strings.TrimSpace(args[1])
-			args = args[2:]
+		case "--select":
+			selectMode = true
+			args = args[1:]
+		case "--current":
+			useCurrent = true
+			args = args[1:]
 		case "--id":
 			if len(args) < 2 {
 				fmt.Fprintln(c.Err, "--id requires a value")
@@ -81,13 +89,30 @@ parseFlags:
 			workspaceID = strings.TrimSpace(args[1])
 			args = args[2:]
 		default:
-			if strings.HasPrefix(args[0], "--act=") {
-				fixedAction = strings.TrimSpace(strings.TrimPrefix(args[0], "--act="))
+			if strings.HasPrefix(args[0], "--id=") {
+				workspaceID = strings.TrimSpace(strings.TrimPrefix(args[0], "--id="))
 				args = args[1:]
 				continue
 			}
-			if strings.HasPrefix(args[0], "--id=") {
-				workspaceID = strings.TrimSpace(strings.TrimPrefix(args[0], "--id="))
+			if strings.HasPrefix(args[0], "--select=") {
+				v := strings.TrimSpace(strings.TrimPrefix(args[0], "--select="))
+				if v != "" {
+					fmt.Fprintln(c.Err, "--select does not take a value")
+					c.printWSUsage(c.Err)
+					return exitUsage
+				}
+				selectMode = true
+				args = args[1:]
+				continue
+			}
+			if strings.HasPrefix(args[0], "--current=") {
+				v := strings.TrimSpace(strings.TrimPrefix(args[0], "--current="))
+				if v != "" {
+					fmt.Fprintln(c.Err, "--current does not take a value")
+					c.printWSUsage(c.Err)
+					return exitUsage
+				}
+				useCurrent = true
 				args = args[1:]
 				continue
 			}
@@ -97,6 +122,14 @@ parseFlags:
 			fmt.Fprintf(c.Err, "unknown flag for ws: %q\n", args[0])
 			c.printWSUsage(c.Err)
 			return exitUsage
+		}
+	}
+	if fixedAction == "" && len(args) > 0 {
+		action := strings.TrimSpace(args[0])
+		switch action {
+		case "go", "add-repo", "remove-repo", "close", "reopen", "purge", "unlock":
+			fixedAction = action
+			args = args[1:]
 		}
 	}
 	if workspaceID != "" {
@@ -109,14 +142,14 @@ parseFlags:
 		switch fixedAction {
 		case "go", "add-repo", "remove-repo", "close":
 			if archivedScope {
-				fmt.Fprintf(c.Err, "--act %s cannot be used with --archived\n", fixedAction)
+				fmt.Fprintf(c.Err, "action %s cannot be used with --archived\n", fixedAction)
 				c.printWSUsage(c.Err)
 				return exitUsage
 			}
 		case "reopen", "purge", "unlock":
 			archivedScope = true
 		default:
-			fmt.Fprintf(c.Err, "unsupported --act: %q\n", fixedAction)
+			fmt.Fprintf(c.Err, "unsupported action: %q\n", fixedAction)
 			c.printWSUsage(c.Err)
 			return exitUsage
 		}
@@ -124,6 +157,26 @@ parseFlags:
 	actionArgs := append([]string{}, args...)
 	if fixedAction == "" && len(actionArgs) > 0 {
 		fmt.Fprintf(c.Err, "unexpected args for ws: %q\n", strings.Join(args, " "))
+		c.printWSUsage(c.Err)
+		return exitUsage
+	}
+	if workspaceID != "" && useCurrent {
+		fmt.Fprintln(c.Err, "--id and --current cannot be used together")
+		c.printWSUsage(c.Err)
+		return exitUsage
+	}
+	if selectMode && workspaceID != "" {
+		fmt.Fprintln(c.Err, "--select and --id cannot be used together")
+		c.printWSUsage(c.Err)
+		return exitUsage
+	}
+	if selectMode && useCurrent {
+		fmt.Fprintln(c.Err, "--select and --current cannot be used together")
+		c.printWSUsage(c.Err)
+		return exitUsage
+	}
+	if useCurrent && archivedScope {
+		fmt.Fprintln(c.Err, "--archived cannot be used with --current")
 		c.printWSUsage(c.Err)
 		return exitUsage
 	}
@@ -141,8 +194,37 @@ parseFlags:
 	if err := c.ensureDebugLog(root, "ws-launcher"); err != nil {
 		fmt.Fprintf(c.Err, "enable debug logging: %v\n", err)
 	}
-	if fixedAction != "" && !forceSelect {
-		return c.runWSFixedActionDirect(fixedAction, workspaceID, archivedScope, wd, root, actionArgs)
+	if fixedAction == "" && !selectMode && workspaceID == "" && !useCurrent {
+		fmt.Fprintln(c.Err, "ws requires one of --id <id>, --current, or --select")
+		c.printWSUsage(c.Err)
+		return exitUsage
+	}
+
+	currentSelection := workspaceContextSelection{}
+	currentResolved := false
+	if useCurrent {
+		resolved, ok := detectWorkspaceFromCWD(root, wd)
+		if !ok {
+			fmt.Fprintln(c.Err, "ws --current requires current path under workspaces/<id>/... or archive/<id>/...")
+			return exitError
+		}
+		currentSelection = resolved
+		currentResolved = true
+	}
+
+	if fixedAction != "" && !selectMode {
+		if currentResolved {
+			workspaceID = currentSelection.ID
+			if currentSelection.Status == "archived" {
+				archivedScope = true
+			}
+		}
+		if workspaceID == "" && !runWSActionHasHelp(actionArgs) && !runWSActionHasIDArg(actionArgs) && !runWSActionHasPositional(actionArgs) {
+			fmt.Fprintln(c.Err, "ws action requires one of --id <id>, --current, --select, or explicit action target")
+			c.printWSUsage(c.Err)
+			return exitUsage
+		}
+		return c.runWSFixedActionDirect(fixedAction, workspaceID, archivedScope, actionArgs)
 	}
 
 	scope := appws.ScopeActive
@@ -153,9 +235,14 @@ parseFlags:
 	adapter := &cliWSLauncherAdapter{cli: c, root: root}
 	usecase := appws.NewService(adapter, adapter)
 	result, err := usecase.Run(context.Background(), appws.LauncherRequest{
-		ForceSelect: forceSelect,
+		ForceSelect: selectMode,
 		Scope:       scope,
-		CurrentPath: wd,
+		CurrentPath: func() string {
+			if useCurrent {
+				return wd
+			}
+			return ""
+		}(),
 		WorkspaceID: workspaceID,
 		FixedAction: appws.Action(fixedAction),
 	})
@@ -166,7 +253,7 @@ parseFlags:
 		}
 		switch {
 		case errors.Is(err, appws.ErrWorkspaceNotSelected):
-			fmt.Fprintln(c.Err, "ws requires --id <id> or workspace context (use: kra ws select)")
+			fmt.Fprintln(c.Err, "ws target is not resolved (use one of: --id <id>, --current, --select)")
 		case errors.Is(err, appws.ErrWorkspaceNotFound):
 			fmt.Fprintf(c.Err, "workspace not found: %s\n", workspaceID)
 		case errors.Is(err, appws.ErrActionNotAllowed):
@@ -233,7 +320,17 @@ func runWSActionHasPositional(actionArgs []string) bool {
 	return false
 }
 
-func (c *CLI) runWSFixedActionDirect(action string, workspaceID string, archivedScope bool, wd string, root string, actionArgs []string) int {
+func runWSActionHasHelp(actionArgs []string) bool {
+	for _, arg := range actionArgs {
+		v := strings.TrimSpace(arg)
+		if v == "-h" || v == "--help" || v == "help" {
+			return true
+		}
+	}
+	return false
+}
+
+func (c *CLI) runWSFixedActionDirect(action string, workspaceID string, archivedScope bool, actionArgs []string) int {
 	switch action {
 	case "go", "add-repo", "remove-repo", "close":
 		if archivedScope {
@@ -245,12 +342,6 @@ func (c *CLI) runWSFixedActionDirect(action string, workspaceID string, archived
 	default:
 		c.printWSUsage(c.Err)
 		return exitUsage
-	}
-
-	if workspaceID == "" {
-		if fromCWD, ok := detectWorkspaceFromCWD(root, wd); ok {
-			workspaceID = fromCWD.ID
-		}
 	}
 
 	opArgs := append([]string{}, actionArgs...)
@@ -327,10 +418,10 @@ func (c *CLI) runWSSelectMulti(args []string) int {
 	fixedAction := ""
 	doCommit := true
 	commitModeExplicit := ""
-	parseAct := func(next string) (string, bool) {
+	parseAction := func(next string) (string, bool) {
 		v := strings.TrimSpace(next)
 		if v == "" {
-			fmt.Fprintln(c.Err, "--act requires a value")
+			fmt.Fprintln(c.Err, "action is required")
 			c.printWSUsage(c.Err)
 			return "", false
 		}
@@ -340,6 +431,8 @@ func (c *CLI) runWSSelectMulti(args []string) int {
 	for len(args) > 0 {
 		cur := strings.TrimSpace(args[0])
 		switch cur {
+		case "--select":
+			args = args[1:]
 		case "--multi":
 			args = args[1:]
 		case "--commit":
@@ -363,55 +456,52 @@ func (c *CLI) runWSSelectMulti(args []string) int {
 		case "--archived":
 			archivedScope = true
 			args = args[1:]
-		case "--act":
-			if len(args) < 2 {
-				fmt.Fprintln(c.Err, "--act requires a value")
-				c.printWSUsage(c.Err)
-				return exitUsage
-			}
-			v, ok := parseAct(args[1])
-			if !ok {
-				return exitUsage
-			}
-			fixedAction = v
-			args = args[2:]
 		default:
-			if strings.HasPrefix(cur, "--act=") {
-				v, ok := parseAct(strings.TrimPrefix(cur, "--act="))
-				if !ok {
-					return exitUsage
-				}
-				fixedAction = v
-				args = args[1:]
-				continue
-			}
 			if cur == "--id" || strings.HasPrefix(cur, "--id=") {
 				fmt.Fprintln(c.Err, "ws select does not support --id (always starts from workspace selection)")
 				c.printWSUsage(c.Err)
 				return exitUsage
 			}
-			fmt.Fprintf(c.Err, "unknown flag for ws select: %q\n", cur)
-			c.printWSUsage(c.Err)
-			return exitUsage
+			if strings.HasPrefix(cur, "-") {
+				fmt.Fprintf(c.Err, "unknown flag for ws select: %q\n", cur)
+				c.printWSUsage(c.Err)
+				return exitUsage
+			}
+			if fixedAction != "" {
+				fmt.Fprintf(c.Err, "unexpected args for ws select --multi: %q\n", strings.Join(args, " "))
+				c.printWSUsage(c.Err)
+				return exitUsage
+			}
+			v, ok := parseAction(cur)
+			if !ok {
+				return exitUsage
+			}
+			fixedAction = v
+			args = args[1:]
 		}
+	}
+	if len(args) > 0 {
+		fmt.Fprintf(c.Err, "unexpected args for ws select --multi: %q\n", strings.Join(args, " "))
+		c.printWSUsage(c.Err)
+		return exitUsage
 	}
 
 	if fixedAction == "" {
-		fmt.Fprintln(c.Err, "--multi requires --act")
+		fmt.Fprintln(c.Err, "--multi requires action")
 		c.printWSUsage(c.Err)
 		return exitUsage
 	}
 	switch fixedAction {
 	case "close":
 		if archivedScope {
-			fmt.Fprintln(c.Err, "--act close cannot be used with --archived in --multi mode")
+			fmt.Fprintln(c.Err, "action close cannot be used with --archived in --multi mode")
 			c.printWSUsage(c.Err)
 			return exitUsage
 		}
 	case "reopen", "purge":
 		archivedScope = true
 	default:
-		fmt.Fprintf(c.Err, "--act %s does not support --multi\n", fixedAction)
+		fmt.Fprintf(c.Err, "action %s does not support --multi\n", fixedAction)
 		c.printWSUsage(c.Err)
 		return exitUsage
 	}

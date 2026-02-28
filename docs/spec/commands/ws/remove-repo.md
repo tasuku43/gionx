@@ -1,15 +1,15 @@
 ---
-title: "`kra ws --act remove-repo`"
+title: "`kra ws remove-repo`"
 status: implemented
 ---
 
-# `kra ws --act remove-repo [--id <workspace-id>] [<workspace-id>] [--format human|json]`
+# `kra ws remove-repo [--id <workspace-id>] [<workspace-id>] [--format human|json]`
 
 ## Purpose
 
 Remove repository bindings from a workspace and delete corresponding workspace worktrees.
 
-This command is the operational counterpart of `kra ws --act add-repo`.
+This command is the operational counterpart of `kra ws add-repo`.
 
 ## Inputs
 
@@ -18,7 +18,7 @@ This command is the operational counterpart of `kra ws --act add-repo`.
   - cannot be combined with positional `workspace-id`
   - if omitted, current working directory must be under `KRA_ROOT/workspaces/<id>/`
   - otherwise the command fails fast
-- interactive selection is handled by `kra ws select --act remove-repo`.
+- interactive selection is handled by `kra ws select remove-repo`.
 - JSON mode (`--format json`) is non-interactive and accepts:
   - `--repo <repo-key>` (repeatable, required)
   - `--yes` (required)
@@ -90,5 +90,5 @@ This command is the operational counterpart of `kra ws --act add-repo`.
 ## Scope and launcher integration
 
 - Action is valid only for active workspaces.
-- `kra ws select --act remove-repo` is supported and skips action menu.
+- `kra ws select remove-repo` is supported and skips action menu.
 - Action menu (`kra ws` in active workspace context) should include `remove-repo` near `add-repo`.

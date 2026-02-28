@@ -1,17 +1,17 @@
 ---
-title: "`kra ws --act purge`"
+title: "`kra ws purge`"
 status: implemented
 ---
 
-# `kra ws --act purge [--no-prompt --force] [--no-commit] [--commit] <id>`
-# `kra ws --act purge --dry-run --format json <id>`
+# `kra ws purge [--no-prompt --force] [--no-commit] [--commit] <id>`
+# `kra ws purge --dry-run --format json <id>`
 
 ## Purpose
 
 Permanently delete a workspace and its archive from `KRA_ROOT`, and remove the workspace snapshot
 from runtime index data.
 
-This is a destructive operation. It is separate from `ws --act close`, which keeps an archive.
+This is a destructive operation. It is separate from `ws close`, which keeps an archive.
 
 ## Behavior (MVP)
 

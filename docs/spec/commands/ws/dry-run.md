@@ -1,9 +1,9 @@
 ---
-title: "`kra ws --act <close|reopen|purge> --dry-run`"
+title: "`kra ws <close|reopen|purge> --dry-run`"
 status: implemented
 ---
 
-# `kra ws --act <close|reopen|purge> --dry-run [--id <id>|<id>] --format json`
+# `kra ws <close|reopen|purge> --dry-run [--id <id>|<id>] --format json`
 
 ## Purpose
 
@@ -11,9 +11,9 @@ Provide a non-mutating preflight contract for destructive/reversible lifecycle a
 
 The output must be machine-readable and consistent across:
 
-- `ws --act close`
-- `ws --act reopen`
-- `ws --act purge`
+- `ws close`
+- `ws reopen`
+- `ws purge`
 
 ## Inputs
 

@@ -542,9 +542,9 @@ Notes vs artifacts:
 ## Workflow (typical)
 
 1) kra ws create
-2) kra ws --act add-repo
+2) kra ws add-repo
 3) work inside workspaces/<id>/repos/<alias>/
-4) kra ws --act close
+4) kra ws close
 
 ## Git policy
 
@@ -631,7 +631,7 @@ func defaultWorkspaceTemplateAgentsContent() string {
 
 - notes/: investigation notes, decisions, TODOs, links
 - artifacts/: files and evidence (screenshots, logs, dumps, PoCs)
-- repos/: git worktrees (NOT Git-tracked; added via kra ws --act add-repo)
+- repos/: git worktrees (NOT Git-tracked; added via kra ws add-repo)
 
 Notes vs artifacts:
 - notes/: write what you learned and decided
@@ -640,6 +640,6 @@ Notes vs artifacts:
 ## Closing
 
 When you are done, run:
-  kra ws --act close <workspace-id>
+  kra ws close <workspace-id>
 `
 }

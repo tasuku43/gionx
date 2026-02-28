@@ -258,7 +258,7 @@ func classifyWSCreateErrorCode(err error) string {
 	msg := strings.ToLower(strings.TrimSpace(err.Error()))
 	switch {
 	case strings.Contains(msg, "already exists"),
-		strings.Contains(msg, "ws --act reopen"),
+		strings.Contains(msg, "ws reopen"),
 		strings.Contains(msg, "cannot"):
 		return "conflict"
 	case strings.Contains(msg, "not found"),

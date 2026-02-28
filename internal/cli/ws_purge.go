@@ -177,7 +177,7 @@ func (c *CLI) runWSPurge(args []string) int {
 					return workspaceFlowRiskStage{}, fmt.Errorf("purge guard is enabled for workspace %s (hint: run 'kra ws unlock %s' before purge)", id, id)
 				}
 				if meta.status != "archived" {
-					return workspaceFlowRiskStage{}, fmt.Errorf("workspace cannot be purged unless archived (run: kra ws --act close %s)", id)
+					return workspaceFlowRiskStage{}, fmt.Errorf("workspace cannot be purged unless archived (run: kra ws close %s)", id)
 				}
 				riskMeta[id] = meta
 				if meta.status == "active" && meta.risk != workspacerisk.WorkspaceRiskClean {
@@ -421,7 +421,7 @@ func (c *CLI) purgeWorkspace(ctx context.Context, root string, workspaceID strin
 		return purgeCommitTrace{}, fmt.Errorf("purge guard is enabled for workspace %s (hint: run 'kra ws unlock %s' before purge)", workspaceID, workspaceID)
 	}
 	if meta.status != "archived" {
-		return purgeCommitTrace{}, fmt.Errorf("workspace cannot be purged unless archived (run: kra ws --act close %s)", workspaceID)
+		return purgeCommitTrace{}, fmt.Errorf("workspace cannot be purged unless archived (run: kra ws close %s)", workspaceID)
 	}
 	trace := purgeCommitTrace{CommitEnabled: doCommit}
 	if doCommit {

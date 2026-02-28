@@ -31,19 +31,19 @@ func TestWorkspaceBaselineLifecycle_CreateCloseReopenPurge(t *testing.T) {
 		t.Fatalf("baseline should exist after create: %v", err)
 	}
 
-	run("ws", "--act", "close", "WS1")
+	run("ws", "close", "WS1")
 	if _, err := os.Stat(baselinePath); !os.IsNotExist(err) {
 		t.Fatalf("baseline should be removed after close: %v", err)
 	}
 
-	run("ws", "--act", "reopen", "WS1")
+	run("ws", "reopen", "WS1")
 	if _, err := os.Stat(baselinePath); err != nil {
 		t.Fatalf("baseline should exist after reopen: %v", err)
 	}
 
-	run("ws", "--act", "close", "WS1")
+	run("ws", "close", "WS1")
 	run("ws", "unlock", "WS1")
-	run("ws", "--act", "purge", "--no-prompt", "--force", "WS1")
+	run("ws", "purge", "--no-prompt", "--force", "WS1")
 	if _, err := os.Stat(baselinePath); !os.IsNotExist(err) {
 		t.Fatalf("baseline should be removed after purge: %v", err)
 	}
