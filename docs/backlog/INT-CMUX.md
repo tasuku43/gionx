@@ -29,11 +29,11 @@ status: planned
   - Depends: CMUX-001
   - Serial: yes
 
-- [ ] CMUX-004: title policy + ordinal allocator
+- [x] CMUX-004: title policy + ordinal allocator
   - What: enforce naming format `"<kra-id> | <kra-title> [<n>]"` with ordinal starting at `[1]`
     and deterministic increment policy per `kra` workspace.
   - Specs:
-    - `docs/spec/commands/cmux/open.md`
+    - `docs/spec/concepts/cmux-title-policy.md`
     - `docs/spec/concepts/cmux-mapping.md`
   - Depends: CMUX-002, CMUX-003
   - Serial: yes
