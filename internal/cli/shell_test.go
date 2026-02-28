@@ -2,6 +2,7 @@ package cli
 
 import (
 	"bytes"
+	"reflect"
 	"strings"
 	"testing"
 )
@@ -143,5 +144,13 @@ func TestRenderShellCompletionScript_UnsupportedShell(t *testing.T) {
 	_, err := renderShellCompletionScript("nushell")
 	if err == nil {
 		t.Fatal("expected unsupported shell error")
+	}
+}
+
+func TestKraCompletionCommandFlags_WS_FocusTargetSelectors(t *testing.T) {
+	want := []string{"--id", "--current", "--select", "--help", "-h"}
+	got := kraCompletionCommandFlags["ws"]
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("ws command flags = %v, want %v", got, want)
 	}
 }

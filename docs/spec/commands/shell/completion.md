@@ -19,8 +19,10 @@ Print shell completion script for `kra`.
 
 - Print completion script to stdout.
 - Top-level suggestions include root commands and global flags.
+- Flag suggestions are context-aware:
+  - command root only shows primary flags
+  - action-specific flags are suggested after subcommand path is fixed
 - Subcommand suggestions are provided for:
-  - `bootstrap`
   - `context`
   - `repo`
   - `template`
@@ -36,4 +38,3 @@ Print shell completion script for `kra`.
   - `source <(kra shell completion bash)`
 - fish:
   - `kra shell completion fish | source`
-

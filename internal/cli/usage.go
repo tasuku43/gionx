@@ -224,7 +224,7 @@ Resume flow for saved cmux session context.
 
 func (c *CLI) printWSSwitchUsage(w io.Writer) {
 	fmt.Fprint(w, `Usage:
-  kra ws switch [same options as "kra ws open"]
+  kra ws switch [--id <id> | --current | --select] [--multi] [--concurrency <n>] [--format human|json]
 
 Alias of "kra ws open" for backward compatibility.
 `)
