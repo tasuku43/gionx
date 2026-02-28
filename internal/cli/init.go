@@ -22,7 +22,6 @@ const (
 func (c *CLI) runInit(args []string) int {
 	rootFromFlag := ""
 	contextFromFlag := ""
-	bootstrapMode := ""
 	outputFormat := "human"
 	writeJSONError := func(code string, message string, exitCode int) int {
 		_ = writeCLIJSON(c.Out, cliJSONResponse{
@@ -67,25 +66,6 @@ func (c *CLI) runInit(args []string) int {
 			}
 			outputFormat = strings.TrimSpace(args[1])
 			args = args[2:]
-		case "--bootstrap":
-			if len(args) < 2 {
-				if outputFormat == "json" {
-					return writeJSONError("invalid_argument", "--bootstrap requires a value", exitUsage)
-				}
-				fmt.Fprintln(c.Err, "--bootstrap requires a value")
-				c.printInitUsage(c.Err)
-				return exitUsage
-			}
-			if strings.TrimSpace(bootstrapMode) != "" {
-				if outputFormat == "json" {
-					return writeJSONError("invalid_argument", "only one --bootstrap value is supported", exitUsage)
-				}
-				fmt.Fprintln(c.Err, "only one --bootstrap value is supported")
-				c.printInitUsage(c.Err)
-				return exitUsage
-			}
-			bootstrapMode = strings.TrimSpace(args[1])
-			args = args[2:]
 		default:
 			if strings.HasPrefix(args[0], "--root=") {
 				rootFromFlag = strings.TrimSpace(strings.TrimPrefix(args[0], "--root="))
@@ -99,19 +79,6 @@ func (c *CLI) runInit(args []string) int {
 			}
 			if strings.HasPrefix(args[0], "--format=") {
 				outputFormat = strings.TrimSpace(strings.TrimPrefix(args[0], "--format="))
-				args = args[1:]
-				continue
-			}
-			if strings.HasPrefix(args[0], "--bootstrap=") {
-				if strings.TrimSpace(bootstrapMode) != "" {
-					if outputFormat == "json" {
-						return writeJSONError("invalid_argument", "only one --bootstrap value is supported", exitUsage)
-					}
-					fmt.Fprintln(c.Err, "only one --bootstrap value is supported")
-					c.printInitUsage(c.Err)
-					return exitUsage
-				}
-				bootstrapMode = strings.TrimSpace(strings.TrimPrefix(args[0], "--bootstrap="))
 				args = args[1:]
 				continue
 			}
@@ -134,14 +101,6 @@ func (c *CLI) runInit(args []string) int {
 		if strings.TrimSpace(contextFromFlag) == "" {
 			return writeJSONError("invalid_argument", "--context is required in --format json mode", exitUsage)
 		}
-	}
-	if bootstrapMode != "" && bootstrapMode != "agent-skills" {
-		if outputFormat == "json" {
-			return writeJSONError("invalid_argument", fmt.Sprintf("unsupported --bootstrap: %q (supported: agent-skills)", bootstrapMode), exitUsage)
-		}
-		fmt.Fprintf(c.Err, "unsupported --bootstrap: %q (supported: agent-skills)\n", bootstrapMode)
-		c.printInitUsage(c.Err)
-		return exitUsage
 	}
 
 	root, contextName, err := c.resolveInitInputs(rootFromFlag, contextFromFlag)
@@ -176,19 +135,6 @@ func (c *CLI) runInit(args []string) int {
 		}
 		return exitError
 	}
-	var bootstrapResult *bootstrapAgentSkillsResult
-	if bootstrapMode == "agent-skills" {
-		bootstrapRunResult, code, bootstrapErr := runBootstrapAgentSkills(result.Root, c.isExperimentEnabled(experimentAgentSkillpack))
-		if bootstrapErr != nil {
-			if outputFormat == "json" {
-				return writeJSONError(code, fmt.Sprintf("bootstrap agent-skills: %v", bootstrapErr), exitError)
-			}
-			c.printBootstrapAgentSkillsHumanResult(c.Err, bootstrapRunResult)
-			fmt.Fprintf(c.Err, "bootstrap agent-skills: %v\n", bootstrapErr)
-			return exitError
-		}
-		bootstrapResult = &bootstrapRunResult
-	}
 	if err := paths.WriteCurrentContext(result.Root); err != nil {
 		if outputFormat == "json" {
 			return writeJSONError("internal_error", fmt.Sprintf("update current context: %v", err), exitError)
@@ -200,11 +146,6 @@ func (c *CLI) runInit(args []string) int {
 		resultPayload := map[string]any{
 			"root":         result.Root,
 			"context_name": contextName,
-		}
-		if bootstrapResult != nil {
-			resultPayload["bootstrap"] = map[string]any{
-				"agent_skills": bootstrapResult.toJSONResult(),
-			}
 		}
 		_ = writeCLIJSON(c.Out, cliJSONResponse{
 			OK:     true,
@@ -219,9 +160,6 @@ func (c *CLI) runInit(args []string) int {
 	resultLines := []string{
 		styleSuccess(fmt.Sprintf("Initialized: %s", result.Root), useColorOut),
 		styleSuccess(fmt.Sprintf("Context selected: %s", contextName), useColorOut),
-	}
-	if bootstrapResult != nil {
-		resultLines = append(resultLines, styleSuccess(fmt.Sprintf("Bootstrap agent-skills: created=%d linked=%d skipped=%d", len(bootstrapResult.Created), len(bootstrapResult.Linked), len(bootstrapResult.Skipped)), useColorOut))
 	}
 	printResultSection(c.Out, useColorOut, resultLines...)
 	c.debugf("init completed root=%s", result.Root)

@@ -9,7 +9,6 @@ const experimentsEnvKey = "KRA_EXPERIMENTS"
 
 const (
 	experimentInsightCapture = "insight-capture"
-	experimentAgentSkillpack = "agent-skillpack"
 )
 
 func (c *CLI) isExperimentEnabled(name string) bool {

@@ -9,7 +9,6 @@ import (
 func (c *CLI) printRootUsage(w io.Writer) {
 	commands := []string{
 		"  init              Initialize KRA_ROOT",
-		"  bootstrap         Bootstrap project-local runtime scaffolds",
 		"  context           Context commands",
 		"  repo              Repository pool commands",
 		"  template          Workspace template commands",
@@ -27,28 +26,6 @@ func (c *CLI) printRootUsage(w io.Writer) {
 		"Usage:\n  kra [global-flags] <command> [args]\n  kra --version\n\nCommands:\n%s\n\nGlobal flags:\n  --debug            Enable debug logging to <KRA_ROOT>/.kra/logs/\n  --version          Print version and exit\n  --help, -h         Show this help\n\nRun:\n  kra <command> --help\n",
 		strings.Join(commands, "\n"),
 	)
-}
-
-func (c *CLI) printBootstrapUsage(w io.Writer) {
-	fmt.Fprint(w, `Usage:
-  kra bootstrap <subcommand> [args]
-
-Subcommands:
-  agent-skills      Bootstrap project-local agent skills references
-  help              Show this help
-`)
-}
-
-func (c *CLI) printBootstrapAgentSkillsUsage(w io.Writer) {
-	fmt.Fprint(w, `Usage:
-  kra bootstrap agent-skills [--format human|json]
-
-Bootstrap project-local skill references for the current context root.
-
-Rules:
-  - target root is resolved from current context only
-  - --root/--context are not supported
-`)
 }
 
 func (c *CLI) printContextUsage(w io.Writer) {
@@ -147,7 +124,7 @@ Options:
 
 func (c *CLI) printInitUsage(w io.Writer) {
 	fmt.Fprint(w, `Usage:
-  kra init [--root <path>] [--context <name>] [--bootstrap agent-skills] [--format human|json]
+  kra init [--root <path>] [--context <name>] [--format human|json]
 
 Initialize KRA_ROOT and set current context.
 
@@ -163,9 +140,6 @@ Context name:
 
 JSON mode:
 - requires --root and --context (no interactive prompt)
-
-Bootstrap:
-- --bootstrap supports only "agent-skills" in this phase
 `)
 }
 
