@@ -83,6 +83,15 @@ For workspace selector commands, architecture must stay consistent across sessio
   - use `promptWorkspaceSelector` (do not call lower-level selector runtime directly from handlers)
 - Guard tests enforce this architecture. If they fail, align implementation instead of relaxing tests.
 
+## Global Layer Guardrail (required)
+
+To extend architecture enforcement beyond `ws`, this repository treats `internal/archguard` as a hard gate:
+
+- Do not add new direct `internal/infra/*` imports in `internal/cli` without updating guard tests intentionally.
+- Keep `internal/archguard/layering_test.go` allowlists minimal and shrinking over time.
+- `cmux` command files are currently a temporary exception because the command group is planned for removal.
+- When touching command handlers, prefer `cli -> app -> infra` flow and move orchestration logic into `internal/app`.
+
 ## Asking Questions
 
 When asking the user to make a decision:

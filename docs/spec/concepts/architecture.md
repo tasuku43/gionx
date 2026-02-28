@@ -37,6 +37,9 @@ the same application use cases.
 - `app` depends on interfaces only; concrete adapters live in `infra` and `ui`.
 - Launcher (`kra ws`) and direct operations (`ws --act go`, `ws --act close`, `ws --act add-repo`, ...) must execute through
   the same `app` use case path to avoid behavior drift.
+- During migration, direct `internal/infra/*` imports under `internal/cli` are controlled by architecture allowlist tests in
+  `internal/archguard/layering_test.go` (no silent expansion allowed).
+- `cmux` command handlers are currently treated as a temporary exception while the command group is being phased out.
 
 ## Migration strategy
 
