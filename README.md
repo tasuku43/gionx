@@ -4,8 +4,17 @@
 It standardizes task workspaces on the filesystem through template-driven workspace scaffolding and per-workspace Git worktrees for the repositories each task actually needs.
 The default template includes `notes/` and `artifacts/`, and you can define your own structures (for example `AGENTS.md`, `CLOUD.md`, and custom directories) to provide a predictable workspace scaffold for multi-repo execution and continuous accumulation of intermediate outputs.
 
-`kra` works standalone for workspace lifecycle operations, and becomes even more valuable when paired with `cmux` for agent runtime/workspace orchestration.
+`kra` works standalone for workspace lifecycle operations, and becomes even more valuable when paired with `cmux` for agent runtime/workspace integration.
 Ticket providers are designed to be extensible; currently, Jira is supported.
+
+`<KRA_ROOT>` stores task workspaces and archives, while `$KRA_HOME` stores shared state such as config and the repo pool.
+
+## One-minute mental model
+
+- `kra ws create TASK-1234` creates a task workspace under `workspaces/TASK-1234/`.
+- `kra ws add-repo --id TASK-1234` attaches only the needed repositories as worktrees under `repos/`.
+- `kra ws open --id TASK-1234` opens that task-scoped execution context (and can align with `cmux` runtime workflow).
+- `kra ws close --id TASK-1234` archives task outputs and removes workspace worktrees from active area.
 
 ## cmux integration
 
@@ -20,6 +29,20 @@ In this model, `kra` acts as the glue across:
 This gives you an operational 1:1:1 mapping across ticket, task workspace, and runtime workspace, so agents can run in a consistent task-scoped workspace and continuously write intermediate outputs as work progresses.
 
 `kra` works standalone for workspace lifecycle operations, but this `kra` + `cmux` operating model is where the overall system value becomes strongest.
+
+`ws open` / `ws close` behavior with `cmux`:
+
+- `kra ws open --id <id>`:
+  - if no `cmux` mapping exists for the workspace, `kra` creates/selects a `cmux` workspace and persists the mapping.
+  - if a mapping already exists and runtime workspace is reachable, `kra` reuses it (switch/select) instead of creating another one.
+  - single-target open (for example `kra ws open --id <id>` or `--current`) falls back to shell `cd` synchronization when `cmux` capabilities are unavailable.
+- `kra ws close --id <id>`:
+  - after archive/workspace close operations, `kra` closes the mapped `cmux` workspace on a best-effort basis.
+  - `cmux` close failures do not roll back successful archive results.
+
+Note:
+
+- `kra` workspace and `cmux` workspace mapping is 1:1.
 
 ## worktree management
 
@@ -100,13 +123,94 @@ You can also use interactive selection for workspace-targeted commands (for exam
 
 After this flow, your task context and artifacts remain reviewable under `archive/<id>/`, while active workspace area stays clean.
 
+### Resulting layout (example)
+
+```text
+# before close
+<KRA_ROOT>/
+├─ workspaces/
+│  └─ TASK-1234/
+│     ├─ notes/
+│     ├─ artifacts/
+│     └─ repos/
+│        ├─ backend/   (git worktree)
+│        └─ frontend/  (git worktree)
+└─ archive/
+
+# after close
+<KRA_ROOT>/
+├─ workspaces/
+└─ archive/
+   └─ TASK-1234/
+      ├─ notes/
+      ├─ artifacts/
+      └─ .kra.meta.json (includes repos_restore metadata)
+```
+
+## Workspace lifecycle semantics
+
+State model:
+
+- `create` -> `active`
+- `close` -> `archived`
+- `reopen` -> `active`
+- `purge` -> terminal cleanup
+
+`close` behavior (important):
+
+- `kra` removes worktrees under `workspaces/<id>/repos/`, then moves remaining workspace outputs (`notes/`, `artifacts/`, `.kra.meta.json`) to `archive/<id>/` (not copied).
+- Non-clean repo risk (`dirty`, `unpushed`, `diverged`, `unknown`) triggers a safety gate before applying.
+
+`reopen` behavior (important):
+
+- `kra ws reopen` restores workspace-side repository attachments from `repos_restore` in `.kra.meta.json`.
+
+For command-specific details, see:
+
+- `docs/spec/commands/ws/close.md`
+- `docs/spec/commands/ws/reopen.md`
+- `docs/spec/commands/ws/purge.md`
+- `docs/spec/concepts/workspace-lifecycle.md`
+
+## Repo pool, alias, and branch model
+
+`kra` separates repository registration from workspace attachment:
+
+1. `kra repo add` registers repositories into the shared repo pool.
+2. `kra ws add-repo --id <id>` selects from that pool and attaches worktrees into the workspace.
+
+Operational notes:
+
+- `repo pool` stores managed bare repositories and root-level registration state.
+- Physical shared pool location is `$KRA_HOME/repo-pool/` (default: `~/.kra/repo-pool/`).
+- `kra repo add` creates/updates shared bare mirrors in this pool, and `ws add-repo` uses them to create workspace worktrees.
+- Worktree alias is derived from repository identity and must be unique per workspace.
+- `ws add-repo` prompts for `base_ref` and `branch` (with defaults), so branch context is explicit and reproducible per task.
+
+See:
+
+- `docs/spec/commands/repo/add.md`
+- `docs/spec/commands/ws/add-repo.md`
+
+## cmux minimal recipe
+
+`kra` works standalone, but if you use `cmux`, a minimal operating recipe is:
+
+1. Create and prepare workspace (`ws create`, `repo add`, `ws add-repo`).
+2. Open task context with `kra ws open --id <id>`.
+3. Run your agent against that task workspace context.
+4. Close with `kra ws close --id <id>` when done.
+
+In this flow, `kra` handles workspace-side coordination and mapping policy.
+If `cmux` capabilities are unavailable in a single-target open flow, `kra ws open` falls back to shell `cd` synchronization.
+
 ## Boundaries
 
 `kra` is intentionally focused.
 
 - It is not a replacement for Jira or other external ticket systems.
 - It is not an agent runtime/session manager.
-  - Agent runtime orchestration is expected to be handled by tools such as `cmux`.
+  - `kra` does not manage agent sessions; it maps/coordinates workspace context and performs best-effort `cmux` workspace selection/cleanup.
 - It is not a GUI planning tool.
 
 ## Installation
@@ -124,6 +228,22 @@ brew install kra
 2. Extract and place `kra` on your `PATH`.
 3. Verify with `kra version`.
 
+### Jira setup (minimum)
+
+Jira integration is optional. You can always create a workspace with a plain ID:
+
+```sh
+kra ws create TASK-1234
+```
+
+To create from Jira (`kra ws create --jira <ticket-url>`), configure:
+
+- `KRA_JIRA_BASE_URL`
+- `KRA_JIRA_EMAIL`
+- `KRA_JIRA_API_TOKEN`
+
+See `docs/spec/commands/ws/create.md` and `docs/spec/commands/ws/import/jira.md` for exact behavior.
+
 ### Build from source
 
 Requirements:
@@ -134,6 +254,25 @@ Requirements:
 ```sh
 go build -o kra ./cmd/kra
 ./kra version
+```
+
+## JSON envelope example
+
+`ws create` accepts both positional workspace ID (`kra ws create TASK-1234`) and explicit `--id`.
+
+Example (`kra ws create --format json --id TASK-1234 --title "API retry hardening"`):
+
+```json
+{
+  "ok": true,
+  "action": "ws.create",
+  "workspace_id": "TASK-1234",
+  "result": {
+    "created": 1,
+    "path": "<KRA_ROOT>/workspaces/TASK-1234"
+  },
+  "error": null
+}
 ```
 
 ## User guides
