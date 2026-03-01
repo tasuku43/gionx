@@ -41,4 +41,4 @@ Open cmux workspace(s) from workspace action entrypoint.
 ## Notes
 
 - Parent shell cwd mutation still follows action-file protocol.
-- Workspace-level command shape is `kra ws open ...` (not `kra cmux open ...`).
+- Workspace-level command shape is `kra ws open ...`.

@@ -6,7 +6,6 @@ status: planned
 # INT-CMUX Backlog
 
 Note:
-- Top-level `kra cmux` command-group specs were removed.
 - Current source of truth for user-facing cmux integration is:
   - `docs/spec/commands/ws/open.md`
   - `docs/spec/commands/ws/select.md`
