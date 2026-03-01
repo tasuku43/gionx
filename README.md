@@ -136,11 +136,14 @@ go build -o kra ./cmd/kra
 ./kra version
 ```
 
-## Further reading
+## User guides
 
 - Start here: `docs/START_HERE.md`
 - Install guide: `docs/guides/INSTALL.md`
 - Command reference: `docs/guides/COMMANDS.md`
+
+## Development and operations references
+
 - Product concept: `docs/concepts/product-concept.md`
 - Specs: `docs/spec/README.md`
 - Releasing: `docs/ops/RELEASING.md`

@@ -11,8 +11,10 @@ For exact behavior contracts, see `docs/spec/commands/`.
 ## Quick flow
 
 ```sh
-kra init --root ~/kra --context main
-kra ws create --no-prompt TASK-1234
+kra init
+kra ws create TASK-1234
+kra repo add git@github.com:org/backend.git
+kra ws add-repo --id TASK-1234
 kra ws open --id TASK-1234
 kra ws dashboard
 ```
@@ -31,15 +33,19 @@ kra ws dashboard
 
 ## Common workspace commands
 
-- `kra ws create [--no-prompt] <id>`
+- `kra ws create [--no-prompt] [--template <name>] <id>`
+- `kra ws create --jira <ticket-url>`
+- `kra ws import jira [--sprint ... | --jql ...]`
 - `kra ws list --format human|tsv|json`
 - `kra ws dashboard --format human|json`
-- `kra ws open [--id <id> | --current | --select]`
+- `kra ws open [--id <id> | --current | --select] [--multi] [--concurrency <n>]`
 - `kra ws add-repo ...`
 - `kra ws remove-repo ...`
 - `kra ws close <id>`
 - `kra ws reopen <id>`
 - `kra ws purge <id>`
+- `kra ws lock <id>`
+- `kra ws unlock <id>`
 
 ## Global flags
 
