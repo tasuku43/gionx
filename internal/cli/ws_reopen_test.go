@@ -386,3 +386,52 @@ func TestCLI_WS_Reopen_SelectorModeWithoutTTY_Errors(t *testing.T) {
 		}
 	}
 }
+
+func TestCLI_WS_Reopen_NoCommit_ReopensWithoutCreatingNewCommit(t *testing.T) {
+	testutil.RequireCommand(t, "git")
+
+	env := testutil.NewEnv(t)
+	initAndConfigureRootRepo(t, env.Root)
+
+	{
+		var out bytes.Buffer
+		var err bytes.Buffer
+		c := New(&out, &err)
+		code := c.Run([]string{"ws", "create", "--no-prompt", "WS1"})
+		if code != exitOK {
+			t.Fatalf("ws create exit code = %d, want %d (stderr=%q)", code, exitOK, err.String())
+		}
+	}
+	{
+		var out bytes.Buffer
+		var err bytes.Buffer
+		c := New(&out, &err)
+		code := c.Run([]string{"ws", "close", "WS1"})
+		if code != exitOK {
+			t.Fatalf("ws close exit code = %d, want %d (stderr=%q)", code, exitOK, err.String())
+		}
+	}
+
+	before := strings.TrimSpace(mustGitOutput(t, env.Root, "rev-parse", "HEAD"))
+
+	{
+		var out bytes.Buffer
+		var err bytes.Buffer
+		c := New(&out, &err)
+		code := c.Run([]string{"ws", "reopen", "--no-commit", "WS1"})
+		if code != exitOK {
+			t.Fatalf("ws reopen --no-commit exit code = %d, want %d (stderr=%q)", code, exitOK, err.String())
+		}
+	}
+
+	after := strings.TrimSpace(mustGitOutput(t, env.Root, "rev-parse", "HEAD"))
+	if after != before {
+		t.Fatalf("HEAD changed with --no-commit: before=%q after=%q", before, after)
+	}
+	if _, err := os.Stat(filepath.Join(env.Root, "archive", "WS1")); err == nil {
+		t.Fatalf("archive/WS1 should not exist after reopen --no-commit")
+	}
+	if _, err := os.Stat(filepath.Join(env.Root, "workspaces", "WS1")); err != nil {
+		t.Fatalf("workspaces/WS1 should exist after reopen --no-commit: %v", err)
+	}
+}

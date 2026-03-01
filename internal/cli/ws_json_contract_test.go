@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/tasuku43/kra/internal/testutil"
@@ -50,6 +51,14 @@ func TestCLI_WS_Create_JSON_Success(t *testing.T) {
 	}
 	if got := resp.Result["path"]; got != filepath.Join(env.Root, "workspaces", "WS-CREATE-JSON-1") {
 		t.Fatalf("path = %v, want %q", got, filepath.Join(env.Root, "workspaces", "WS-CREATE-JSON-1"))
+	}
+	commitSHA, ok := resp.Result["commit_sha"].(string)
+	if !ok || strings.TrimSpace(commitSHA) == "" {
+		t.Fatalf("result.commit_sha is empty or missing: %+v", resp.Result)
+	}
+	head := strings.TrimSpace(mustGitOutput(t, env.Root, "rev-parse", "HEAD"))
+	if commitSHA != head {
+		t.Fatalf("result.commit_sha = %q, want HEAD %q", commitSHA, head)
 	}
 }
 

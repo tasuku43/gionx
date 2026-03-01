@@ -755,6 +755,66 @@ func TestCLI_WS_Create_ActiveCollision_Errors(t *testing.T) {
 	}
 }
 
+func TestCLI_WS_Create_CommitsOnlyCreateAllowlist(t *testing.T) {
+	root := t.TempDir()
+
+	if err := os.MkdirAll(filepath.Join(root, "workspaces"), 0o755); err != nil {
+		t.Fatalf("create workspaces/: %v", err)
+	}
+	if err := os.MkdirAll(filepath.Join(root, "archive"), 0o755); err != nil {
+		t.Fatalf("create archive/: %v", err)
+	}
+	seedDefaultTemplate(t, root)
+	initGitRootForWSCreateTest(t, root)
+
+	setKraHomeForTest(t)
+	if err := paths.WriteCurrentContext(root); err != nil {
+		t.Fatalf("WriteCurrentContext() error: %v", err)
+	}
+
+	var out bytes.Buffer
+	var err bytes.Buffer
+	c := New(&out, &err)
+	code := c.Run([]string{"ws", "create", "--no-prompt", "MVP-021"})
+	if code != exitOK {
+		t.Fatalf("ws create exit code = %d, want %d (stderr=%q)", code, exitOK, err.String())
+	}
+
+	subj := strings.TrimSpace(runGit(t, root, "log", "-1", "--pretty=%s"))
+	if subj != "create: MVP-021" {
+		t.Fatalf("commit subject = %q, want %q", subj, "create: MVP-021")
+	}
+
+	wsPrefix := filepath.ToSlash(filepath.Join("workspaces", "MVP-021")) + "/"
+	baselinePath := filepath.ToSlash(filepath.Join(".kra", "state", workspaceBaselineDirName, "MVP-021.json"))
+	workStatePath := filepath.ToSlash(filepath.Join(".kra", "state", workspaceWorkStateCacheFilename))
+	showOut := runGit(t, root, "show", "--name-only", "--pretty=format:", "HEAD")
+	seenWorkspacePath := false
+	seenBaselinePath := false
+	for _, line := range strings.Split(showOut, "\n") {
+		p := strings.TrimSpace(line)
+		if p == "" {
+			continue
+		}
+		switch {
+		case strings.HasPrefix(p, wsPrefix):
+			seenWorkspacePath = true
+		case p == baselinePath:
+			seenBaselinePath = true
+		case p == workStatePath:
+			// optional for first create
+		default:
+			t.Fatalf("unexpected path outside create allowlist: %q", p)
+		}
+	}
+	if !seenWorkspacePath {
+		t.Fatalf("create commit should include workspace paths under %q", wsPrefix)
+	}
+	if !seenBaselinePath {
+		t.Fatalf("create commit should include baseline path %q", baselinePath)
+	}
+}
+
 func TestCLI_WS_AddRepo_CreatesWorktreeAndRecordsState(t *testing.T) {
 	if _, err := exec.LookPath("git"); err != nil {
 		t.Skip("git not found in PATH")
