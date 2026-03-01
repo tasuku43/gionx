@@ -59,6 +59,8 @@ Implementation should reference these specs. When behavior changes, update the s
   - `commands/repo/discover.md`: `kra repo discover`
   - `commands/repo/remove.md`: `kra repo remove`
   - `commands/repo/gc.md`: `kra repo gc`
+  - `commands/template/create.md`: `kra template create`
+  - `commands/template/remove.md`: `kra template remove` / `kra template rm`
   - `commands/template/validate.md`: `kra template validate`
   - `commands/shell/init.md`: `kra shell init`
   - `commands/shell/completion.md`: `kra shell completion`

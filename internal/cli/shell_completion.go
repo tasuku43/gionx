@@ -35,7 +35,7 @@ var kraCompletionSubcommandOrder = []string{
 var kraCompletionSubcommands = map[string][]string{
 	"context":  {"current", "list", "create", "use", "rename", "rm", "help"},
 	"repo":     {"add", "discover", "remove", "gc", "help"},
-	"template": {"validate", "help"},
+	"template": {"create", "remove", "rm", "validate", "help"},
 	"shell":    {"init", "completion", "help"},
 	"ws": {
 		"create",
@@ -88,6 +88,9 @@ var kraCompletionPathFlagOrder = []string{
 	"repo discover",
 	"repo remove",
 	"repo gc",
+	"template create",
+	"template remove",
+	"template rm",
 	"template validate",
 	"shell init",
 	"shell completion",
@@ -118,6 +121,9 @@ var kraCompletionPathFlags = map[string][]string{
 	"repo discover":     {"--org", "--provider", "--help", "-h"},
 	"repo remove":       {"--format", "--help", "-h"},
 	"repo gc":           {"--format", "--yes", "--help", "-h"},
+	"template create":   {"--name", "--from", "--help", "-h"},
+	"template remove":   {"--name", "--help", "-h"},
+	"template rm":       {"--name", "--help", "-h"},
 	"template validate": {"--name", "--help", "-h"},
 	"shell init":        {"--with-completion", "--help", "-h"},
 	"shell completion":  {"--help", "-h"},

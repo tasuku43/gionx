@@ -64,6 +64,8 @@ func TestCLIDirectInfraImportsAreAllowlisted(t *testing.T) {
 		"repo_pool_add.go":       {},
 		"repo_remove.go":         {},
 		"state_registry.go":      {},
+		"template_create.go":     {},
+		"template_remove.go":     {},
 		"template_validate.go":   {},
 		"workspace_workstate.go": {},
 		"ws_add_repo.go":         {},

@@ -24,6 +24,8 @@ kra ws dashboard
 - `kra init` - initialize root and context.
 - `kra context ...` - current/list/create/use/rename/rm context operations.
 - `kra repo ...` - add/discover/remove/gc for repo pool registration.
+- `kra template create` - create a workspace template scaffold.
+- `kra template remove` - remove a workspace template.
 - `kra template validate` - validate workspace templates.
 - `kra shell init` - print shell integration helper.
 - `kra shell completion` - print shell completion script.

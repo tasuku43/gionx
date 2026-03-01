@@ -15,6 +15,10 @@ func (c *CLI) runTemplate(args []string) int {
 	case "-h", "--help", "help":
 		c.printTemplateUsage(c.Out)
 		return exitOK
+	case "create":
+		return c.runTemplateCreate(args[1:])
+	case "remove", "rm":
+		return c.runTemplateRemove(args[1:])
 	case "validate":
 		return c.runTemplateValidate(args[1:])
 	default:

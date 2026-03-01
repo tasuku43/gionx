@@ -18,6 +18,8 @@ This ticket focuses on "drift" and partial failure scenarios across:
 
 Commands implemented through `MVP-042`:
 - `kra init`
+- `kra template create`
+- `kra template remove`
 - `kra template validate`
 - `kra ws create`
 - `kra ws add-repo`
@@ -76,6 +78,32 @@ This section maps the spec scenarios to concrete CLI integration tests.
   - `internal/cli/ws_create_template_test.go`: `TestCLI_WSCreate_TemplateReservedPath_FailsBeforeCreate`
 - `--template` should apply selected template content:
   - `internal/cli/ws_create_template_test.go`: `TestCLI_WSCreate_TemplateOption_CopiesSelectedTemplate`
+
+### `template create`
+
+- `--name` creates scaffold under `templates/<name>/`:
+  - `internal/cli/template_create_test.go`: `TestCLI_TemplateCreate_NameFlag_CreatesScaffold`
+- omitted name prompts and creates scaffold:
+  - `internal/cli/template_create_test.go`: `TestCLI_TemplateCreate_PromptWhenNameOmitted`
+- invalid template name returns usage:
+  - `internal/cli/template_create_test.go`: `TestCLI_TemplateCreate_InvalidName_ReturnsUsage`
+- existing template name fails:
+  - `internal/cli/template_create_test.go`: `TestCLI_TemplateCreate_AlreadyExists_ReturnsError`
+- staged path outside allowlist aborts commit:
+  - `internal/cli/template_create_test.go`: `TestCLI_TemplateCreate_AbortWhenStagedOutsideAllowlist`
+
+### `template remove`
+
+- `--name` removes one template:
+  - `internal/cli/template_remove_test.go`: `TestCLI_TemplateRemove_NameFlag_RemovesTemplate`
+- `rm` alias works:
+  - `internal/cli/template_remove_test.go`: `TestCLI_TemplateRemove_RMAlias_Works`
+- omitted name prompts and removes:
+  - `internal/cli/template_remove_test.go`: `TestCLI_TemplateRemove_PromptWhenNameOmitted`
+- missing template returns structured error:
+  - `internal/cli/template_remove_test.go`: `TestCLI_TemplateRemove_Missing_ReturnsStructuredError`
+- staged path outside allowlist aborts commit:
+  - `internal/cli/template_remove_test.go`: `TestCLI_TemplateRemove_AbortWhenStagedOutsideAllowlist`
 
 ### `template validate`
 
@@ -183,6 +211,8 @@ This section maps the spec scenarios to concrete CLI integration tests.
 
 ### `template validate`
 
+- create scaffold then validate should pass
+- remove template then validate should fail for missing target when `--name` used
 - validate all templates under root
 - `--name` validates one template
 - one or more violations should return non-zero

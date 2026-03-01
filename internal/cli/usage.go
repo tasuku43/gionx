@@ -94,8 +94,24 @@ func (c *CLI) printTemplateUsage(w io.Writer) {
   kra template <subcommand> [args]
 
 Subcommands:
+  create            Create a workspace template scaffold under current root
+  remove            Remove a workspace template under current root (rm alias)
   validate          Validate workspace templates under current root
   help              Show this help
+`)
+}
+
+func (c *CLI) printTemplateCreateUsage(w io.Writer) {
+	fmt.Fprint(w, `Usage:
+  kra template create [--name <template>] [--from <template>]
+  kra template create [<template>]
+
+Create a workspace template scaffold under <current-root>/templates.
+When template is omitted, prompt for template name.
+
+Options:
+  --name            Template name (must follow workspace ID rules)
+  --from            Copy from existing template instead of creating a new scaffold
 `)
 }
 
@@ -107,6 +123,21 @@ Validate templates under <current-root>/templates.
 
 Options:
   --name            Validate only one template (default: validate all templates)
+`)
+}
+
+func (c *CLI) printTemplateRemoveUsage(w io.Writer) {
+	fmt.Fprint(w, `Usage:
+  kra template remove [--name <template>]
+  kra template remove [<template>]
+  kra template rm [--name <template>]
+  kra template rm [<template>]
+
+Remove a workspace template under <current-root>/templates.
+When template is omitted, prompt for template name.
+
+Options:
+  --name            Template name (must follow workspace ID rules)
 `)
 }
 
