@@ -73,25 +73,30 @@ External ticket systems remain the source of truth for task management, while `k
 ## Quickstart (5 minutes)
 
 ```sh
-# 1) initialize a root
-kra init --root ~/kra
+# 1) initialize a root (interactive)
+kra init
 
-# 2) create a workspace from your ticket id
-kra ws create --no-prompt TASK-1234
+# 2) create a workspace from your ticket id (interactive)
+kra ws create TASK-1234
 
-# 3) add repositories needed for this task
-kra ws add-repo --id TASK-1234 git@github.com:org/backend.git
-kra ws add-repo --id TASK-1234 git@github.com:org/frontend.git
+# 3) register repositories into the repo pool
+kra repo add git@github.com:org/backend.git git@github.com:org/frontend.git
 
-# 4) open workspace context
+# 4) attach needed repositories to the workspace (interactive selector + prompts)
+kra ws add-repo --id TASK-1234
+
+# 5) open workspace context
 kra ws open --id TASK-1234
 
-# 5) inspect current state
+# 6) inspect current state
 kra ws dashboard
 
-# 6) close when done (archives notes/artifacts, removes worktrees)
+# 7) close when done (archives notes/artifacts, removes worktrees)
 kra ws close --id TASK-1234
 ```
+
+`kra init`, `kra ws create`, and `kra ws add-repo` will guide you with prompts in this quickstart flow.
+You can also use interactive selection for workspace-targeted commands (for example: `kra ws open --select`, `kra ws close --select`).
 
 After this flow, your task context and artifacts remain reviewable under `archive/<id>/`, while active workspace area stays clean.
 
